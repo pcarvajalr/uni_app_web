@@ -446,10 +446,6 @@ CREATE POLICY "Los usuarios pueden actualizar su propio perfil"
   ON public.users FOR UPDATE
   USING (auth.uid() = id);
 
-CREATE POLICY "Los admins NO pueden actualizar el rol de otros (solo via SQL directo)"
-  ON public.users FOR UPDATE
-  USING (public.is_admin() AND (NEW.role = OLD.role OR NEW.id = auth.uid()));
-
 -- POLÍTICAS PARA PRODUCTS
 CREATE POLICY "Todos pueden ver productos disponibles"
   ON public.products FOR SELECT
