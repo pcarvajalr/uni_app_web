@@ -26,6 +26,9 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
       eventsPerSecond: 10,
     },
   },
+  db: {
+    schema: 'public',
+  },
 });
 
 // Helper para manejar errores de Supabase de forma consistente

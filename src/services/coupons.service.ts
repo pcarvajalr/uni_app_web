@@ -245,10 +245,18 @@ export const applyCoupon = async (couponId: string, userId: string) => {
       }
 
       // Incrementar contador global del cupón
-      await supabase
+      const { data: coupon } = await supabase
         .from('coupons')
-        .update({ used_count: supabase.raw('used_count + 1') } as any)
-        .eq('id', couponId);
+        .select('used_count')
+        .eq('id', couponId)
+        .single();
+
+      if (coupon) {
+        await supabase
+          .from('coupons')
+          .update({ used_count: coupon.used_count + 1 })
+          .eq('id', couponId);
+      }
 
       return data as UserCoupon;
     }

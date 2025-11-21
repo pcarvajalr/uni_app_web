@@ -189,18 +189,28 @@ export const deleteProduct = async (id: string) => {
 // Incrementar vistas de un producto
 export const incrementProductViews = async (id: string) => {
   try {
-    const { error } = await supabase.rpc('increment', {
+    // Intentar usar RPC si existe
+    const { error: rpcError } = await supabase.rpc('increment', {
       table_name: 'products',
       row_id: id,
       column_name: 'views',
     });
 
     // Si el RPC no existe, usar update manual
-    if (error) {
-      await supabase
+    if (rpcError) {
+      // Obtener el valor actual y actualizarlo
+      const { data: product } = await supabase
         .from('products')
-        .update({ views: supabase.raw('views + 1') } as any)
-        .eq('id', id);
+        .select('views')
+        .eq('id', id)
+        .single();
+
+      if (product) {
+        await supabase
+          .from('products')
+          .update({ views: product.views + 1 })
+          .eq('id', id);
+      }
     }
   } catch (error) {
     // No lanzar error si falla incrementar vistas
