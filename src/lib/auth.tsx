@@ -10,7 +10,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role?: string;
+  role: 'user' | 'admin';
   studentId?: string;
   career?: string;
   semester?: number;
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: userProfile.id,
           name: userProfile.full_name,
           email: userProfile.email,
-          role: userProfile.is_tutor ? 'tutor' : 'student',
+          role: userProfile.role,
           studentId: userProfile.student_id || undefined,
           career: userProfile.career || undefined,
           semester: userProfile.semester || undefined,
@@ -224,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser({
           ...user,
           name: data.full_name,
+          role: data.role,
           studentId: data.student_id || undefined,
           career: data.career || undefined,
           semester: data.semester || undefined,

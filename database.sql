@@ -19,6 +19,7 @@ CREATE TABLE public.users (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   full_name TEXT NOT NULL,
+  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin')) NOT NULL,
   avatar_url TEXT,
   phone TEXT,
   student_id TEXT UNIQUE, -- Matrícula o ID estudiantil
@@ -409,6 +410,17 @@ CREATE TRIGGER on_sale_completed_update_product
 -- 5. ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================
 
+-- Función helper para verificar si el usuario actual es admin
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- Activar RLS en todas las tablas
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
@@ -433,6 +445,10 @@ CREATE POLICY "Los usuarios pueden ver todos los perfiles públicos"
 CREATE POLICY "Los usuarios pueden actualizar su propio perfil"
   ON public.users FOR UPDATE
   USING (auth.uid() = id);
+
+CREATE POLICY "Los admins NO pueden actualizar el rol de otros (solo via SQL directo)"
+  ON public.users FOR UPDATE
+  USING (public.is_admin() AND (NEW.role = OLD.role OR NEW.id = auth.uid()));
 
 -- POLÍTICAS PARA PRODUCTS
 CREATE POLICY "Todos pueden ver productos disponibles"
@@ -507,6 +523,14 @@ CREATE POLICY "Los reportadores pueden actualizar sus reportes"
   ON public.reports FOR UPDATE
   USING (auth.uid() = reporter_id);
 
+CREATE POLICY "Los admins pueden actualizar cualquier reporte"
+  ON public.reports FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "Los admins pueden eliminar reportes"
+  ON public.reports FOR DELETE
+  USING (public.is_admin());
+
 -- POLÍTICAS PARA NOTIFICATIONS
 CREATE POLICY "Los usuarios solo pueden ver sus propias notificaciones"
   ON public.notifications FOR SELECT
@@ -520,10 +544,34 @@ CREATE POLICY "Los usuarios pueden eliminar sus notificaciones"
   ON public.notifications FOR DELETE
   USING (auth.uid() = user_id);
 
+CREATE POLICY "Los admins pueden crear notificaciones para cualquier usuario"
+  ON public.notifications FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "Los admins pueden ver todas las notificaciones"
+  ON public.notifications FOR SELECT
+  USING (public.is_admin());
+
 -- POLÍTICAS PARA COUPONS
 CREATE POLICY "Todos pueden ver cupones activos y válidos"
   ON public.coupons FOR SELECT
   USING (is_active = true AND valid_until > NOW());
+
+CREATE POLICY "Los admins pueden ver todos los cupones"
+  ON public.coupons FOR SELECT
+  USING (public.is_admin());
+
+CREATE POLICY "Los admins pueden crear cupones"
+  ON public.coupons FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "Los admins pueden actualizar cupones"
+  ON public.coupons FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "Los admins pueden eliminar cupones"
+  ON public.coupons FOR DELETE
+  USING (public.is_admin());
 
 -- POLÍTICAS PARA USER_COUPONS
 CREATE POLICY "Los usuarios pueden ver sus propios cupones usados"
@@ -542,6 +590,18 @@ CREATE POLICY "Los usuarios pueden actualizar sus cupones"
 CREATE POLICY "Todos pueden ver ubicaciones del campus"
   ON public.campus_locations FOR SELECT
   USING (true);
+
+CREATE POLICY "Los admins pueden crear ubicaciones del campus"
+  ON public.campus_locations FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "Los admins pueden actualizar ubicaciones del campus"
+  ON public.campus_locations FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "Los admins pueden eliminar ubicaciones del campus"
+  ON public.campus_locations FOR DELETE
+  USING (public.is_admin());
 
 -- POLÍTICAS PARA MESSAGES
 CREATE POLICY "Los usuarios pueden ver sus propios mensajes"
@@ -582,6 +642,18 @@ CREATE POLICY "Los usuarios pueden crear reseñas"
 CREATE POLICY "Todos pueden ver categorías"
   ON public.categories FOR SELECT
   USING (true);
+
+CREATE POLICY "Los admins pueden crear categorías"
+  ON public.categories FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "Los admins pueden actualizar categorías"
+  ON public.categories FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "Los admins pueden eliminar categorías"
+  ON public.categories FOR DELETE
+  USING (public.is_admin());
 
 -- ============================================
 -- 6. DATOS INICIALES (SEED DATA)
