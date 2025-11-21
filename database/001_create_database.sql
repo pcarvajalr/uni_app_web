@@ -5,6 +5,22 @@
 -- Ejecutar en Supabase SQL Editor
 
 -- ============================================
+-- NOTAS IMPORTANTES SOBRE TIPOS DE DATOS
+-- ============================================
+-- 1. DECIMAL vs NUMBER: Los campos DECIMAL(x,y) se mapean a 'number' en TypeScript,
+--    lo que puede causar pérdida de precisión en cálculos monetarios.
+--    Recomendación: Usar bibliotecas como decimal.js en el frontend para cálculos precisos.
+--
+-- 2. CHECK CONSTRAINTS: Los constraints CHECK (ej: status IN ('active', 'paused'))
+--    NO se reflejan en los tipos generados de TypeScript como literal unions.
+--    Para mejor type-safety, considerar migrar a ENUMs de PostgreSQL en el futuro.
+--
+-- 3. POINT/GEOMETRY: Los tipos geométricos (POINT) se mapean a 'unknown' en TypeScript.
+--
+-- 4. MEJORA FUTURA: Convertir campos TEXT+CHECK a ENUMs de PostgreSQL generaría
+--    tipos literal union automáticamente en TypeScript para mayor seguridad de tipos.
+
+-- ============================================
 -- 1. EXTENSIONES
 -- ============================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -27,11 +43,11 @@ CREATE TABLE public.users (
   semester INTEGER,
   campus TEXT,
   bio TEXT,
-  rating DECIMAL(3,2) DEFAULT 0.0,
-  total_sales INTEGER DEFAULT 0,
-  total_tutoring_sessions INTEGER DEFAULT 0,
-  is_verified BOOLEAN DEFAULT FALSE,
-  is_tutor BOOLEAN DEFAULT FALSE,
+  rating DECIMAL(3,2) DEFAULT 0.0 NOT NULL,
+  total_sales INTEGER DEFAULT 0 NOT NULL,
+  total_tutoring_sessions INTEGER DEFAULT 0 NOT NULL,
+  is_verified BOOLEAN DEFAULT FALSE NOT NULL,
+  is_tutor BOOLEAN DEFAULT FALSE NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -56,11 +72,12 @@ CREATE TABLE public.products (
   price DECIMAL(10,2) NOT NULL CHECK (price >= 0),
   images TEXT[] DEFAULT '{}', -- Array de URLs de imágenes
   condition TEXT CHECK (condition IN ('new', 'like_new', 'good', 'fair', 'poor')),
-  status TEXT DEFAULT 'available' CHECK (status IN ('available', 'sold', 'reserved', 'deleted')),
+  -- NOTA: Para mejor type-safety, considerar migrar a ENUM en el futuro
+  status TEXT DEFAULT 'available' NOT NULL CHECK (status IN ('available', 'sold', 'reserved', 'deleted')),
   location TEXT,
-  views INTEGER DEFAULT 0,
-  favorites_count INTEGER DEFAULT 0,
-  is_negotiable BOOLEAN DEFAULT TRUE,
+  views INTEGER DEFAULT 0 NOT NULL,
+  favorites_count INTEGER DEFAULT 0 NOT NULL,
+  is_negotiable BOOLEAN DEFAULT TRUE NOT NULL,
   tags TEXT[] DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -73,7 +90,7 @@ CREATE TABLE public.sales (
   seller_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
   buyer_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'cancelled', 'refunded')),
+  status TEXT DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'completed', 'cancelled', 'refunded')),
   payment_method TEXT,
   notes TEXT,
   completed_at TIMESTAMP WITH TIME ZONE,
@@ -93,12 +110,12 @@ CREATE TABLE public.tutoring_sessions (
   mode TEXT NOT NULL CHECK (mode IN ('presential', 'online', 'both')),
   location TEXT,
   meeting_url TEXT,
-  max_students INTEGER DEFAULT 1 CHECK (max_students > 0),
+  max_students INTEGER DEFAULT 1 NOT NULL CHECK (max_students > 0),
   available_days TEXT[] DEFAULT '{}', -- ['monday', 'wednesday', 'friday']
   available_hours TEXT, -- JSON con horarios disponibles
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'paused', 'deleted')),
-  rating DECIMAL(3,2) DEFAULT 0.0,
-  total_bookings INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'paused', 'deleted')),
+  rating DECIMAL(3,2) DEFAULT 0.0 NOT NULL,
+  total_bookings INTEGER DEFAULT 0 NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -113,7 +130,7 @@ CREATE TABLE public.tutoring_bookings (
   scheduled_time TIME NOT NULL,
   duration_minutes INTEGER NOT NULL,
   total_price DECIMAL(10,2) NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show')),
+  status TEXT DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show')),
   meeting_url TEXT,
   location TEXT,
   notes TEXT,
@@ -137,10 +154,10 @@ CREATE TABLE public.reports (
   location TEXT NOT NULL,
   location_coordinates POINT, -- Coordenadas geográficas
   images TEXT[] DEFAULT '{}',
-  priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
-  status TEXT DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved', 'closed', 'rejected')),
+  priority TEXT DEFAULT 'medium' NOT NULL CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+  status TEXT DEFAULT 'open' NOT NULL CHECK (status IN ('open', 'in_progress', 'resolved', 'closed', 'rejected')),
   assigned_to TEXT, -- Departamento o persona asignada
-  is_anonymous BOOLEAN DEFAULT FALSE,
+  is_anonymous BOOLEAN DEFAULT FALSE NOT NULL,
   resolution_notes TEXT,
   resolved_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -157,7 +174,7 @@ CREATE TABLE public.notifications (
   data JSONB, -- Datos adicionales (IDs, links, etc.)
   image_url TEXT,
   action_url TEXT, -- URL para navegar al hacer clic
-  is_read BOOLEAN DEFAULT FALSE,
+  is_read BOOLEAN DEFAULT FALSE NOT NULL,
   read_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -174,12 +191,12 @@ CREATE TABLE public.coupons (
   max_discount_amount DECIMAL(10,2), -- Para cupones porcentuales
   usage_limit INTEGER, -- Límite total de usos
   usage_per_user INTEGER DEFAULT 1, -- Límite por usuario
-  used_count INTEGER DEFAULT 0,
+  used_count INTEGER DEFAULT 0 NOT NULL,
   applicable_to TEXT CHECK (applicable_to IN ('products', 'tutoring', 'both')),
   category_ids UUID[] DEFAULT '{}', -- Categorías específicas
   valid_from TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   valid_until TIMESTAMP WITH TIME ZONE NOT NULL,
-  is_active BOOLEAN DEFAULT TRUE,
+  is_active BOOLEAN DEFAULT TRUE NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -188,7 +205,7 @@ CREATE TABLE public.user_coupons (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
   coupon_id UUID REFERENCES public.coupons(id) ON DELETE CASCADE NOT NULL,
-  used_count INTEGER DEFAULT 0,
+  used_count INTEGER DEFAULT 0 NOT NULL,
   last_used_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, coupon_id)
@@ -209,7 +226,7 @@ CREATE TABLE public.campus_locations (
   opening_hours JSONB, -- Horarios de apertura
   images TEXT[] DEFAULT '{}',
   amenities TEXT[] DEFAULT '{}', -- ['wifi', 'accessible', 'air_conditioning']
-  is_accessible BOOLEAN DEFAULT TRUE,
+  is_accessible BOOLEAN DEFAULT TRUE NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -223,7 +240,7 @@ CREATE TABLE public.messages (
   tutoring_session_id UUID REFERENCES public.tutoring_sessions(id) ON DELETE SET NULL,
   content TEXT NOT NULL,
   images TEXT[] DEFAULT '{}',
-  is_read BOOLEAN DEFAULT FALSE,
+  is_read BOOLEAN DEFAULT FALSE NOT NULL,
   read_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
