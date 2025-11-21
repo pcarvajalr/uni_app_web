@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">UNI APP</string>
+    <string name="title_activity_main">UNI APP</string>
+    <string name="package_name">com.universidad.app</string>
+    <string name="custom_url_scheme">com.universidad.app</string>
+</resources>

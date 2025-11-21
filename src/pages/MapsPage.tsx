@@ -1,0 +1,566 @@
+import type React from "react"
+
+import { AppLayout } from "@/components/layout/app-layout"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  MapPin,
+  Search,
+  Navigation,
+  Building,
+  Coffee,
+  BookOpen,
+  Car,
+  ExternalLink,
+  Clock,
+  Maximize2,
+  X,
+  ChevronDown,
+} from "lucide-react"
+import { useState, useRef } from "react"
+
+export default function MapsPage() {
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedOption, setSelectedOption] = useState<"nearby" | "campus" | null>(null)
+  const [selectedLocation, setSelectedLocation] = useState<number | null>(null)
+  const [mapZoomOpen, setMapZoomOpen] = useState(false)
+  const [zoomLevel, setZoomLevel] = useState(1)
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 })
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const isDraggingRef = useRef(false)
+  const dragStartRef = useRef({ x: 0, y: 0 })
+  const currentPanRef = useRef({ x: 0, y: 0 }) // store current pan position for smooth dragging
+  const mapImageRef = useRef<HTMLDivElement>(null) // ref for the transformed div
+
+  const campusLocations = [
+    {
+      id: 1,
+      name: "Biblioteca Central",
+      type: "Académico",
+      description: "Biblioteca principal con salas de estudio",
+      icon: BookOpen,
+      floor: "Planta Baja",
+      hours: "7:00 AM - 10:00 PM",
+      x: 35,
+      y: 25,
+    },
+    {
+      id: 2,
+      name: "Cafetería Principal",
+      type: "Servicios",
+      description: "Comida y bebidas para estudiantes",
+      icon: Coffee,
+      floor: "Primer Piso",
+      hours: "6:00 AM - 8:00 PM",
+      x: 60,
+      y: 40,
+    },
+    {
+      id: 3,
+      name: "Edificio de Ingeniería",
+      type: "Académico",
+      description: "Aulas y laboratorios de ingeniería",
+      icon: Building,
+      floor: "Múltiples pisos",
+      hours: "6:00 AM - 10:00 PM",
+      x: 20,
+      y: 60,
+    },
+    {
+      id: 4,
+      name: "Estacionamiento Norte",
+      type: "Servicios",
+      description: "Parqueadero para estudiantes",
+      icon: Car,
+      floor: "Exterior",
+      hours: "24 horas",
+      x: 75,
+      y: 20,
+    },
+  ]
+
+  const nearbyCategories = [
+    { name: "Restaurantes", icon: Coffee, count: 15 },
+    { name: "Bancos", icon: Building, count: 8 },
+    { name: "Farmacias", icon: Building, count: 12 },
+    { name: "Transporte", icon: Car, count: 6 },
+  ]
+
+  const handleGoogleMapsSearch = () => {
+    if (searchQuery.trim()) {
+      const query = encodeURIComponent(searchQuery + " cerca de universidad")
+      window.open(`https://www.google.com/maps/search/${query}`, "_blank")
+    }
+  }
+
+  const handleCategorySearch = (category: string) => {
+    const query = encodeURIComponent(category + " cerca de universidad")
+    window.open(`https://www.google.com/maps/search/${query}`, "_blank")
+  }
+
+  const handleMapMouseDown = (e: React.MouseEvent) => {
+    if (zoomLevel > 1) {
+      isDraggingRef.current = true
+      dragStartRef.current = { x: e.clientX, y: e.clientY }
+    }
+  }
+
+  const handleMapMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current || !mapImageRef.current) return
+
+    const deltaX = e.clientX - dragStartRef.current.x
+    const deltaY = e.clientY - dragStartRef.current.y
+
+    const newX = currentPanRef.current.x + deltaX
+    const newY = currentPanRef.current.y + deltaY
+
+    mapImageRef.current.style.transform = `scale(${zoomLevel}) translate(${newX / zoomLevel}px, ${newY / zoomLevel}px)`
+  }
+
+  const handleMapMouseUp = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current) return
+
+    isDraggingRef.current = false
+
+    const deltaX = e.clientX - dragStartRef.current.x
+    const deltaY = e.clientY - dragStartRef.current.y
+
+    currentPanRef.current = {
+      x: currentPanRef.current.x + deltaX,
+      y: currentPanRef.current.y + deltaY,
+    }
+
+    setPanPosition(currentPanRef.current)
+  }
+
+  const handleMapTouchStart = (e: React.TouchEvent) => {
+    if (zoomLevel > 1 && e.touches.length === 1) {
+      isDraggingRef.current = true
+      dragStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    }
+  }
+
+  const handleMapTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingRef.current || !mapImageRef.current || e.touches.length !== 1) return
+
+    const deltaX = e.touches[0].clientX - dragStartRef.current.x
+    const deltaY = e.touches[0].clientY - dragStartRef.current.y
+
+    const newX = currentPanRef.current.x + deltaX
+    const newY = currentPanRef.current.y + deltaY
+
+    mapImageRef.current.style.transform = `scale(${zoomLevel}) translate(${newX / zoomLevel}px, ${newY / zoomLevel}px)`
+  }
+
+  const handleMapTouchEnd = (e: React.TouchEvent) => {
+    if (!isDraggingRef.current) return
+
+    isDraggingRef.current = false
+
+    const touch = e.changedTouches[0]
+    const deltaX = touch.clientX - dragStartRef.current.x
+    const deltaY = touch.clientY - dragStartRef.current.y
+
+    currentPanRef.current = {
+      x: currentPanRef.current.x + deltaX,
+      y: currentPanRef.current.y + deltaY,
+    }
+
+    setPanPosition(currentPanRef.current)
+  }
+
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev + 0.5, 3))
+  }
+
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => {
+      const newZoom = Math.max(prev - 0.5, 1)
+      if (newZoom === 1) {
+        setPanPosition({ x: 0, y: 0 })
+        currentPanRef.current = { x: 0, y: 0 } // reset ref on zoom out
+      }
+      return newZoom
+    })
+  }
+
+  const resetMap = () => {
+    setZoomLevel(1)
+    setPanPosition({ x: 0, y: 0 })
+    currentPanRef.current = { x: 0, y: 0 } // reset ref on reset
+  }
+
+  const MapContent = ({ isZoomed = false }: { isZoomed?: boolean }) => (
+    <div
+      ref={isZoomed ? mapContainerRef : null}
+      className={`aspect-video ${isZoomed ? "w-full h-full overflow-hidden cursor-grab active:cursor-grabbing" : ""} bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative`}
+      style={isZoomed ? { cursor: zoomLevel > 1 ? "grab" : "default" } : undefined}
+      onMouseDown={handleMapMouseDown}
+      onMouseMove={handleMapMouseMove}
+      onMouseUp={handleMapMouseUp}
+      onMouseLeave={handleMapMouseUp}
+      onTouchStart={handleMapTouchStart}
+      onTouchMove={handleMapTouchMove}
+      onTouchEnd={handleMapTouchEnd}
+    >
+      <div
+        ref={isZoomed ? mapImageRef : null}
+        className={isZoomed ? "w-full h-full" : "w-full h-full transition-transform duration-100"}
+        style={
+          isZoomed
+            ? {
+                transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
+                transformOrigin: "center center",
+                willChange: "transform",
+              }
+            : undefined
+        }
+      >
+        <img
+          src="/university-campus-map-layout-with-buildings-and-pa.jpg"
+          alt="Mapa del Campus Universitario"
+          className="w-full h-full object-cover"
+          draggable={false}
+        />
+
+        {campusLocations.map((location) => {
+          const Icon = location.icon
+          const isSelected = selectedLocation === location.id
+          return (
+            <div
+              key={location.id}
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110"
+              style={{
+                left: `${location.x}%`,
+                top: `${location.y}%`,
+              }}
+              onClick={() => setSelectedLocation(isSelected ? null : location.id)}
+            >
+              <div className={`relative ${isSelected ? "animate-bounce" : ""}`}>
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
+                    isSelected
+                      ? "bg-primary text-white scale-125"
+                      : "bg-white text-primary hover:bg-primary hover:text-white"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                </div>
+
+                {isSelected && (
+                  <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
+                )}
+
+                {isSelected && (
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-white rounded-lg shadow-xl border p-3 z-10">
+                    <div className="flex items-start space-x-2">
+                      <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Icon className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h4 className="font-medium text-sm">{location.name}</h4>
+                          <Badge variant="outline" className="text-xs">
+                            {location.type}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">{location.description}</p>
+                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                          <span className="flex items-center">
+                            <Building className="h-3 w-3 mr-1" />
+                            {location.floor}
+                          </span>
+                          <span className="flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {location.hours}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+
+        {selectedLocation === null && (
+          <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
+            <div className="text-center text-white">
+              <MapPin className="h-12 w-12 mx-auto mb-2" />
+              <p className="text-lg font-semibold">Mapa Interactivo del Campus</p>
+              <p className="text-sm opacity-90">Toca los marcadores para ver información</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  if (selectedOption === null) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-bold text-balance">Mapas y Ubicación</h1>
+            <p className="text-muted-foreground">¿Qué tipo de ubicación buscas?</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/50"
+              onClick={() => setSelectedOption("nearby")}
+            >
+              <CardHeader className="text-center">
+                <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                  <Navigation className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle>Lugares Cercanos</CardTitle>
+                <CardDescription>Busca restaurantes, bancos, farmacias y más cerca de la universidad</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full">Explorar Alrededores</Button>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/50"
+              onClick={() => setSelectedOption("campus")}
+            >
+              <CardHeader className="text-center">
+                <div className="mx-auto w-16 h-16 bg-secondary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Building className="h-8 w-8 text-secondary" />
+                </div>
+                <CardTitle>Campus Universitario</CardTitle>
+                <CardDescription>Encuentra edificios, aulas, servicios y ubicaciones dentro del campus</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full" variant="secondary">
+                  Ver Mapa del Campus
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (selectedOption === "nearby") {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div className="flex items-center space-x-2">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedOption(null)}>
+              ← Volver
+            </Button>
+            <h1 className="text-xl font-bold">Lugares Cercanos</h1>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Search className="h-5 w-5" />
+                <span>Buscar Lugar</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex space-x-2">
+                <Input
+                  placeholder="¿Qué estás buscando?"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && handleGoogleMapsSearch()}
+                />
+                <Button onClick={handleGoogleMapsSearch} disabled={!searchQuery.trim()}>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Buscar
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Te llevará a Google Maps para encontrar lugares cerca de la universidad
+              </p>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Categorías Populares</h2>
+            <div className="grid grid-cols-2 gap-4">
+              {nearbyCategories.map((category, index) => {
+                const Icon = category.icon
+                return (
+                  <Card
+                    key={index}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => handleCategorySearch(category.name)}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <Icon className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <h3 className="font-medium">{category.name}</h3>
+                      <Badge variant="secondary" className="mt-2">
+                        ~{category.count} lugares
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (selectedOption === "campus") {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div className="flex items-center space-x-2">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedOption(null)}>
+              ← Volver
+            </Button>
+            <h1 className="text-xl font-bold">Mapa del Campus</h1>
+          </div>
+
+          <Card>
+            <CardContent className="p-0 relative">
+              <div className="relative">
+                <MapContent />
+
+                <Dialog open={mapZoomOpen} onOpenChange={setMapZoomOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      size="icon"
+                      className="absolute bottom-4 right-4 rounded-full shadow-lg z-10"
+                      title="Ampliar mapa"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="w-screen h-screen max-w-none max-h-none p-0 sm:rounded-none flex flex-col">
+                    <div className="relative flex-1 overflow-hidden">
+                      <DialogHeader className="absolute top-0 left-0 right-0 z-20 bg-background/80 backdrop-blur px-4 py-2 border-b">
+                        <DialogTitle>Mapa Interactivo del Campus</DialogTitle>
+                      </DialogHeader>
+
+                      <div className="w-full h-full pt-16">
+                        <MapContent isZoomed={true} />
+                      </div>
+
+                      <div className="absolute bottom-6 left-6 right-6 z-20 flex gap-2 items-center justify-center md:left-auto md:right-6">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-background/80 backdrop-blur"
+                          onClick={handleZoomOut}
+                          disabled={zoomLevel <= 1}
+                        >
+                          −
+                        </Button>
+                        <span className="text-sm font-medium min-w-[60px] text-center bg-background/80 backdrop-blur px-3 py-1 rounded">
+                          {Math.round(zoomLevel * 100)}%
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-background/80 backdrop-blur"
+                          onClick={handleZoomIn}
+                          disabled={zoomLevel >= 3}
+                        >
+                          +
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-background/80 backdrop-blur"
+                          onClick={resetMap}
+                          disabled={zoomLevel === 1 && panPosition.x === 0 && panPosition.y === 0}
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="absolute top-4 right-4 z-20 bg-background/80 backdrop-blur"
+                        onClick={() => setMapZoomOpen(false)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+
+                      {zoomLevel > 1 && (
+                        <div className="absolute top-20 left-4 right-4 z-15 bg-background/80 backdrop-blur px-3 py-2 rounded text-sm text-muted-foreground">
+                          Arrastra para mover • Usa los botones para zoom
+                        </div>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Ubicaciones del Campus</h2>
+            <div className="space-y-3">
+              {campusLocations.map((location) => {
+                const Icon = location.icon
+                const isSelected = selectedLocation === location.id
+                return (
+                  <Card
+                    key={location.id}
+                    className={`hover:shadow-md transition-all cursor-pointer ${
+                      isSelected ? "ring-2 ring-primary shadow-md" : ""
+                    }`}
+                    onClick={() => setSelectedLocation(isSelected ? null : location.id)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start space-x-3">
+                        <div
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isSelected ? "bg-primary text-white" : "bg-primary/10 text-primary"
+                          }`}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <h3 className="font-medium truncate">{location.name}</h3>
+                            <Badge variant="outline" className="text-xs">
+                              {location.type}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2">{location.description}</p>
+                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            <span className="flex items-center">
+                              <Building className="h-3 w-3 mr-1" />
+                              {location.floor}
+                            </span>
+                            <span className="flex items-center">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {location.hours}
+                            </span>
+                          </div>
+                        </div>
+                        <Button size="sm" variant={isSelected ? "default" : "outline"} className="transition-all">
+                          <MapPin className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  return null
+}
