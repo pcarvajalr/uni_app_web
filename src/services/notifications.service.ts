@@ -1,4 +1,4 @@
-import { supabase, handleSupabaseError } from '../lib/supabase';
+import { supabase, handleSupabaseError, unwrapData } from '../lib/supabase';
 import type { Database } from '../types/database.types';
 
 type Notification = Database['public']['Tables']['notifications']['Row'];
@@ -15,11 +15,7 @@ export const getUserNotifications = async (userId: string, limit: number = 50) =
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as Notification[];
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo notificaciones:', error);
     throw error;
@@ -36,11 +32,7 @@ export const getUnreadNotifications = async (userId: string) => {
       .eq('is_read', false)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as Notification[];
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo notificaciones no leídas:', error);
     throw error;
@@ -80,11 +72,7 @@ export const markAsRead = async (notificationId: string) => {
       .select()
       .single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as Notification;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error marcando notificación como leída:', error);
     throw error;
@@ -151,11 +139,7 @@ export const createNotification = async (notification: Omit<NotificationInsert, 
   try {
     const { data, error } = await supabase.from('notifications').insert(notification).select().single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as Notification;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error creando notificación:', error);
     throw error;

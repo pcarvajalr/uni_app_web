@@ -1,4 +1,4 @@
-import { supabase, handleSupabaseError } from '../lib/supabase';
+import { supabase, handleSupabaseError, unwrapData } from '../lib/supabase';
 import type { Database } from '../types/database.types';
 
 type Coupon = Database['public']['Tables']['coupons']['Row'];
@@ -24,11 +24,7 @@ export const getActiveCoupons = async () => {
       .gte('valid_until', now)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as Coupon[];
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo cupones activos:', error);
     throw error;
@@ -57,11 +53,7 @@ export const getUserCoupons = async (userId: string) => {
       .gte('valid_until', now)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo cupones del usuario:', error);
     throw error;
@@ -82,14 +74,11 @@ export const getCouponByCode = async (code: string) => {
       .gte('valid_until', now)
       .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        throw new Error('Cupón no válido o expirado');
-      }
-      handleSupabaseError(error);
+    if (error && error.code === 'PGRST116') {
+      throw new Error('Cupón no válido o expirado');
     }
 
-    return data as Coupon;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error buscando cupón:', error);
     throw error;
@@ -112,25 +101,19 @@ export const validateCoupon = async (
       .eq('id', couponId)
       .single();
 
-    if (couponError) {
-      handleSupabaseError(couponError);
-    }
-
-    if (!coupon) {
-      throw new Error('Cupón no encontrado');
-    }
+    const validatedCoupon = unwrapData(coupon, couponError);
 
     // Validar si está activo
-    if (!coupon.is_active) {
+    if (!validatedCoupon.is_active) {
       throw new Error('Este cupón no está activo');
     }
 
     // Validar fechas
     const now = new Date();
-    const validFrom = new Date(coupon.valid_from);
-    const validUntil = new Date(coupon.valid_until);
+    const validFrom = validatedCoupon.valid_from ? new Date(validatedCoupon.valid_from) : null;
+    const validUntil = new Date(validatedCoupon.valid_until);
 
-    if (now < validFrom) {
+    if (validFrom && now < validFrom) {
       throw new Error('Este cupón aún no está disponible');
     }
 
@@ -139,25 +122,25 @@ export const validateCoupon = async (
     }
 
     // Validar límite de uso total
-    if (coupon.usage_limit && coupon.used_count >= coupon.usage_limit) {
+    if (validatedCoupon.usage_limit && (validatedCoupon.used_count ?? 0) >= validatedCoupon.usage_limit) {
       throw new Error('Este cupón ha alcanzado su límite de usos');
     }
 
     // Validar aplicabilidad
-    if (coupon.applicable_to && coupon.applicable_to !== 'both' && coupon.applicable_to !== applicableTo) {
-      throw new Error(`Este cupón solo es válido para ${coupon.applicable_to === 'products' ? 'productos' : 'tutorías'}`);
+    if (validatedCoupon.applicable_to && validatedCoupon.applicable_to !== 'both' && validatedCoupon.applicable_to !== applicableTo) {
+      throw new Error(`Este cupón solo es válido para ${validatedCoupon.applicable_to === 'products' ? 'productos' : 'tutorías'}`);
     }
 
     // Validar categorías específicas
-    if (coupon.category_ids.length > 0 && categoryId) {
-      if (!coupon.category_ids.includes(categoryId)) {
+    if (validatedCoupon.category_ids && validatedCoupon.category_ids.length > 0 && categoryId) {
+      if (!validatedCoupon.category_ids.includes(categoryId)) {
         throw new Error('Este cupón no es válido para esta categoría');
       }
     }
 
     // Validar monto mínimo de compra
-    if (purchaseAmount < coupon.min_purchase_amount) {
-      throw new Error(`El monto mínimo de compra para este cupón es $${coupon.min_purchase_amount}`);
+    if (purchaseAmount < (validatedCoupon.min_purchase_amount ?? 0)) {
+      throw new Error(`El monto mínimo de compra para este cupón es $${validatedCoupon.min_purchase_amount ?? 0}`);
     }
 
     // Validar uso por usuario
@@ -168,28 +151,28 @@ export const validateCoupon = async (
       .eq('coupon_id', couponId)
       .single();
 
-    if (userUsage && userUsage.used_count >= coupon.usage_per_user) {
+    if (userUsage && (userUsage.used_count ?? 0) >= (validatedCoupon.usage_per_user ?? 0)) {
       throw new Error('Ya has alcanzado el límite de usos para este cupón');
     }
 
     // Calcular descuento
     let discountAmount = 0;
 
-    if (coupon.discount_type === 'percentage') {
-      discountAmount = (purchaseAmount * coupon.discount_value) / 100;
+    if (validatedCoupon.discount_type === 'percentage') {
+      discountAmount = (purchaseAmount * validatedCoupon.discount_value) / 100;
 
       // Aplicar descuento máximo si existe
-      if (coupon.max_discount_amount && discountAmount > coupon.max_discount_amount) {
-        discountAmount = coupon.max_discount_amount;
+      if (validatedCoupon.max_discount_amount && discountAmount > validatedCoupon.max_discount_amount) {
+        discountAmount = validatedCoupon.max_discount_amount;
       }
     } else {
       // fixed_amount
-      discountAmount = Math.min(coupon.discount_value, purchaseAmount);
+      discountAmount = Math.min(validatedCoupon.discount_value, purchaseAmount);
     }
 
     return {
       isValid: true,
-      coupon,
+      coupon: validatedCoupon,
       discountAmount,
       finalAmount: purchaseAmount - discountAmount,
     };
@@ -215,18 +198,14 @@ export const applyCoupon = async (couponId: string, userId: string) => {
       const { data, error } = await supabase
         .from('user_coupons')
         .update({
-          used_count: existingUsage.used_count + 1,
+          used_count: (existingUsage.used_count ?? 0) + 1,
           last_used_at: new Date().toISOString(),
         })
         .eq('id', existingUsage.id)
         .select()
         .single();
 
-      if (error) {
-        handleSupabaseError(error);
-      }
-
-      return data as UserCoupon;
+      return unwrapData(data, error);
     } else {
       // Crear nuevo registro
       const { data, error } = await supabase
@@ -240,9 +219,7 @@ export const applyCoupon = async (couponId: string, userId: string) => {
         .select()
         .single();
 
-      if (error) {
-        handleSupabaseError(error);
-      }
+      const userCoupon = unwrapData(data, error);
 
       // Incrementar contador global del cupón
       const { data: coupon } = await supabase
@@ -254,11 +231,11 @@ export const applyCoupon = async (couponId: string, userId: string) => {
       if (coupon) {
         await supabase
           .from('coupons')
-          .update({ used_count: coupon.used_count + 1 })
+          .update({ used_count: (coupon.used_count ?? 0) + 1 })
           .eq('id', couponId);
       }
 
-      return data as UserCoupon;
+      return userCoupon;
     }
   } catch (error) {
     console.error('Error aplicando cupón:', error);
@@ -309,11 +286,7 @@ export const getCouponsByType = async (applicableTo: 'products' | 'tutoring' | '
       .or(`applicable_to.eq.${applicableTo},applicable_to.eq.both`)
       .order('discount_value', { ascending: false });
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as Coupon[];
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo cupones por tipo:', error);
     throw error;

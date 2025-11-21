@@ -1,4 +1,4 @@
-import { supabase, handleSupabaseError } from '../lib/supabase';
+import { supabase, handleSupabaseError, unwrapData } from '../lib/supabase';
 import type { Database } from '../types/database.types';
 
 type Product = Database['public']['Tables']['products']['Row'];
@@ -87,11 +87,7 @@ export const getProducts = async (filters?: ProductFilters) => {
 
     const { data, error } = await query;
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as ProductWithSeller[];
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo productos:', error);
     throw error;
@@ -124,14 +120,12 @@ export const getProductById = async (id: string) => {
       .eq('id', id)
       .single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
+    const product = unwrapData(data, error);
 
     // Incrementar contador de vistas
     await incrementProductViews(id);
 
-    return data as ProductWithSeller;
+    return product;
   } catch (error) {
     console.error('Error obteniendo producto:', error);
     throw error;
@@ -143,11 +137,7 @@ export const createProduct = async (product: Omit<ProductInsert, 'id' | 'created
   try {
     const { data, error } = await supabase.from('products').insert(product).select().single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as Product;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error creando producto:', error);
     throw error;
@@ -159,11 +149,7 @@ export const updateProduct = async (id: string, updates: ProductUpdate) => {
   try {
     const { data, error } = await supabase.from('products').update(updates).eq('id', id).select().single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as Product;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error actualizando producto:', error);
     throw error;
@@ -189,28 +175,18 @@ export const deleteProduct = async (id: string) => {
 // Incrementar vistas de un producto
 export const incrementProductViews = async (id: string) => {
   try {
-    // Intentar usar RPC si existe
-    const { error: rpcError } = await supabase.rpc('increment', {
-      table_name: 'products',
-      row_id: id,
-      column_name: 'views',
-    });
+    // Obtener el valor actual y actualizarlo
+    const { data: product } = await supabase
+      .from('products')
+      .select('views')
+      .eq('id', id)
+      .single();
 
-    // Si el RPC no existe, usar update manual
-    if (rpcError) {
-      // Obtener el valor actual y actualizarlo
-      const { data: product } = await supabase
+    if (product) {
+      await supabase
         .from('products')
-        .select('views')
-        .eq('id', id)
-        .single();
-
-      if (product) {
-        await supabase
-          .from('products')
-          .update({ views: product.views + 1 })
-          .eq('id', id);
-      }
+        .update({ views: (product.views ?? 0) + 1 })
+        .eq('id', id);
     }
   } catch (error) {
     // No lanzar error si falla incrementar vistas
@@ -287,11 +263,7 @@ export const getUserFavoriteProducts = async (userId: string) => {
       .eq('item_type', 'product')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo favoritos:', error);
     throw error;
@@ -307,11 +279,7 @@ export const getProductCategories = async () => {
       .in('type', ['product', 'both'])
       .order('name');
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo categorías:', error);
     throw error;

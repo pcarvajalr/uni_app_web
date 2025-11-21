@@ -1,4 +1,4 @@
-import { supabase, handleSupabaseError } from '../lib/supabase';
+import { supabase, handleSupabaseError, unwrapData } from '../lib/supabase';
 import type { Database } from '../types/database.types';
 
 type TutoringSession = Database['public']['Tables']['tutoring_sessions']['Row'];
@@ -107,11 +107,7 @@ export const getTutoringSessions = async (filters?: TutoringFilters) => {
 
     const { data, error } = await query;
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as TutoringSessionWithTutor[];
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo sesiones de tutoría:', error);
     throw error;
@@ -145,11 +141,7 @@ export const getTutoringSessionById = async (id: string) => {
       .eq('id', id)
       .single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as TutoringSessionWithTutor;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo sesión de tutoría:', error);
     throw error;
@@ -163,11 +155,7 @@ export const createTutoringSession = async (
   try {
     const { data, error } = await supabase.from('tutoring_sessions').insert(session).select().single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as TutoringSession;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error creando sesión de tutoría:', error);
     throw error;
@@ -179,11 +167,7 @@ export const updateTutoringSession = async (id: string, updates: TutoringSession
   try {
     const { data, error } = await supabase.from('tutoring_sessions').update(updates).eq('id', id).select().single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as TutoringSession;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error actualizando sesión de tutoría:', error);
     throw error;
@@ -213,11 +197,7 @@ export const createTutoringBooking = async (
   try {
     const { data, error } = await supabase.from('tutoring_bookings').insert(booking).select().single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as TutoringBooking;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error creando reserva de tutoría:', error);
     throw error;
@@ -229,11 +209,7 @@ export const updateTutoringBooking = async (id: string, updates: TutoringBooking
   try {
     const { data, error } = await supabase.from('tutoring_bookings').update(updates).eq('id', id).select().single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as TutoringBooking;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error actualizando reserva de tutoría:', error);
     throw error;
@@ -281,11 +257,7 @@ export const getStudentBookings = async (studentId: string) => {
       .eq('student_id', studentId)
       .order('scheduled_date', { ascending: false });
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as TutoringBookingWithDetails[];
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo reservas del estudiante:', error);
     throw error;
@@ -321,11 +293,7 @@ export const getTutorBookings = async (tutorId: string) => {
       .eq('tutor_id', tutorId)
       .order('scheduled_date', { ascending: false });
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo reservas del tutor:', error);
     throw error;
@@ -382,11 +350,7 @@ export const getTutoringCategories = async () => {
       .in('type', ['tutoring', 'both'])
       .order('name');
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo categorías de tutorías:', error);
     throw error;

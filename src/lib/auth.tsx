@@ -57,18 +57,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: userProfile.id,
           name: userProfile.full_name,
           email: userProfile.email,
-          role: userProfile.role,
+          role: userProfile.role as 'user' | 'admin',
           studentId: userProfile.student_id || undefined,
           career: userProfile.career || undefined,
-          semester: userProfile.semester || undefined,
+          semester: userProfile.semester ?? undefined,
           phone: userProfile.phone || undefined,
           avatar_url: userProfile.avatar_url || undefined,
           bio: userProfile.bio || undefined,
-          rating: userProfile.rating,
-          total_sales: userProfile.total_sales,
-          total_tutoring_sessions: userProfile.total_tutoring_sessions,
-          is_verified: userProfile.is_verified,
-          is_tutor: userProfile.is_tutor,
+          rating: userProfile.rating ?? undefined,
+          total_sales: userProfile.total_sales ?? undefined,
+          total_tutoring_sessions: userProfile.total_tutoring_sessions ?? undefined,
+          is_verified: userProfile.is_verified ?? undefined,
+          is_tutor: userProfile.is_tutor ?? undefined,
         });
       }
     } catch (error) {
@@ -224,16 +224,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser({
           ...user,
           name: data.full_name,
-          role: data.role,
+          role: data.role as 'user' | 'admin',
           studentId: data.student_id || undefined,
           career: data.career || undefined,
-          semester: data.semester || undefined,
+          semester: data.semester ?? undefined,
           phone: data.phone || undefined,
           avatar_url: data.avatar_url || undefined,
           bio: data.bio || undefined,
-          rating: data.rating,
-          is_verified: data.is_verified,
-          is_tutor: data.is_tutor,
+          rating: data.rating ?? undefined,
+          is_verified: data.is_verified ?? undefined,
+          is_tutor: data.is_tutor ?? undefined,
         });
       }
     } catch (error: any) {

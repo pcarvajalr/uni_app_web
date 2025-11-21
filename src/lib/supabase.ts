@@ -42,6 +42,17 @@ export const handleSupabaseError = (error: any): never => {
   throw new Error('Ha ocurrido un error inesperado');
 };
 
+// Helper para extraer datos de respuesta de Supabase con manejo de errores
+export function unwrapData<T>(data: T | null, error: any): T {
+  if (error) {
+    handleSupabaseError(error);
+  }
+  if (data === null) {
+    throw new Error('No se encontraron datos');
+  }
+  return data;
+}
+
 // Helper para verificar si hay una sesión activa
 export const getSession = async () => {
   const { data, error } = await supabase.auth.getSession();
@@ -78,11 +89,7 @@ export const getUserProfile = async (userId?: string) => {
     .eq('id', uid)
     .single();
 
-  if (error) {
-    handleSupabaseError(error);
-  }
-
-  return data;
+  return unwrapData(data, error);
 };
 
 // Types para facilitar el uso en toda la aplicación

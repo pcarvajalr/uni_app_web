@@ -1,4 +1,4 @@
-import { supabase, handleSupabaseError } from '../lib/supabase';
+import { supabase, handleSupabaseError, unwrapData } from '../lib/supabase';
 import type { Database } from '../types/database.types';
 
 type Report = Database['public']['Tables']['reports']['Row'];
@@ -58,11 +58,7 @@ export const getReports = async (filters?: ReportFilters) => {
 
     const { data, error } = await query;
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as ReportWithReporter[];
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo reportes:', error);
     throw error;
@@ -89,11 +85,7 @@ export const getReportById = async (id: string) => {
       .eq('id', id)
       .single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as ReportWithReporter;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo reporte:', error);
     throw error;
@@ -105,11 +97,7 @@ export const createReport = async (report: Omit<ReportInsert, 'id' | 'created_at
   try {
     const { data, error } = await supabase.from('reports').insert(report).select().single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as Report;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error creando reporte:', error);
     throw error;
@@ -121,11 +109,7 @@ export const updateReport = async (id: string, updates: ReportUpdate) => {
   try {
     const { data, error } = await supabase.from('reports').update(updates).eq('id', id).select().single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as Report;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error actualizando reporte:', error);
     throw error;
@@ -153,11 +137,7 @@ export const updateReportStatus = async (
 
     const { data, error } = await supabase.from('reports').update(updates).eq('id', id).select().single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
-    return data as Report;
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error actualizando estado del reporte:', error);
     throw error;
@@ -173,9 +153,7 @@ export const getReportStats = async () => {
       .select('status')
       .not('status', 'eq', 'closed');
 
-    if (statusError) {
-      handleSupabaseError(statusError);
-    }
+    const validatedStatusData = unwrapData(statusData, statusError);
 
     // Contar por prioridad
     const { data: priorityData, error: priorityError } = await supabase
@@ -183,9 +161,7 @@ export const getReportStats = async () => {
       .select('priority')
       .eq('status', 'open');
 
-    if (priorityError) {
-      handleSupabaseError(priorityError);
-    }
+    const validatedPriorityData = unwrapData(priorityData, priorityError);
 
     // Contar por tipo
     const { data: typeData, error: typeError } = await supabase
@@ -193,30 +169,28 @@ export const getReportStats = async () => {
       .select('type')
       .in('status', ['open', 'in_progress']);
 
-    if (typeError) {
-      handleSupabaseError(typeError);
-    }
+    const validatedTypeData = unwrapData(typeData, typeError);
 
     // Calcular estadísticas
     const stats = {
-      total: statusData?.length || 0,
+      total: validatedStatusData.length,
       byStatus: {
-        open: statusData?.filter((r) => r.status === 'open').length || 0,
-        in_progress: statusData?.filter((r) => r.status === 'in_progress').length || 0,
-        resolved: statusData?.filter((r) => r.status === 'resolved').length || 0,
+        open: validatedStatusData.filter((r) => r.status === 'open').length,
+        in_progress: validatedStatusData.filter((r) => r.status === 'in_progress').length,
+        resolved: validatedStatusData.filter((r) => r.status === 'resolved').length,
       },
       byPriority: {
-        critical: priorityData?.filter((r) => r.priority === 'critical').length || 0,
-        high: priorityData?.filter((r) => r.priority === 'high').length || 0,
-        medium: priorityData?.filter((r) => r.priority === 'medium').length || 0,
-        low: priorityData?.filter((r) => r.priority === 'low').length || 0,
+        critical: validatedPriorityData.filter((r) => r.priority === 'critical').length,
+        high: validatedPriorityData.filter((r) => r.priority === 'high').length,
+        medium: validatedPriorityData.filter((r) => r.priority === 'medium').length,
+        low: validatedPriorityData.filter((r) => r.priority === 'low').length,
       },
       byType: {
-        security: typeData?.filter((r) => r.type === 'security').length || 0,
-        emergency: typeData?.filter((r) => r.type === 'emergency').length || 0,
-        maintenance: typeData?.filter((r) => r.type === 'maintenance').length || 0,
-        lost_found: typeData?.filter((r) => r.type === 'lost_found').length || 0,
-        other: typeData?.filter((r) => r.type === 'other').length || 0,
+        security: validatedTypeData.filter((r) => r.type === 'security').length,
+        emergency: validatedTypeData.filter((r) => r.type === 'emergency').length,
+        maintenance: validatedTypeData.filter((r) => r.type === 'maintenance').length,
+        lost_found: validatedTypeData.filter((r) => r.type === 'lost_found').length,
+        other: validatedTypeData.filter((r) => r.type === 'other').length,
       },
     };
 
@@ -248,12 +222,8 @@ export const getNearbyReports = async (latitude: number, longitude: number, radi
       .order('created_at', { ascending: false })
       .limit(50);
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-
     // TODO: Implementar filtrado por distancia en el backend con PostGIS
-    return data as ReportWithReporter[];
+    return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo reportes cercanos:', error);
     throw error;
