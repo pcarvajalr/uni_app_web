@@ -82,21 +82,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Inicializar sesión al cargar la aplicación
   useEffect(() => {
-    // Obtener sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-
-      if (session?.user) {
-        loadUserProfile(session.user);
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    // Escuchar cambios en la autenticación
+    // IMPORTANTE: Registrar listener ANTES de getSession() para evitar race conditions
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      // React setState es seguro en componentes desmontados, NO abortar
       setSession(session);
 
       if (session?.user) {
@@ -109,7 +99,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Obtener sesión inicial DESPUÉS de registrar el listener
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        // No verificar mounted aquí - React setState es seguro
+        setSession(session);
+
+        if (session?.user) {
+          await loadUserProfile(session.user);
+        }
+      } catch (error) {
+        console.error('Error inicializando autenticación:', error);
+      } finally {
+        // SIEMPRE ejecutar setIsLoading(false), incluso si el componente está desmontado
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

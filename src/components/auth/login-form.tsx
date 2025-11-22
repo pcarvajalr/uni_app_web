@@ -24,7 +24,8 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
   const [isLocked, setIsLocked] = useState(false)
   const [lockTime, setLockTime] = useState(0)
   const [attemptsRemaining, setAttemptsRemaining] = useState(5)
-  const { login, isLoading } = useAuth()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { login } = useAuth()
 
   // Verificar bloqueo cuando cambia el email
   useEffect(() => {
@@ -54,11 +55,15 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
       return
     }
 
+    setIsSubmitting(true)
+
     try {
       await login(email, password)
+
       // Si el login fue exitoso, resetear intentos
       resetLoginAttempts(email)
       setAttemptsRemaining(5)
+
       // Redirigir al dashboard
       navigate('/dashboard')
     } catch (err: any) {
@@ -77,6 +82,8 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
       } else {
         setError(err.message || "Error al iniciar sesión")
       }
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -96,7 +103,7 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
               placeholder="tu@universidad.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading}
+              disabled={isSubmitting}
             />
           </div>
           <div className="space-y-2">
@@ -107,7 +114,7 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
                 variant="link"
                 onClick={onForgotPassword}
                 className="text-xs p-0 h-auto"
-                disabled={isLoading}
+                disabled={isSubmitting}
               >
                 ¿Olvidaste tu contraseña?
               </Button>
@@ -118,7 +125,7 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
+              disabled={isSubmitting}
             />
           </div>
           {error && (
@@ -132,8 +139,8 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
               {attemptsRemaining} intento{attemptsRemaining > 1 ? 's' : ''} restante{attemptsRemaining > 1 ? 's' : ''}
             </p>
           )}
-          <Button type="submit" className="w-full" disabled={isLoading || isLocked}>
-            {isLoading ? (
+          <Button type="submit" className="w-full" disabled={isSubmitting || isLocked}>
+            {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Iniciando sesión...

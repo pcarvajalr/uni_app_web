@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
@@ -9,12 +9,18 @@ type AuthMode = 'login' | 'register' | 'forgot-password'
 
 export default function AuthPage() {
   const [mode, setMode] = useState<AuthMode>('login')
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
   const navigate = useNavigate()
 
   // Redirigir al dashboard si ya está autenticado
-  if (isAuthenticated) {
-    navigate('/dashboard')
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [isAuthenticated, isLoading, navigate])
+
+  // Prevenir renderizado del formulario si ya está autenticado
+  if (isAuthenticated && !isLoading) {
     return null
   }
 
