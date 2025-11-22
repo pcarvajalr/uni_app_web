@@ -55,7 +55,7 @@ export function unwrapData<T>(data: T | null, error: any): T {
 
 // Helper para agregar timeout a promesas
 export function withTimeout<T>(
-  promise: Promise<T>,
+  promise: PromiseLike<T>,
   timeoutMs: number,
   operationName: string = 'Operación'
 ): Promise<T> {
