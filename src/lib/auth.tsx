@@ -42,41 +42,110 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Sistema de caché persistente para perfiles de usuario
+interface ProfileCache {
+  profile: UserProfile;
+  timestamp: number;
+}
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+const CACHE_KEY_PREFIX = 'uni-app-profile-';
+
+// Funciones helper para caché persistente en localStorage
+function getProfileFromCache(userId: string): UserProfile | null {
+  try {
+    const key = `${CACHE_KEY_PREFIX}${userId}`;
+    const cached = localStorage.getItem(key);
+
+    if (!cached) return null;
+
+    const { profile, timestamp }: ProfileCache = JSON.parse(cached);
+
+    // Verificar si el caché está expirado
+    if (Date.now() - timestamp > CACHE_TTL) {
+      localStorage.removeItem(key);
+      return null;
+    }
+
+    return profile;
+  } catch (error) {
+    console.error('Error leyendo caché de perfil:', error);
+    return null;
+  }
+}
+
+function setProfileToCache(userId: string, profile: UserProfile): void {
+  try {
+    const key = `${CACHE_KEY_PREFIX}${userId}`;
+    const cache: ProfileCache = {
+      profile,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(key, JSON.stringify(cache));
+  } catch (error) {
+    console.error('Error guardando caché de perfil:', error);
+  }
+}
+
+function clearProfileCache(userId: string): void {
+  try {
+    const key = `${CACHE_KEY_PREFIX}${userId}`;
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.error('Error limpiando caché de perfil:', error);
+  }
+}
+
+// Helper para mapear UserProfile a User
+function mapProfileToUser(userProfile: UserProfile): User {
+  return {
+    id: userProfile.id,
+    name: userProfile.full_name,
+    email: userProfile.email,
+    role: userProfile.role as 'user' | 'admin',
+    studentId: userProfile.student_id || undefined,
+    career: userProfile.career || undefined,
+    semester: userProfile.semester ?? undefined,
+    phone: userProfile.phone || undefined,
+    avatar_url: userProfile.avatar_url || undefined,
+    bio: userProfile.bio || undefined,
+    rating: userProfile.rating ?? undefined,
+    total_sales: userProfile.total_sales ?? undefined,
+    total_tutoring_sessions: userProfile.total_tutoring_sessions ?? undefined,
+    is_verified: userProfile.is_verified ?? undefined,
+    is_tutor: userProfile.is_tutor ?? undefined,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Cargar perfil completo del usuario
+  // Cargar perfil completo del usuario con caché persistente
   const loadUserProfile = async (authUser: SupabaseUser) => {
+    // Verificar caché persistente primero
+    const cachedProfile = getProfileFromCache(authUser.id);
+    if (cachedProfile) {
+      setProfile(cachedProfile);
+      setUser(mapProfileToUser(cachedProfile));
+      return;
+    }
+
     try {
       const userProfile = await getUserProfile(authUser.id);
 
       if (userProfile) {
-        setProfile(userProfile);
+        // Guardar en caché persistente
+        setProfileToCache(authUser.id, userProfile);
 
-        // Mapear perfil a formato User (mantener compatibilidad con componentes existentes)
-        setUser({
-          id: userProfile.id,
-          name: userProfile.full_name,
-          email: userProfile.email,
-          role: userProfile.role as 'user' | 'admin',
-          studentId: userProfile.student_id || undefined,
-          career: userProfile.career || undefined,
-          semester: userProfile.semester ?? undefined,
-          phone: userProfile.phone || undefined,
-          avatar_url: userProfile.avatar_url || undefined,
-          bio: userProfile.bio || undefined,
-          rating: userProfile.rating ?? undefined,
-          total_sales: userProfile.total_sales ?? undefined,
-          total_tutoring_sessions: userProfile.total_tutoring_sessions ?? undefined,
-          is_verified: userProfile.is_verified ?? undefined,
-          is_tutor: userProfile.is_tutor ?? undefined,
-        });
+        setProfile(userProfile);
+        setUser(mapProfileToUser(userProfile));
       }
     } catch (error) {
       console.error('Error cargando perfil de usuario:', error);
+      // El caché expirado ya fue verificado arriba, no hacer nada adicional
     }
   };
 
@@ -219,6 +288,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
 
+      // Limpiar caché persistente al cerrar sesión
+      if (user?.id) {
+        clearProfileCache(user.id);
+      }
+
       setUser(null);
       setProfile(null);
       setSession(null);
@@ -246,23 +320,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data) {
-        setProfile(data);
+        // Actualizar caché persistente con los nuevos datos
+        setProfileToCache(user.id, data);
 
-        // Actualizar también el estado user
-        setUser({
-          ...user,
-          name: data.full_name,
-          role: data.role as 'user' | 'admin',
-          studentId: data.student_id || undefined,
-          career: data.career || undefined,
-          semester: data.semester ?? undefined,
-          phone: data.phone || undefined,
-          avatar_url: data.avatar_url || undefined,
-          bio: data.bio || undefined,
-          rating: data.rating ?? undefined,
-          is_verified: data.is_verified ?? undefined,
-          is_tutor: data.is_tutor ?? undefined,
-        });
+        setProfile(data);
+        setUser(mapProfileToUser(data));
       }
     } catch (error: any) {
       console.error('Error actualizando perfil:', error);

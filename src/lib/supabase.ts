@@ -101,18 +101,15 @@ export const getUserProfile = async (userId?: string) => {
   }
 
   try {
-    const queryPromise = supabase
+    const { data, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', uid)
       .single();
 
-    // Aplicar timeout de 1 segundos a la query
-    const { data, error } = await withTimeout(queryPromise, 1000, 'Query getUserProfile');
-
     return unwrapData(data, error);
   } catch (error: any) {
-    console.error('Error o timeout en getUserProfile():', error.message);
+    console.error('Error en getUserProfile():', error.message);
     throw error;
   }
 };
