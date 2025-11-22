@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/lib/auth';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { Toaster } from '@/components/ui/toaster';
 
 // Pages
 import HomePage from '@/pages/HomePage';
@@ -63,6 +64,7 @@ function App() {
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>
+      <Toaster />
     </QueryClientProvider>
   );
 }

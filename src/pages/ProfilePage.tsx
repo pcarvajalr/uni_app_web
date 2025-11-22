@@ -1,5 +1,3 @@
-import type React from "react"
-
 import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
@@ -11,7 +9,7 @@ import { User, Save } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { user, updateProfile } = useAuth()
   const { toast } = useToast()
 
   const [profileData, setProfileData] = useState({
@@ -23,11 +21,34 @@ export default function ProfilePage() {
     phone: user?.phone || "",
   })
 
-  const handleSaveProfile = () => {
-    toast({
-      title: "Perfil actualizado",
-      description: "Los cambios han sido guardados exitosamente.",
-    })
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleSaveProfile = async () => {
+    setIsLoading(true)
+
+    try {
+      await updateProfile({
+        full_name: profileData.name,
+        email: profileData.email,
+        student_id: profileData.studentId,
+        career: profileData.career,
+        semester: profileData.semester ? Number(profileData.semester) : null,
+        phone: profileData.phone,
+      })
+
+      toast({
+        title: "Perfil actualizado",
+        description: "Los cambios han sido guardados exitosamente.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error al guardar",
+        description: error.message || "No se pudieron guardar los cambios. Intenta nuevamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -63,7 +84,8 @@ export default function ProfilePage() {
                   id="email"
                   type="email"
                   value={profileData.email}
-                  onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                  disabled
+                  className="bg-muted cursor-not-allowed"
                 />
               </div>
               <div className="space-y-2">
@@ -99,9 +121,9 @@ export default function ProfilePage() {
                 />
               </div>
             </div>
-            <Button onClick={handleSaveProfile} className="w-full">
+            <Button onClick={handleSaveProfile} className="w-full" disabled={isLoading}>
               <Save className="h-4 w-4 mr-2" />
-              Guardar cambios
+              {isLoading ? "Guardando..." : "Guardar cambios"}
             </Button>
           </CardContent>
         </Card>
