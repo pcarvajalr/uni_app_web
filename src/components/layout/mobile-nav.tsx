@@ -2,12 +2,7 @@ import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { MapPin, AlertTriangle, ShoppingBag, GraduationCap, Home, Ticket } from 'lucide-react'
 
-const mainNavItems = [
-  {
-    href: "/dashboard",
-    label: "Inicio",
-    icon: Home,
-  },
+const mainNavItems = [  
   {
     href: "/maps",
     label: "Mapas",
