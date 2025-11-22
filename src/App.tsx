@@ -18,6 +18,7 @@ import MapsPage from '@/pages/MapsPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import CouponsPage from '@/pages/CouponsPage';
 import SettingsPage from '@/pages/SettingsPage';
+import ProfilePage from '@/pages/ProfilePage';
 import HelpPage from '@/pages/HelpPage';
 
 // Create a client
@@ -52,6 +53,7 @@ function App() {
               <Route path="/maps" element={<ProtectedRoute><MapsPage /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
               <Route path="/coupons" element={<ProtectedRoute><CouponsPage /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
 

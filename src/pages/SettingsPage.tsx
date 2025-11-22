@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/auth"
-import { User, Bell, MapPin, Shield, Palette, Download, Trash2, Save, Plus, X, Map, Ticket, Upload, ImageIcon } from 'lucide-react'
+import { Bell, MapPin, Shield, Palette, Download, Trash2, Save, Plus, X, Map, Ticket, Upload, ImageIcon } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 import {
   Dialog,
@@ -44,16 +44,7 @@ export default function SettingsPage() {
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // ... existing profile and notification state ...
-  const [profileData, setProfileData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    studentId: user?.studentId || "",
-    career: user?.career || "",
-    semester: user?.semester || "",
-    phone: user?.phone || "",
-  })
-
+  // ... existing notification state ...
   const [notifications, setNotifications] = useState({
     reports: true,
     marketplace: true,
@@ -94,13 +85,6 @@ export default function SettingsPage() {
   }, [])
 
   // ... existing handlers ...
-
-  const handleSaveProfile = () => {
-    toast({
-      title: "Perfil actualizado",
-      description: "Los cambios han sido guardados exitosamente.",
-    })
-  }
 
   const handleAddFavoriteLocation = () => {
     if (newLocation.trim()) {
@@ -235,71 +219,206 @@ export default function SettingsPage() {
           <p className="text-muted-foreground">Personaliza tu experiencia en UniApp</p>
         </div>
 
-        {/* Profile Settings */}
+        {/* Map Settings */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Información Personal
+              <MapPin className="h-5 w-5" />
+              Configuración de Mapas
             </CardTitle>
-            <CardDescription>Actualiza tu información de perfil y datos académicos</CardDescription>
+            <CardDescription>Gestiona tus ubicaciones favoritas del campus</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre completo</Label>
-                <Input
-                  id="name"
-                  value={profileData.name}
-                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={profileData.email}
-                  onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="studentId">ID Estudiante</Label>
-                <Input
-                  id="studentId"
-                  value={profileData.studentId}
-                  onChange={(e) => setProfileData({ ...profileData, studentId: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="career">Carrera</Label>
-                <Input
-                  id="career"
-                  value={profileData.career}
-                  onChange={(e) => setProfileData({ ...profileData, career: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="semester">Semestre</Label>
-                <Input
-                  id="semester"
-                  value={profileData.semester}
-                  onChange={(e) => setProfileData({ ...profileData, semester: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono</Label>
-                <Input
-                  id="phone"
-                  value={profileData.phone}
-                  onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                />
+            <div>
+              <Label>Ubicaciones favoritas</Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {favoriteLocations.map((location, index) => (
+                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                    {location}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => handleRemoveFavoriteLocation(location)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
               </div>
             </div>
-            <Button onClick={handleSaveProfile} className="w-full">
-              <Save className="h-4 w-4 mr-2" />
-              Guardar cambios
-            </Button>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Agregar nueva ubicación favorita"
+                value={newLocation}
+                onChange={(e) => setNewLocation(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleAddFavoriteLocation()}
+              />
+              <Button onClick={handleAddFavoriteLocation} size="sm">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <Separator />
+            <div className="space-y-3">
+              <Label className="text-base font-medium">Crear Ubicación Personalizada</Label>
+              <p className="text-sm text-muted-foreground">
+                Haz clic en el mapa del campus para seleccionar una ubicación y crear tu propio punto de referencia
+              </p>
+
+              <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full bg-transparent">
+                    <Map className="h-4 w-4 mr-2" />
+                    Crear Nueva Ubicación en el Mapa
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Crear Ubicación Personalizada</DialogTitle>
+                    <DialogDescription>
+                      Haz clic en el mapa para seleccionar las coordenadas de tu nueva ubicación
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Seleccionar ubicación en el mapa</Label>
+                      <div
+                        className="aspect-video bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative overflow-hidden cursor-crosshair border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors"
+                        onClick={handleMapClick}
+                      >
+                        <img
+                          src="/university-campus-map-layout-with-buildings-and-pa.jpg"
+                          alt="Mapa del Campus Universitario"
+                          className="w-full h-full object-cover"
+                        />
+
+                        {selectedCoordinates && (
+                          <div
+                            className="absolute transform -translate-x-1/2 -translate-y-1/2 animate-bounce"
+                            style={{
+                              left: `${selectedCoordinates.x}%`,
+                              top: `${selectedCoordinates.y}%`,
+                            }}
+                          >
+                            <div className="w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            </div>
+                            <div className="absolute inset-0 rounded-full border-2 border-red-500 animate-ping opacity-75"></div>
+                          </div>
+                        )}
+
+                        {!selectedCoordinates && (
+                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                            <div className="text-center text-white bg-black/50 p-4 rounded-lg">
+                              <MapPin className="h-8 w-8 mx-auto mb-2" />
+                              <p className="font-semibold">Haz clic en el mapa</p>
+                              <p className="text-sm opacity-90">para seleccionar la ubicación</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedCoordinates && (
+                        <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
+                          <strong>Coordenadas seleccionadas:</strong> X: {selectedCoordinates.x.toFixed(1)}%, Y:{" "}
+                          {selectedCoordinates.y.toFixed(1)}%
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="location-name">Nombre de la ubicación *</Label>
+                        <Input
+                          id="location-name"
+                          placeholder="Ej: Mi aula favorita"
+                          value={newLocationData.name}
+                          onChange={(e) => setNewLocationData({ ...newLocationData, name: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="location-type">Tipo de ubicación</Label>
+                        <Select
+                          value={newLocationData.type}
+                          onValueChange={(value) => setNewLocationData({ ...newLocationData, type: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Académico">Académico</SelectItem>
+                            <SelectItem value="Servicios">Servicios</SelectItem>
+                            <SelectItem value="Recreativo">Recreativo</SelectItem>
+                            <SelectItem value="Administrativo">Administrativo</SelectItem>
+                            <SelectItem value="Otro">Otro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="location-floor">Piso/Ubicación</Label>
+                        <Input
+                          id="location-floor"
+                          placeholder="Ej: Segundo piso, Aula 201"
+                          value={newLocationData.floor}
+                          onChange={(e) => setNewLocationData({ ...newLocationData, floor: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="location-hours">Horarios</Label>
+                        <Input
+                          id="location-hours"
+                          placeholder="Ej: 8:00 AM - 6:00 PM"
+                          value={newLocationData.hours}
+                          onChange={(e) => setNewLocationData({ ...newLocationData, hours: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="location-description">Descripción</Label>
+                      <Textarea
+                        id="location-description"
+                        placeholder="Describe esta ubicación..."
+                        value={newLocationData.description}
+                        onChange={(e) => setNewLocationData({ ...newLocationData, description: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsLocationModalOpen(false)
+                        setSelectedCoordinates(null)
+                        setNewLocationData({
+                          name: "",
+                          type: "",
+                          description: "",
+                          floor: "",
+                          hours: "",
+                        })
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={handleSaveCustomLocation}
+                      disabled={!newLocationData.name.trim() || !selectedCoordinates}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Guardar Ubicación
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardContent>
         </Card>
 
@@ -533,210 +652,7 @@ export default function SettingsPage() {
               />
             </div>
           </CardContent>
-        </Card>
-
-        {/* Map Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Configuración de Mapas
-            </CardTitle>
-            <CardDescription>Gestiona tus ubicaciones favoritas del campus</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Ubicaciones favoritas</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {favoriteLocations.map((location, index) => (
-                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                    {location}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                      onClick={() => handleRemoveFavoriteLocation(location)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Agregar nueva ubicación favorita"
-                value={newLocation}
-                onChange={(e) => setNewLocation(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleAddFavoriteLocation()}
-              />
-              <Button onClick={handleAddFavoriteLocation} size="sm">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <Separator />
-            <div className="space-y-3">
-              <Label className="text-base font-medium">Crear Ubicación Personalizada</Label>
-              <p className="text-sm text-muted-foreground">
-                Haz clic en el mapa del campus para seleccionar una ubicación y crear tu propio punto de referencia
-              </p>
-
-              <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full bg-transparent">
-                    <Map className="h-4 w-4 mr-2" />
-                    Crear Nueva Ubicación en el Mapa
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Crear Ubicación Personalizada</DialogTitle>
-                    <DialogDescription>
-                      Haz clic en el mapa para seleccionar las coordenadas de tu nueva ubicación
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Seleccionar ubicación en el mapa</Label>
-                      <div
-                        className="aspect-video bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative overflow-hidden cursor-crosshair border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors"
-                        onClick={handleMapClick}
-                      >
-                        <img
-                          src="/university-campus-map-layout-with-buildings-and-pa.jpg"
-                          alt="Mapa del Campus Universitario"
-                          className="w-full h-full object-cover"
-                        />
-
-                        {selectedCoordinates && (
-                          <div
-                            className="absolute transform -translate-x-1/2 -translate-y-1/2 animate-bounce"
-                            style={{
-                              left: `${selectedCoordinates.x}%`,
-                              top: `${selectedCoordinates.y}%`,
-                            }}
-                          >
-                            <div className="w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
-                              <div className="w-2 h-2 bg-white rounded-full"></div>
-                            </div>
-                            <div className="absolute inset-0 rounded-full border-2 border-red-500 animate-ping opacity-75"></div>
-                          </div>
-                        )}
-
-                        {!selectedCoordinates && (
-                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                            <div className="text-center text-white bg-black/50 p-4 rounded-lg">
-                              <MapPin className="h-8 w-8 mx-auto mb-2" />
-                              <p className="font-semibold">Haz clic en el mapa</p>
-                              <p className="text-sm opacity-90">para seleccionar la ubicación</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {selectedCoordinates && (
-                        <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-                          <strong>Coordenadas seleccionadas:</strong> X: {selectedCoordinates.x.toFixed(1)}%, Y:{" "}
-                          {selectedCoordinates.y.toFixed(1)}%
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="location-name">Nombre de la ubicación *</Label>
-                        <Input
-                          id="location-name"
-                          placeholder="Ej: Mi aula favorita"
-                          value={newLocationData.name}
-                          onChange={(e) => setNewLocationData({ ...newLocationData, name: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="location-type">Tipo de ubicación</Label>
-                        <Select
-                          value={newLocationData.type}
-                          onValueChange={(value) => setNewLocationData({ ...newLocationData, type: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar tipo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Académico">Académico</SelectItem>
-                            <SelectItem value="Servicios">Servicios</SelectItem>
-                            <SelectItem value="Recreativo">Recreativo</SelectItem>
-                            <SelectItem value="Administrativo">Administrativo</SelectItem>
-                            <SelectItem value="Otro">Otro</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="location-floor">Piso/Ubicación</Label>
-                        <Input
-                          id="location-floor"
-                          placeholder="Ej: Segundo piso, Aula 201"
-                          value={newLocationData.floor}
-                          onChange={(e) => setNewLocationData({ ...newLocationData, floor: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="location-hours">Horarios</Label>
-                        <Input
-                          id="location-hours"
-                          placeholder="Ej: 8:00 AM - 6:00 PM"
-                          value={newLocationData.hours}
-                          onChange={(e) => setNewLocationData({ ...newLocationData, hours: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="location-description">Descripción</Label>
-                      <Textarea
-                        id="location-description"
-                        placeholder="Describe esta ubicación..."
-                        value={newLocationData.description}
-                        onChange={(e) => setNewLocationData({ ...newLocationData, description: e.target.value })}
-                        rows={3}
-                      />
-                    </div>
-                  </div>
-
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setIsLocationModalOpen(false)
-                        setSelectedCoordinates(null)
-                        setNewLocationData({
-                          name: "",
-                          type: "",
-                          description: "",
-                          floor: "",
-                          hours: "",
-                        })
-                      }}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      onClick={handleSaveCustomLocation}
-                      disabled={!newLocationData.name.trim() || !selectedCoordinates}
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Guardar Ubicación
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardContent>
-        </Card>
+        </Card>        
 
         {/* Privacy Settings */}
         <Card>

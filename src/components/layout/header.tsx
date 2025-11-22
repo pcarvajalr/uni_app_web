@@ -95,10 +95,12 @@ export function Header() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Button variant="ghost" className="w-full justify-start">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Perfil</span>
-                  </Button>
+                  <Link to="/profile" onClick={() => setOpenDialog(null)}>
+                    <Button variant="ghost" className="w-full justify-start">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Perfil</span>
+                    </Button>
+                  </Link>
                   <Button
                     variant="ghost"
                     className="w-full justify-start text-destructive hover:text-destructive"
