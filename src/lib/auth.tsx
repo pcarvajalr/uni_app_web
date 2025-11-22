@@ -29,7 +29,11 @@ interface AuthContextType {
   profile: UserProfile | null;
   session: Session | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<{
+    success: boolean;
+    message: string;
+    needsEmailVerification: boolean;
+  } | undefined>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   isAuthenticated: boolean;
@@ -78,21 +82,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Inicializar sesión al cargar la aplicación
   useEffect(() => {
-    // Obtener sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-
-      if (session?.user) {
-        loadUserProfile(session.user);
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    // Escuchar cambios en la autenticación
+    // IMPORTANTE: Registrar listener ANTES de getSession() para evitar race conditions
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      // React setState es seguro en componentes desmontados, NO abortar
       setSession(session);
 
       if (session?.user) {
@@ -105,7 +99,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Obtener sesión inicial DESPUÉS de registrar el listener
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        // No verificar mounted aquí - React setState es seguro
+        setSession(session);
+
+        if (session?.user) {
+          await loadUserProfile(session.user);
+        }
+      } catch (error) {
+        console.error('Error inicializando autenticación:', error);
+      } finally {
+        // SIEMPRE ejecutar setIsLoading(false), incluso si el componente está desmontado
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -121,6 +138,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
 
+      // Verificar que el email esté confirmado
+      if (data.user && !data.user.email_confirmed_at) {
+        // Cerrar la sesión inmediatamente si el email no está confirmado
+        await supabase.auth.signOut();
+        throw new Error('Por favor, confirma tu email antes de iniciar sesión. Revisa tu bandeja de entrada (y spam).');
+      }
+
       if (data.user) {
         await loadUserProfile(data.user);
       }
@@ -130,8 +154,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Mensajes de error más amigables
       if (error.message?.includes('Invalid login credentials')) {
         throw new Error('Credenciales inválidas. Verifica tu email y contraseña.');
-      } else if (error.message?.includes('Email not confirmed')) {
-        throw new Error('Por favor, confirma tu email antes de iniciar sesión.');
+      } else if (error.message?.includes('Email not confirmed') || error.message?.includes('confirma tu email')) {
+        throw new Error('Por favor, confirma tu email antes de iniciar sesión. Revisa tu bandeja de entrada (y spam).');
       } else {
         throw new Error(error.message || 'Error al iniciar sesión');
       }
@@ -151,6 +175,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data: {
             full_name: name,
           },
+          // Configurar URL de redirección después de confirmar email
+          emailRedirectTo: `${window.location.origin}/auth`,
         },
       });
 
@@ -159,14 +185,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Nota: El perfil se crea automáticamente con el trigger on_auth_user_created
-      // Si el usuario necesita confirmar su email, data.user existirá pero no podrá iniciar sesión hasta confirmar
+      // El usuario DEBE confirmar su email antes de poder iniciar sesión
 
-      if (data.user) {
-        // Si la confirmación de email está deshabilitada, cargar perfil inmediatamente
-        if (data.session) {
-          await loadUserProfile(data.user);
-        }
-      }
+      // No iniciar sesión automáticamente - el usuario debe verificar su email primero
+      // Mostrar mensaje de éxito en el componente de registro
+
+      return {
+        success: true,
+        message: 'Cuenta creada exitosamente. Por favor verifica tu email antes de iniciar sesión.',
+        needsEmailVerification: !data.session, // Si no hay sesión, necesita verificar email
+      };
     } catch (error: any) {
       console.error('Error en registro:', error);
 
@@ -174,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error.message?.includes('User already registered')) {
         throw new Error('Este email ya está registrado. Intenta iniciar sesión.');
       } else if (error.message?.includes('Password should be at least')) {
-        throw new Error('La contraseña debe tener al menos 6 caracteres.');
+        throw new Error('La contraseña debe tener al menos 8 caracteres.');
       } else {
         throw new Error(error.message || 'Error al registrarse');
       }

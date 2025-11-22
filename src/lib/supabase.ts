@@ -53,6 +53,23 @@ export function unwrapData<T>(data: T | null, error: any): T {
   return data;
 }
 
+// Helper para agregar timeout a promesas
+export function withTimeout<T>(
+  promise: PromiseLike<T>,
+  timeoutMs: number,
+  operationName: string = 'Operación'
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`${operationName} excedió el tiempo límite de ${timeoutMs / 1000}s`)),
+        timeoutMs
+      )
+    ),
+  ]);
+}
+
 // Helper para verificar si hay una sesión activa
 export const getSession = async () => {
   const { data, error } = await supabase.auth.getSession();
@@ -83,13 +100,21 @@ export const getUserProfile = async (userId?: string) => {
     throw new Error('No hay usuario autenticado');
   }
 
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', uid)
-    .single();
+  try {
+    const queryPromise = supabase
+      .from('users')
+      .select('*')
+      .eq('id', uid)
+      .single();
 
-  return unwrapData(data, error);
+    // Aplicar timeout de 1 segundos a la query
+    const { data, error } = await withTimeout(queryPromise, 1000, 'Query getUserProfile');
+
+    return unwrapData(data, error);
+  } catch (error: any) {
+    console.error('Error o timeout en getUserProfile():', error.message);
+    throw error;
+  }
 };
 
 // Types para facilitar el uso en toda la aplicación

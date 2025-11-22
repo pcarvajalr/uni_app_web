@@ -4,16 +4,18 @@ import { useEffect } from "react"
 import { Loader2 } from "lucide-react"
 
 export default function HomePage() {
-  const { user } = useAuth()
+  const { user, isLoading } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
+    if (isLoading) return;
+
     if (user) {
-      navigate("/dashboard")
+      navigate("/dashboard", { replace: true })
     } else {
-      navigate("/auth")
+      navigate("/auth", { replace: true })
     }
-  }, [user, navigate])
+  }, [user, isLoading, navigate])
 
   return (
     <div className="min-h-screen flex items-center justify-center">

@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth"
 import { Loader2 } from "lucide-react"
+import { PasswordStrengthIndicator } from "./password-strength-indicator"
+import { strongPasswordSchema } from "@/lib/password-validation"
 
 interface RegisterFormProps {
   onToggleMode: () => void
@@ -23,6 +25,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     university: "",
   })
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const { register, isLoading } = useAuth()
 
   const handleChange = (field: string, value: string) => {
@@ -32,6 +35,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setSuccess("")
 
     if (!formData.email || !formData.password || !formData.name || !formData.studentId || !formData.university) {
       setError("Por favor completa todos los campos")
@@ -43,13 +47,32 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
       return
     }
 
-    if (formData.password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres")
+    // Validar contraseña fuerte
+    try {
+      strongPasswordSchema.parse(formData.password)
+    } catch (zodError: any) {
+      setError(zodError.errors[0]?.message || "La contraseña no cumple con los requisitos de seguridad")
       return
     }
 
-    await register(formData.name, formData.email, formData.password)
+    try {
+      const result = await register(formData.name, formData.email, formData.password)
 
+      if (result?.needsEmailVerification) {
+        setSuccess("¡Cuenta creada! Por favor verifica tu email antes de iniciar sesión. Revisa tu bandeja de entrada (y spam).")
+        // Limpiar el formulario
+        setFormData({
+          email: "",
+          password: "",
+          confirmPassword: "",
+          name: "",
+          studentId: "",
+          university: "",
+        })
+      }
+    } catch (err: any) {
+      setError(err.message || "Error al crear la cuenta")
+    }
   }
 
   return (
@@ -114,6 +137,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
               onChange={(e) => handleChange("password", e.target.value)}
               disabled={isLoading}
             />
+            <PasswordStrengthIndicator password={formData.password} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
@@ -127,6 +151,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
+          {success && <p className="text-sm text-green-600 bg-green-50 p-3 rounded-md">{success}</p>}
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? (
               <>
