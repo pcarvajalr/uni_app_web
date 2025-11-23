@@ -20,6 +20,8 @@ import {
   X,
   ChevronDown,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
 import { getCampusLocations } from "@/services/campus-locations.service"
@@ -46,6 +48,11 @@ export default function MapsPage() {
   const [campusLocations, setCampusLocations] = useState<CampusLocation[]>([])
   const [isLoadingLocations, setIsLoadingLocations] = useState(true)
   const [mapImageUrl, setMapImageUrl] = useState("/university-campus-map-layout-with-buildings-and-pa.jpg")
+
+  // Image gallery state
+  const [galleryOpen, setGalleryOpen] = useState(false)
+  const [galleryImages, setGalleryImages] = useState<string[]>([])
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   // Load campus locations and map image
   useEffect(() => {
@@ -176,6 +183,26 @@ export default function MapsPage() {
     setZoomLevel(1)
     setPanPosition({ x: 0, y: 0 })
     currentPanRef.current = { x: 0, y: 0 } // reset ref on reset
+  }
+
+  const openGallery = (images: string[], startIndex: number = 0) => {
+    setGalleryImages(images)
+    setCurrentImageIndex(startIndex)
+    setGalleryOpen(true)
+  }
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length)
+  }
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowRight') nextImage()
+    if (e.key === 'ArrowLeft') prevImage()
+    if (e.key === 'Escape') setGalleryOpen(false)
   }
 
   const MapContent = ({ isZoomed = false }: { isZoomed?: boolean }) => (
@@ -555,17 +582,31 @@ export default function MapsPage() {
                             {location.images && location.images.length > 0 && (
                               <div className="mt-2 flex gap-1">
                                 {location.images.slice(0, 4).map((imageUrl, idx) => (
-                                  <img
+                                  <button
                                     key={idx}
-                                    src={imageUrl}
-                                    alt={`${location.name} ${idx + 1}`}
-                                    className="w-12 h-12 object-cover rounded border"
-                                  />
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openGallery(location.images || [], idx)
+                                    }}
+                                    className="w-12 h-12 rounded border overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                                  >
+                                    <img
+                                      src={imageUrl}
+                                      alt={`${location.name} ${idx + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </button>
                                 ))}
                                 {location.images.length > 4 && (
-                                  <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground font-medium">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openGallery(location.images || [], 4)
+                                    }}
+                                    className="w-12 h-12 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground font-medium hover:bg-muted/80 transition-all"
+                                  >
                                     +{location.images.length - 4}
-                                  </div>
+                                  </button>
                                 )}
                               </div>
                             )}
@@ -588,6 +629,85 @@ export default function MapsPage() {
             )}
           </div>
         </div>
+
+        {/* Image Gallery Modal */}
+        <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
+          <DialogContent
+            className="max-w-screen-lg w-full h-[90vh] p-0"
+            onKeyDown={handleKeyDown}
+          >
+            <div className="relative w-full h-full flex items-center justify-center bg-black">
+              {/* Close button */}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="absolute top-4 right-4 z-50 bg-black/50 hover:bg-black/70 text-white"
+                onClick={() => setGalleryOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+
+              {/* Image counter */}
+              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                {currentImageIndex + 1} / {galleryImages.length}
+              </div>
+
+              {/* Previous button */}
+              {galleryImages.length > 1 && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute left-4 z-50 bg-black/50 hover:bg-black/70 text-white h-12 w-12"
+                  onClick={prevImage}
+                >
+                  <ChevronLeft className="h-8 w-8" />
+                </Button>
+              )}
+
+              {/* Current image */}
+              <img
+                src={galleryImages[currentImageIndex]}
+                alt={`Imagen ${currentImageIndex + 1}`}
+                className="max-w-full max-h-full object-contain"
+              />
+
+              {/* Next button */}
+              {galleryImages.length > 1 && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute right-4 z-50 bg-black/50 hover:bg-black/70 text-white h-12 w-12"
+                  onClick={nextImage}
+                >
+                  <ChevronRight className="h-8 w-8" />
+                </Button>
+              )}
+
+              {/* Thumbnails */}
+              {galleryImages.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2 max-w-full overflow-x-auto px-4">
+                  {galleryImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentImageIndex(idx)}
+                      className={`flex-shrink-0 w-16 h-16 rounded overflow-hidden border-2 transition-all ${
+                        idx === currentImageIndex
+                          ? 'border-white scale-110'
+                          : 'border-transparent opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img
+                        src={img}
+                        alt={`Thumbnail ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </AppLayout>
     )
   }
