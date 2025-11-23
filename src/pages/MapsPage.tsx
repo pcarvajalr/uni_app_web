@@ -550,6 +550,25 @@ export default function MapsPage() {
                                 </span>
                               )}
                             </div>
+
+                            {/* Galería de imágenes en miniatura */}
+                            {location.images && location.images.length > 0 && (
+                              <div className="mt-2 flex gap-1">
+                                {location.images.slice(0, 4).map((imageUrl, idx) => (
+                                  <img
+                                    key={idx}
+                                    src={imageUrl}
+                                    alt={`${location.name} ${idx + 1}`}
+                                    className="w-12 h-12 object-cover rounded border"
+                                  />
+                                ))}
+                                {location.images.length > 4 && (
+                                  <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground font-medium">
+                                    +{location.images.length - 4}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <Button size="sm" variant={isSelected ? "default" : "outline"} className="transition-all">
                             <MapPin className="h-4 w-4" />

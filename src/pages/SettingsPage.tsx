@@ -26,6 +26,7 @@ import {
   deleteCampusLocation,
 } from "@/services/campus-locations.service"
 import { getMapImageUrl } from "@/services/campus-settings.service"
+import { uploadLocationImage, validateImageFile } from "@/services/storage.service"
 import type { Database } from "@/types/database.types"
 import { IconSelector } from "@/components/icon-selector"
 import { MapImageUploader } from "@/components/map-image-uploader"
@@ -85,7 +86,12 @@ export default function SettingsPage() {
     floor: "",
     hours: "",
     icon: "" as LocationIconName | "",
+    images: [] as string[],
   })
+
+  // Estado para archivos de imágenes seleccionados
+  const [selectedImageFiles, setSelectedImageFiles] = useState<File[]>([])
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   // Campus locations state
   const [campusLocations, setCampusLocations] = useState<CampusLocation[]>([])
@@ -241,6 +247,22 @@ export default function SettingsPage() {
 
     setIsSavingLocation(true)
     try {
+      // Subir nuevas imágenes si hay
+      const uploadedImageUrls: string[] = []
+      if (selectedImageFiles.length > 0) {
+        for (const file of selectedImageFiles) {
+          const result = await uploadLocationImage(file, editingLocation?.id)
+          if (result.success && result.url) {
+            uploadedImageUrls.push(result.url)
+          } else {
+            console.error('Error uploading image:', result.error)
+          }
+        }
+      }
+
+      // Combinar imágenes existentes con las nuevas
+      const allImages = [...newLocationData.images, ...uploadedImageUrls]
+
       if (editingLocation) {
         // Update existing location
         await updateCampusLocation(editingLocation.id, {
@@ -252,6 +274,7 @@ export default function SettingsPage() {
           coordinate_x: selectedCoordinates.x,
           coordinate_y: selectedCoordinates.y,
           icon: newLocationData.icon,
+          images: allImages.length > 0 ? allImages : null,
         })
         toast({
           title: "Ubicación actualizada",
@@ -268,6 +291,7 @@ export default function SettingsPage() {
           coordinate_x: selectedCoordinates.x,
           coordinate_y: selectedCoordinates.y,
           icon: newLocationData.icon,
+          images: allImages.length > 0 ? allImages : null,
         })
         toast({
           title: "Ubicación creada",
@@ -286,9 +310,11 @@ export default function SettingsPage() {
         floor: "",
         hours: "",
         icon: "",
+        images: [],
       })
       setSelectedCoordinates(null)
       setEditingLocation(null)
+      setSelectedImageFiles([])
       setIsLocationModalOpen(false)
     } catch (error: any) {
       toast({
@@ -310,11 +336,13 @@ export default function SettingsPage() {
       floor: location.floor || "",
       hours: location.opening_hours ? (location.opening_hours as any).hours || "" : "",
       icon: (location.icon || "") as LocationIconName | "",
+      images: location.images || [],
     })
     setSelectedCoordinates({
       x: Number(location.coordinate_x),
       y: Number(location.coordinate_y),
     })
+    setSelectedImageFiles([]) // Reset new files
     setIsLocationModalOpen(true)
   }
 
@@ -333,6 +361,58 @@ export default function SettingsPage() {
         variant: "destructive",
       })
     }
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+
+    const newFiles = Array.from(files)
+    const totalImages = selectedImageFiles.length + newFiles.length
+
+    if (totalImages > 5) {
+      toast({
+        title: "Límite excedido",
+        description: "Solo puedes agregar hasta 5 imágenes por ubicación",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validar cada archivo
+    const validFiles: File[] = []
+    for (const file of newFiles) {
+      const validation = validateImageFile(file, 2) // 2MB max
+      if (!validation.isValid) {
+        toast({
+          title: "Archivo inválido",
+          description: `${file.name}: ${validation.error}`,
+          variant: "destructive",
+        })
+        continue
+      }
+      validFiles.push(file)
+    }
+
+    if (validFiles.length > 0) {
+      setSelectedImageFiles([...selectedImageFiles, ...validFiles])
+    }
+
+    // Reset input
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
+    }
+  }
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedImageFiles(selectedImageFiles.filter((_, i) => i !== index))
+  }
+
+  const handleRemoveExistingImage = (imageUrl: string) => {
+    setNewLocationData({
+      ...newLocationData,
+      images: newLocationData.images.filter((url) => url !== imageUrl),
+    })
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -910,6 +990,100 @@ export default function SettingsPage() {
                       label="Icono de la ubicación"
                       required
                     />
+
+                    {/* Sección de Imágenes */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label>Imágenes de la ubicación (opcional)</Label>
+                        <span className="text-xs text-muted-foreground">
+                          {selectedImageFiles.length + newLocationData.images.length}/5
+                        </span>
+                      </div>
+
+                      {/* Input oculto */}
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        multiple
+                        onChange={handleImageSelect}
+                        className="hidden"
+                      />
+
+                      {/* Botón de agregar */}
+                      {(selectedImageFiles.length + newLocationData.images.length) < 5 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => imageInputRef.current?.click()}
+                          className="w-full"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Agregar Imágenes
+                        </Button>
+                      )}
+
+                      {/* Preview de imágenes existentes (al editar) */}
+                      {newLocationData.images.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Imágenes existentes:</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {newLocationData.images.map((imageUrl, index) => (
+                              <div key={index} className="relative group">
+                                <img
+                                  src={imageUrl}
+                                  alt={`Imagen ${index + 1}`}
+                                  className="w-full h-24 object-cover rounded-lg border"
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="destructive"
+                                  className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => handleRemoveExistingImage(imageUrl)}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Preview de imágenes nuevas */}
+                      {selectedImageFiles.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Nuevas imágenes:</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {selectedImageFiles.map((file, index) => (
+                              <div key={index} className="relative group">
+                                <img
+                                  src={URL.createObjectURL(file)}
+                                  alt={file.name}
+                                  className="w-full h-24 object-cover rounded-lg border"
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="destructive"
+                                  className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => handleRemoveImage(index)}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                                <div className="absolute bottom-1 left-1 right-1 bg-black/60 text-white text-[10px] px-1 py-0.5 rounded truncate">
+                                  {file.name}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="text-xs text-muted-foreground">
+                        • Formatos: JPG, PNG, WebP • Tamaño máximo: 2MB por imagen • Máximo: 5 imágenes
+                      </p>
+                    </div>
                   </div>
 
                   <DialogFooter>
@@ -919,6 +1093,7 @@ export default function SettingsPage() {
                         setIsLocationModalOpen(false)
                         setSelectedCoordinates(null)
                         setEditingLocation(null)
+                        setSelectedImageFiles([])
                         setNewLocationData({
                           name: "",
                           type: "",
@@ -926,6 +1101,7 @@ export default function SettingsPage() {
                           floor: "",
                           hours: "",
                           icon: "",
+                          images: [],
                         })
                       }}
                       disabled={isSavingLocation}
@@ -987,14 +1163,11 @@ export default function SettingsPage() {
                               {location.description}
                             </p>
                           )}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {location.floor && <span>{location.floor}</span>}
-                            {location.coordinate_x && location.coordinate_y && (
-                              <span>
-                                • X: {Number(location.coordinate_x).toFixed(1)}%, Y: {Number(location.coordinate_y).toFixed(1)}%
-                              </span>
-                            )}
-                          </div>
+                          {location.floor && (
+                            <div className="text-xs text-muted-foreground">
+                              {location.floor}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
