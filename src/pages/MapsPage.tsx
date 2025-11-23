@@ -197,103 +197,119 @@ export default function MapsPage() {
           contentClass="w-full h-full flex items-center justify-center !overflow-visible"
           wrapperStyle={{ overflow: 'visible' }}
         >
-          <div className="relative inline-block max-h-full max-w-full !overflow-visible" style={{ overflow: 'visible', padding: '2rem' }}>
-            <img
-              src={mapImageUrl}
-              alt="Mapa del Campus Universitario"
-              className="h-full w-auto object-contain block"
-              draggable={false}
-              style={{ maxWidth: '100%', maxHeight: '100%' }}
-            />
+          <div style={{ padding: '2rem' }}>
+            <div className="relative inline-block max-h-full max-w-full !overflow-visible" style={{ overflow: 'visible' }}>
+              <img
+                src={mapImageUrl}
+                alt="Mapa del Campus Universitario"
+                className="h-full w-auto object-contain block"
+                draggable={false}
+                style={{ maxWidth: '100%', maxHeight: '100%' }}
+              />
 
-            {orderedLocations.map((location) => {
-              const Icon = getIconComponent(location.icon)
-              const isSelected = selectedLocation === location.id
-              return (
+              {orderedLocations.map((location) => {
+                const Icon = getIconComponent(location.icon)
+                const isSelected = selectedLocation === location.id
+                return (
+                  <div
+                    key={location.id}
+                    className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer transition-all duration-200 hover:scale-110 ${
+                      isSelected ? "z-50" : "z-20"
+                    }`}
+                    style={{
+                      left: `${location.coordinate_x}%`,
+                      top: `${location.coordinate_y}%`,
+                    }}
+                    onClick={() => {
+                      if (!isSelected) {
+                        setShowFilters(false)
+                      }
+                      setSelectedLocation(isSelected ? null : location.id)
+                    }}
+                  >
+                    <div className={`relative flex flex-col items-center ${isSelected ? "animate-bounce" : ""}`}>
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
+                          isSelected
+                            ? "bg-primary text-white scale-125"
+                            : "bg-white text-primary hover:bg-primary hover:text-white"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </div>
+
+                      {/* Punta triangular del pin */}
+                      <div
+                        className={`w-0 h-0 transition-colors ${
+                          isSelected ? "scale-125" : ""
+                        }`}
+                        style={{
+                          borderLeft: '4px solid transparent',
+                          borderRight: '4px solid transparent',
+                          borderTop: isSelected ? '6px solid hsl(var(--primary))' : '6px solid white',
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+                          marginTop: '-2px'
+                        }}
+                      />
+
+                      {isSelected && (
+                        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full border-2 border-primary animate-ping opacity-75"></div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {/* Tooltip dentro del contenedor de posicionamiento para alineación correcta */}
+              {selectedLocationData && (
                 <div
-                  key={location.id}
-                  className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110 ${
-                    isSelected ? "z-50" : "z-20"
-                  }`}
+                  className="absolute w-64 bg-white rounded-lg shadow-xl border p-3 z-[9999] pointer-events-none"
                   style={{
-                    left: `${location.coordinate_x}%`,
-                    top: `${location.coordinate_y}%`,
-                  }}
-                  onClick={() => {
-                    if (!isSelected) {
-                      setShowFilters(false)
-                    }
-                    setSelectedLocation(isSelected ? null : location.id)
+                    left: `${selectedLocationData.coordinate_x}%`,
+                    top: `calc(${selectedLocationData.coordinate_y}% - 3rem)`,
+                    transform: 'translate(-50%, -100%)'
                   }}
                 >
-                  <div className={`relative ${isSelected ? "animate-bounce" : ""}`}>
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
-                        isSelected
-                          ? "bg-primary text-white scale-125"
-                          : "bg-white text-primary hover:bg-primary hover:text-white"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
+                  <div className="flex items-start space-x-2">
+                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      {(() => {
+                        const Icon = getIconComponent(selectedLocationData.icon)
+                        return <Icon className="h-4 w-4 text-primary" />
+                      })()}
                     </div>
-
-                    {isSelected && (
-                      <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
-                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <h4 className="font-medium text-sm">{selectedLocationData.name}</h4>
+                        <Badge variant="outline" className="text-xs">
+                          {selectedLocationData.type}
+                        </Badge>
+                      </div>
+                      {selectedLocationData.description && (
+                        <p className="text-xs text-muted-foreground mb-2">{selectedLocationData.description}</p>
+                      )}
+                      <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                        {selectedLocationData.floor && (
+                          <span className="flex items-center">
+                            <Building className="h-3 w-3 mr-1" />
+                            {selectedLocationData.floor}
+                          </span>
+                        )}
+                        {selectedLocationData.opening_hours && (selectedLocationData.opening_hours as any).hours && (
+                          <span className="flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {(selectedLocationData.opening_hours as any).hours}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
                 </div>
-              )
-            })}
+              )}
+            </div>
           </div>
         </TransformComponent>
       </TransformWrapper>
-
-      {/* Tooltip fuera del TransformComponent para evitar recorte */}
-      {selectedLocationData && (
-        <div
-          className="absolute w-64 bg-white rounded-lg shadow-xl border p-3 z-[9999] pointer-events-none"
-          style={{
-            left: `${selectedLocationData.coordinate_x}%`,
-            top: `calc(${selectedLocationData.coordinate_y}% - 2rem)`,
-            transform: 'translate(-50%, -100%)'
-          }}
-        >
-          <div className="flex items-start space-x-2">
-            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-              {(() => {
-                const Icon = getIconComponent(selectedLocationData.icon)
-                return <Icon className="h-4 w-4 text-primary" />
-              })()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 mb-1">
-                <h4 className="font-medium text-sm">{selectedLocationData.name}</h4>
-                <Badge variant="outline" className="text-xs">
-                  {selectedLocationData.type}
-                </Badge>
-              </div>
-              {selectedLocationData.description && (
-                <p className="text-xs text-muted-foreground mb-2">{selectedLocationData.description}</p>
-              )}
-              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                {selectedLocationData.floor && (
-                  <span className="flex items-center">
-                    <Building className="h-3 w-3 mr-1" />
-                    {selectedLocationData.floor}
-                  </span>
-                )}
-                {selectedLocationData.opening_hours && (selectedLocationData.opening_hours as any).hours && (
-                  <span className="flex items-center">
-                    <Clock className="h-3 w-3 mr-1" />
-                    {(selectedLocationData.opening_hours as any).hours}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
-        </div>
-      )}
     </div>
     )
   }
@@ -465,53 +481,69 @@ export default function MapsPage() {
                                   wrapperStyle={{ width: '100%', height: '100%', overflow: 'visible' }}
                                   contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}
                                 >
-                                  <div className="relative inline-block max-h-full max-w-full !overflow-visible" style={{ overflow: 'visible', padding: '2rem' }}>
-                                    <img
-                                      src={mapImageUrl}
-                                      alt="Mapa del Campus Universitario"
-                                      className="h-full w-auto object-contain block"
-                                      draggable={false}
-                                      style={{ maxHeight: '100%', maxWidth: '100%' }}
-                                    />
+                                  <div style={{ padding: '2rem' }}>
+                                    <div className="relative inline-block max-h-full max-w-full !overflow-visible" style={{ overflow: 'visible' }}>
+                                      <img
+                                        src={mapImageUrl}
+                                        alt="Mapa del Campus Universitario"
+                                        className="h-full w-auto object-contain block"
+                                        draggable={false}
+                                        style={{ maxHeight: '100%', maxWidth: '100%' }}
+                                      />
 
-                                    {orderedLocations.map((location) => {
-                                      const Icon = getIconComponent(location.icon)
-                                      const isSelected = selectedLocation === location.id
-                                      return (
-                                        <div
-                                          key={location.id}
-                                          className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110 ${
-                                            isSelected ? "z-50" : "z-20"
-                                          }`}
-                                          style={{
-                                            left: `${location.coordinate_x}%`,
-                                            top: `${location.coordinate_y}%`,
-                                          }}
-                                          onClick={() => {
-                                            if (!isSelected) {
-                                              setShowFilters(false)
-                                            }
-                                            setSelectedLocation(isSelected ? null : location.id)
-                                          }}
-                                        >
-                                          <div className={`relative ${isSelected ? "animate-bounce" : ""}`}>
-                                            <div
-                                              className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
-                                                isSelected
-                                                  ? "bg-primary text-white scale-125"
-                                                  : "bg-white text-primary hover:bg-primary hover:text-white"
-                                              }`}
-                                            >
-                                              <Icon className="h-4 w-4" />
+                                      {orderedLocations.map((location) => {
+                                        const Icon = getIconComponent(location.icon)
+                                        const isSelected = selectedLocation === location.id
+                                        return (
+                                          <div
+                                            key={location.id}
+                                            className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer transition-all duration-200 hover:scale-110 ${
+                                              isSelected ? "z-50" : "z-20"
+                                            }`}
+                                            style={{
+                                              left: `${location.coordinate_x}%`,
+                                              top: `${location.coordinate_y}%`,
+                                            }}
+                                            onClick={() => {
+                                              if (!isSelected) {
+                                                setShowFilters(false)
+                                              }
+                                              setSelectedLocation(isSelected ? null : location.id)
+                                            }}
+                                          >
+                                            <div className={`relative flex flex-col items-center ${isSelected ? "animate-bounce" : ""}`}>
+                                              <div
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
+                                                  isSelected
+                                                    ? "bg-primary text-white scale-125"
+                                                    : "bg-white text-primary hover:bg-primary hover:text-white"
+                                                }`}
+                                              >
+                                                <Icon className="h-4 w-4" />
+                                              </div>
+
+                                              {/* Punta triangular del pin */}
+                                              <div
+                                                className={`w-0 h-0 transition-colors ${
+                                                  isSelected ? "scale-125" : ""
+                                                }`}
+                                                style={{
+                                                  borderLeft: '4px solid transparent',
+                                                  borderRight: '4px solid transparent',
+                                                  borderTop: isSelected ? '6px solid hsl(var(--primary))' : '6px solid white',
+                                                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+                                                  marginTop: '-2px'
+                                                }}
+                                              />
+
+                                              {isSelected && (
+                                                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full border-2 border-primary animate-ping opacity-75"></div>
+                                              )}
                                             </div>
-
-                                            {isSelected && (
-                                              <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
-                                            )}
                                           </div>
-                                        </div>
-                                      )
-                                    })}
+                                        )
+                                      })}
+                                    </div>
                                   </div>
                                 </TransformComponent>
 
