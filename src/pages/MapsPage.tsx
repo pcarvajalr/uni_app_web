@@ -313,7 +313,9 @@ export default function MapsPage() {
           return (
             <div
               key={location.id}
-              className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110"
+              className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110 ${
+                isSelected ? "z-50" : "z-0"
+              }`}
               style={{
                 left: `${location.coordinate_x}%`,
                 top: `${location.coordinate_y}%`,
@@ -341,7 +343,7 @@ export default function MapsPage() {
                 )}
 
                 {isSelected && (
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-white rounded-lg shadow-xl border p-3 z-10">
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-white rounded-lg shadow-xl border p-3 z-20">
                     <div className="flex items-start space-x-2">
                       <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Icon className="h-4 w-4 text-primary" />
