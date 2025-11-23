@@ -213,7 +213,7 @@ export default function MapsPage() {
                 return (
                   <div
                     key={location.id}
-                    className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110 ${
+                    className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer transition-all duration-200 hover:scale-110 ${
                       isSelected ? "z-50" : "z-20"
                     }`}
                     style={{
@@ -227,7 +227,7 @@ export default function MapsPage() {
                       setSelectedLocation(isSelected ? null : location.id)
                     }}
                   >
-                    <div className={`relative ${isSelected ? "animate-bounce" : ""}`}>
+                    <div className={`relative flex flex-col items-center ${isSelected ? "animate-bounce" : ""}`}>
                       <div
                         className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
                           isSelected
@@ -238,8 +238,22 @@ export default function MapsPage() {
                         <Icon className="h-4 w-4" />
                       </div>
 
+                      {/* Punta triangular del pin */}
+                      <div
+                        className={`w-0 h-0 transition-colors ${
+                          isSelected ? "scale-125" : ""
+                        }`}
+                        style={{
+                          borderLeft: '4px solid transparent',
+                          borderRight: '4px solid transparent',
+                          borderTop: isSelected ? '6px solid hsl(var(--primary))' : '6px solid white',
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+                          marginTop: '-2px'
+                        }}
+                      />
+
                       {isSelected && (
-                        <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
+                        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full border-2 border-primary animate-ping opacity-75"></div>
                       )}
                     </div>
                   </div>
@@ -252,7 +266,7 @@ export default function MapsPage() {
                   className="absolute w-64 bg-white rounded-lg shadow-xl border p-3 z-[9999] pointer-events-none"
                   style={{
                     left: `${selectedLocationData.coordinate_x}%`,
-                    top: `calc(${selectedLocationData.coordinate_y}% - 2rem)`,
+                    top: `calc(${selectedLocationData.coordinate_y}% - 3rem)`,
                     transform: 'translate(-50%, -100%)'
                   }}
                 >
@@ -483,7 +497,7 @@ export default function MapsPage() {
                                         return (
                                           <div
                                             key={location.id}
-                                            className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110 ${
+                                            className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer transition-all duration-200 hover:scale-110 ${
                                               isSelected ? "z-50" : "z-20"
                                             }`}
                                             style={{
@@ -497,7 +511,7 @@ export default function MapsPage() {
                                               setSelectedLocation(isSelected ? null : location.id)
                                             }}
                                           >
-                                            <div className={`relative ${isSelected ? "animate-bounce" : ""}`}>
+                                            <div className={`relative flex flex-col items-center ${isSelected ? "animate-bounce" : ""}`}>
                                               <div
                                                 className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
                                                   isSelected
@@ -508,8 +522,22 @@ export default function MapsPage() {
                                                 <Icon className="h-4 w-4" />
                                               </div>
 
+                                              {/* Punta triangular del pin */}
+                                              <div
+                                                className={`w-0 h-0 transition-colors ${
+                                                  isSelected ? "scale-125" : ""
+                                                }`}
+                                                style={{
+                                                  borderLeft: '4px solid transparent',
+                                                  borderRight: '4px solid transparent',
+                                                  borderTop: isSelected ? '6px solid hsl(var(--primary))' : '6px solid white',
+                                                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+                                                  marginTop: '-2px'
+                                                }}
+                                              />
+
                                               {isSelected && (
-                                                <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
+                                                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full border-2 border-primary animate-ping opacity-75"></div>
                                               )}
                                             </div>
                                           </div>
