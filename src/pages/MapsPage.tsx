@@ -19,13 +19,20 @@ import {
   Maximize2,
   X,
   ChevronDown,
+  Loader2,
 } from "lucide-react"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
+import { getCampusLocations } from "@/services/campus-locations.service"
+import { getMapImageUrl } from "@/services/campus-settings.service"
+import { getIconComponent } from "@/lib/icon-mapper"
+import type { Database } from "@/types/database.types"
+
+type CampusLocation = Database['public']['Tables']['campus_locations']['Row']
 
 export default function MapsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedOption, setSelectedOption] = useState<"nearby" | "campus" | null>(null)
-  const [selectedLocation, setSelectedLocation] = useState<number | null>(null)
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
   const [mapZoomOpen, setMapZoomOpen] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [panPosition, setPanPosition] = useState({ x: 0, y: 0 })
@@ -35,52 +42,30 @@ export default function MapsPage() {
   const currentPanRef = useRef({ x: 0, y: 0 }) // store current pan position for smooth dragging
   const mapImageRef = useRef<HTMLDivElement>(null) // ref for the transformed div
 
-  const campusLocations = [
-    {
-      id: 1,
-      name: "Biblioteca Central",
-      type: "Académico",
-      description: "Biblioteca principal con salas de estudio",
-      icon: BookOpen,
-      floor: "Planta Baja",
-      hours: "7:00 AM - 10:00 PM",
-      x: 35,
-      y: 25,
-    },
-    {
-      id: 2,
-      name: "Cafetería Principal",
-      type: "Servicios",
-      description: "Comida y bebidas para estudiantes",
-      icon: Coffee,
-      floor: "Primer Piso",
-      hours: "6:00 AM - 8:00 PM",
-      x: 60,
-      y: 40,
-    },
-    {
-      id: 3,
-      name: "Edificio de Ingeniería",
-      type: "Académico",
-      description: "Aulas y laboratorios de ingeniería",
-      icon: Building,
-      floor: "Múltiples pisos",
-      hours: "6:00 AM - 10:00 PM",
-      x: 20,
-      y: 60,
-    },
-    {
-      id: 4,
-      name: "Estacionamiento Norte",
-      type: "Servicios",
-      description: "Parqueadero para estudiantes",
-      icon: Car,
-      floor: "Exterior",
-      hours: "24 horas",
-      x: 75,
-      y: 20,
-    },
-  ]
+  // Campus locations and map image from database
+  const [campusLocations, setCampusLocations] = useState<CampusLocation[]>([])
+  const [isLoadingLocations, setIsLoadingLocations] = useState(true)
+  const [mapImageUrl, setMapImageUrl] = useState("/university-campus-map-layout-with-buildings-and-pa.jpg")
+
+  // Load campus locations and map image
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoadingLocations(true)
+      try {
+        const [locations, imageUrl] = await Promise.all([
+          getCampusLocations(),
+          getMapImageUrl()
+        ])
+        setCampusLocations(locations)
+        setMapImageUrl(imageUrl)
+      } catch (error) {
+        console.error('Error loading campus data:', error)
+      } finally {
+        setIsLoadingLocations(false)
+      }
+    }
+    loadData()
+  }, [])
 
   const nearbyCategories = [
     { name: "Restaurantes", icon: Coffee, count: 15 },
@@ -220,22 +205,23 @@ export default function MapsPage() {
         }
       >
         <img
-          src="/university-campus-map-layout-with-buildings-and-pa.jpg"
+          src={mapImageUrl}
           alt="Mapa del Campus Universitario"
           className="w-full h-full object-cover"
           draggable={false}
         />
 
         {campusLocations.map((location) => {
-          const Icon = location.icon
+          const Icon = getIconComponent(location.icon)
           const isSelected = selectedLocation === location.id
+          const hours = location.opening_hours ? (location.opening_hours as any).hours || "" : ""
           return (
             <div
               key={location.id}
               className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110"
               style={{
-                left: `${location.x}%`,
-                top: `${location.y}%`,
+                left: `${location.coordinate_x}%`,
+                top: `${location.coordinate_y}%`,
               }}
               onClick={() => setSelectedLocation(isSelected ? null : location.id)}
             >
@@ -267,16 +253,22 @@ export default function MapsPage() {
                             {location.type}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-2">{location.description}</p>
+                        {location.description && (
+                          <p className="text-xs text-muted-foreground mb-2">{location.description}</p>
+                        )}
                         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                          <span className="flex items-center">
-                            <Building className="h-3 w-3 mr-1" />
-                            {location.floor}
-                          </span>
-                          <span className="flex items-center">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {location.hours}
-                          </span>
+                          {location.floor && (
+                            <span className="flex items-center">
+                              <Building className="h-3 w-3 mr-1" />
+                              {location.floor}
+                            </span>
+                          )}
+                          {hours && (
+                            <span className="flex items-center">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {hours}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -507,55 +499,93 @@ export default function MapsPage() {
 
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Ubicaciones del Campus</h2>
-            <div className="space-y-3">
-              {campusLocations.map((location) => {
-                const Icon = location.icon
-                const isSelected = selectedLocation === location.id
-                return (
-                  <Card
-                    key={location.id}
-                    className={`hover:shadow-md transition-all cursor-pointer ${
-                      isSelected ? "ring-2 ring-primary shadow-md" : ""
-                    }`}
-                    onClick={() => setSelectedLocation(isSelected ? null : location.id)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start space-x-3">
-                        <div
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                            isSelected ? "bg-primary text-white" : "bg-primary/10 text-primary"
-                          }`}
-                        >
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <h3 className="font-medium truncate">{location.name}</h3>
-                            <Badge variant="outline" className="text-xs">
-                              {location.type}
-                            </Badge>
+            {isLoadingLocations ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : campusLocations.length > 0 ? (
+              <div className="space-y-3">
+                {campusLocations.map((location) => {
+                  const Icon = getIconComponent(location.icon)
+                  const isSelected = selectedLocation === location.id
+                  const hours = location.opening_hours ? (location.opening_hours as any).hours || "" : ""
+                  return (
+                    <Card
+                      key={location.id}
+                      className={`hover:shadow-md transition-all cursor-pointer ${
+                        isSelected ? "ring-2 ring-primary shadow-md" : ""
+                      }`}
+                      onClick={() => setSelectedLocation(isSelected ? null : location.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <div
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                              isSelected ? "bg-primary text-white" : "bg-primary/10 text-primary"
+                            }`}
+                          >
+                            <Icon className="h-5 w-5" />
                           </div>
-                          <p className="text-sm text-muted-foreground mb-2">{location.description}</p>
-                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                            <span className="flex items-center">
-                              <Building className="h-3 w-3 mr-1" />
-                              {location.floor}
-                            </span>
-                            <span className="flex items-center">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {location.hours}
-                            </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h3 className="font-medium truncate">{location.name}</h3>
+                              <Badge variant="outline" className="text-xs">
+                                {location.type}
+                              </Badge>
+                            </div>
+                            {location.description && (
+                              <p className="text-sm text-muted-foreground mb-2">{location.description}</p>
+                            )}
+                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                              {location.floor && (
+                                <span className="flex items-center">
+                                  <Building className="h-3 w-3 mr-1" />
+                                  {location.floor}
+                                </span>
+                              )}
+                              {hours && (
+                                <span className="flex items-center">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {hours}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Galería de imágenes en miniatura */}
+                            {location.images && location.images.length > 0 && (
+                              <div className="mt-2 flex gap-1">
+                                {location.images.slice(0, 4).map((imageUrl, idx) => (
+                                  <img
+                                    key={idx}
+                                    src={imageUrl}
+                                    alt={`${location.name} ${idx + 1}`}
+                                    className="w-12 h-12 object-cover rounded border"
+                                  />
+                                ))}
+                                {location.images.length > 4 && (
+                                  <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground font-medium">
+                                    +{location.images.length - 4}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
+                          <Button size="sm" variant={isSelected ? "default" : "outline"} className="transition-all">
+                            <MapPin className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button size="sm" variant={isSelected ? "default" : "outline"} className="transition-all">
-                          <MapPin className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <MapPin className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No hay ubicaciones configuradas</p>
+                <p className="text-sm mt-1">Los administradores pueden agregar ubicaciones en Configuración</p>
+              </div>
+            )}
           </div>
         </div>
       </AppLayout>

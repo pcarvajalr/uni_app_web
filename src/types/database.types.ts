@@ -19,11 +19,13 @@ export type Database = {
           address: string | null
           amenities: string[] | null
           building: string | null
-          coordinates: unknown
+          coordinate_x: number | null
+          coordinate_y: number | null
           created_at: string | null
           description: string | null
           email: string | null
           floor: string | null
+          icon: string | null
           id: string
           images: string[] | null
           is_accessible: boolean | null
@@ -37,11 +39,13 @@ export type Database = {
           address?: string | null
           amenities?: string[] | null
           building?: string | null
-          coordinates: unknown
+          coordinate_x: number
+          coordinate_y: number
           created_at?: string | null
           description?: string | null
           email?: string | null
           floor?: string | null
+          icon?: string | null
           id?: string
           images?: string[] | null
           is_accessible?: boolean | null
@@ -55,11 +59,13 @@ export type Database = {
           address?: string | null
           amenities?: string[] | null
           building?: string | null
-          coordinates?: unknown
+          coordinate_x?: number | null
+          coordinate_y?: number | null
           created_at?: string | null
           description?: string | null
           email?: string | null
           floor?: string | null
+          icon?: string | null
           id?: string
           images?: string[] | null
           is_accessible?: boolean | null
@@ -68,6 +74,36 @@ export type Database = {
           phone?: string | null
           type?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      campus_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }

@@ -56,7 +56,7 @@ CREATE TABLE public.users (
 CREATE TABLE public.categories (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL UNIQUE,
-  type TEXT NOT NULL CHECK (type IN ('product', 'tutoring', 'both')),
+  type TEXT NOT NULL CHECK (type IN ('product', 'tutoring', 'both', 'location')),
   icon TEXT,
   description TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
