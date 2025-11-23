@@ -29,8 +29,9 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Filter,
 } from "lucide-react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { getCampusLocations } from "@/services/campus-locations.service"
 import { getMapImageUrl } from "@/services/campus-settings.service"
 import { getLocationCategories } from "@/services/location-categories.service"
@@ -67,6 +68,10 @@ export default function MapsPage() {
   const [campusSearchQuery, setCampusSearchQuery] = useState("")
   const [campusSelectedType, setCampusSelectedType] = useState<string>("all")
   const [locationTypes, setLocationTypes] = useState<Category[]>([])
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Refs for auto-scroll to selected location
+  const locationRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   // Load campus locations and map image
   useEffect(() => {
@@ -89,6 +94,20 @@ export default function MapsPage() {
     }
     loadData()
   }, [])
+
+  // Auto-scroll to selected location when clicking on map marker
+  useEffect(() => {
+    if (selectedLocation && !isLoadingLocations && locationRefs.current[selectedLocation]) {
+      setTimeout(() => {
+        const element = locationRefs.current[selectedLocation]
+        element?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest'
+        })
+      }, 100)
+    }
+  }, [selectedLocation, isLoadingLocations])
 
   const nearbyCategories = [
     { name: "Restaurantes", icon: Coffee, count: 15 },
@@ -130,6 +149,17 @@ export default function MapsPage() {
   }
 
   const hasActiveFilters = campusSearchQuery.trim() !== "" || campusSelectedType !== "all"
+
+  // Order locations: selected first, then others
+  const orderedLocations = useMemo(() => {
+    if (!selectedLocation) return filteredLocations
+
+    const selected = filteredLocations.find(loc => loc.id === selectedLocation)
+    if (!selected) return filteredLocations
+
+    const others = filteredLocations.filter(loc => loc.id !== selectedLocation)
+    return [selected, ...others]
+  }, [filteredLocations, selectedLocation])
 
   const handleMapMouseDown = (e: React.MouseEvent) => {
     if (zoomLevel > 1) {
@@ -276,7 +306,7 @@ export default function MapsPage() {
           draggable={false}
         />
 
-        {filteredLocations.map((location) => {
+        {orderedLocations.map((location) => {
           const Icon = getIconComponent(location.icon)
           const isSelected = selectedLocation === location.id
           const hours = location.opening_hours ? (location.opening_hours as any).hours || "" : ""
@@ -288,7 +318,12 @@ export default function MapsPage() {
                 left: `${location.coordinate_x}%`,
                 top: `${location.coordinate_y}%`,
               }}
-              onClick={() => setSelectedLocation(isSelected ? null : location.id)}
+              onClick={() => {
+                if (!isSelected) {
+                  setShowFilters(false)
+                }
+                setSelectedLocation(isSelected ? null : location.id)
+              }}
             >
               <div className={`relative ${isSelected ? "animate-bounce" : ""}`}>
                 <div
@@ -562,50 +597,71 @@ export default function MapsPage() {
             </CardContent>
           </Card>
 
-          {/* Search and Filters Card */}
-          <Card className="py-3">
-            <CardContent className="px-4">
-              <div className="flex flex-col md:flex-row gap-3">
-                {/* Search input */}
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  <Input
-                    placeholder="Buscar por nombre..."
-                    value={campusSearchQuery}
-                    onChange={(e) => setCampusSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
+          {/* Filters Control Bar */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Filtros de Búsqueda</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              {showFilters ? "Ocultar Filtros" : "Buscar Ubicación"}
+              <ChevronDown
+                className={`h-4 w-4 ml-2 transition-transform duration-200 ${
+                  showFilters ? "rotate-180" : ""
+                }`}
+              />
+            </Button>
+          </div>
+
+          {/* Search and Filters Card - Collapsible */}
+          {showFilters && (
+            <Card className="py-3 animate-in slide-in-from-top-2 duration-200">
+              <CardContent className="px-4">
+                <div className="flex flex-col md:flex-row gap-3">
+                  {/* Search input */}
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Buscar por nombre..."
+                      value={campusSearchQuery}
+                      onChange={(e) => setCampusSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  {/* Type filter */}
+                  <Select value={campusSelectedType} onValueChange={setCampusSelectedType}>
+                    <SelectTrigger className="w-full md:w-[200px]">
+                      <SelectValue placeholder="Todos los tipos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los tipos</SelectItem>
+                      {locationTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.name}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Clear filters button */}
+                  {hasActiveFilters && (
+                    <Button variant="ghost" onClick={clearCampusFilters} title="Limpiar filtros">
+                      <X className="h-4 w-4" />
+                      <span>Limpiar filtros</span>
+                    </Button>
+                  )}
                 </div>
 
-                {/* Type filter */}
-                <Select value={campusSelectedType} onValueChange={setCampusSelectedType}>
-                  <SelectTrigger className="w-full md:w-[200px]">
-                    <SelectValue placeholder="Todos los tipos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los tipos</SelectItem>
-                    {locationTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.name}>
-                        {type.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Clear filters button */}
-                {hasActiveFilters && (
-                  <Button variant="ghost" size="icon" onClick={clearCampusFilters} title="Limpiar filtros">
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-
-              {/* Results counter */}
-              <p className="text-sm text-muted-foreground mt-3">
-                {filteredLocations.length} ubicación{filteredLocations.length !== 1 ? 'es' : ''} encontrada{filteredLocations.length !== 1 ? 's' : ''}
-              </p>
-            </CardContent>
-          </Card>
+                {/* Results counter */}
+                <p className="text-sm text-muted-foreground mt-3">
+                  {filteredLocations.length} ubicación{filteredLocations.length !== 1 ? 'es' : ''} encontrada{filteredLocations.length !== 1 ? 's' : ''}
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Ubicaciones del Campus</h2>
@@ -613,15 +669,20 @@ export default function MapsPage() {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : filteredLocations.length > 0 ? (
+            ) : orderedLocations.length > 0 ? (
               <div className="space-y-3">
-                {filteredLocations.map((location) => {
+                {orderedLocations.map((location) => {
                   const Icon = getIconComponent(location.icon)
                   const isSelected = selectedLocation === location.id
                   const hours = location.opening_hours ? (location.opening_hours as any).hours || "" : ""
                   return (
                     <Card
                       key={location.id}
+                      ref={(el) => {
+                        if (el) {
+                          locationRefs.current[location.id] = el
+                        }
+                      }}
                       className={`hover:shadow-md transition-all cursor-pointer py-3 ${
                         isSelected ? "ring-2 ring-primary shadow-md" : ""
                       }`}
