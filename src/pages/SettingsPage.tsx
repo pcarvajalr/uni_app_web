@@ -19,9 +19,20 @@ import {
   updateLocationCategory,
   deleteLocationCategory,
 } from "@/services/location-categories.service"
+import {
+  getCampusLocations,
+  createCampusLocation,
+  updateCampusLocation,
+  deleteCampusLocation,
+} from "@/services/campus-locations.service"
+import { getMapImageUrl } from "@/services/campus-settings.service"
 import type { Database } from "@/types/database.types"
+import { IconSelector } from "@/components/icon-selector"
+import { MapImageUploader } from "@/components/map-image-uploader"
+import type { LocationIconName } from "@/lib/icon-mapper"
 
 type Category = Database['public']['Tables']['categories']['Row']
+type CampusLocation = Database['public']['Tables']['campus_locations']['Row']
 import {
   Dialog,
   DialogContent,
@@ -73,7 +84,15 @@ export default function SettingsPage() {
     description: "",
     floor: "",
     hours: "",
+    icon: "" as LocationIconName | "",
   })
+
+  // Campus locations state
+  const [campusLocations, setCampusLocations] = useState<CampusLocation[]>([])
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false)
+  const [isSavingLocation, setIsSavingLocation] = useState(false)
+  const [editingLocation, setEditingLocation] = useState<CampusLocation | null>(null)
+  const [mapImageUrl, setMapImageUrl] = useState("/university-campus-map-layout-with-buildings-and-pa.jpg")
 
   const [privacy, setPrivacy] = useState({
     profileVisible: true,
@@ -123,8 +142,38 @@ export default function SettingsPage() {
     }
   }
 
+  // Load campus locations
+  const loadCampusLocations = async () => {
+    setIsLoadingLocations(true)
+    try {
+      const locations = await getCampusLocations()
+      setCampusLocations(locations)
+    } catch (error) {
+      console.error('Error cargando ubicaciones del campus:', error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las ubicaciones del campus",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingLocations(false)
+    }
+  }
+
+  // Load map image URL
+  const loadMapImageUrl = async () => {
+    try {
+      const url = await getMapImageUrl()
+      setMapImageUrl(url)
+    } catch (error) {
+      console.error('Error cargando URL de la imagen del mapa:', error)
+    }
+  }
+
   useEffect(() => {
     loadLocationCategories()
+    loadCampusLocations()
+    loadMapImageUrl()
   }, [])
 
   // ... existing handlers ...
@@ -171,23 +220,117 @@ export default function SettingsPage() {
     setSelectedCoordinates({ x, y })
   }
 
-  const handleSaveCustomLocation = () => {
-    if (newLocationData.name.trim() && selectedCoordinates) {
-      setFavoriteLocations([...favoriteLocations, newLocationData.name])
+  const handleSaveCustomLocation = async () => {
+    if (!newLocationData.name.trim() || !selectedCoordinates) {
+      toast({
+        title: "Campos requeridos",
+        description: "El nombre y las coordenadas son obligatorios",
+        variant: "destructive",
+      })
+      return
+    }
 
+    if (!newLocationData.icon) {
+      toast({
+        title: "Icono requerido",
+        description: "Selecciona un icono para la ubicación",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSavingLocation(true)
+    try {
+      if (editingLocation) {
+        // Update existing location
+        await updateCampusLocation(editingLocation.id, {
+          name: newLocationData.name.trim(),
+          type: newLocationData.type.trim(),
+          description: newLocationData.description.trim() || null,
+          floor: newLocationData.floor.trim() || null,
+          opening_hours: newLocationData.hours ? { hours: newLocationData.hours } : null,
+          coordinate_x: selectedCoordinates.x,
+          coordinate_y: selectedCoordinates.y,
+          icon: newLocationData.icon,
+        })
+        toast({
+          title: "Ubicación actualizada",
+          description: "La ubicación se ha actualizado correctamente",
+        })
+      } else {
+        // Create new location
+        await createCampusLocation({
+          name: newLocationData.name.trim(),
+          type: newLocationData.type.trim(),
+          description: newLocationData.description.trim() || null,
+          floor: newLocationData.floor.trim() || null,
+          opening_hours: newLocationData.hours ? { hours: newLocationData.hours } : null,
+          coordinate_x: selectedCoordinates.x,
+          coordinate_y: selectedCoordinates.y,
+          icon: newLocationData.icon,
+        })
+        toast({
+          title: "Ubicación creada",
+          description: "La nueva ubicación ha sido creada exitosamente",
+        })
+      }
+
+      // Reload locations
+      await loadCampusLocations()
+
+      // Reset form
       setNewLocationData({
         name: "",
         type: "",
         description: "",
         floor: "",
         hours: "",
+        icon: "",
       })
       setSelectedCoordinates(null)
+      setEditingLocation(null)
       setIsLocationModalOpen(false)
-
+    } catch (error: any) {
       toast({
-        title: "Ubicación personalizada creada",
-        description: "La nueva ubicación ha sido agregada exitosamente.",
+        title: "Error",
+        description: error.message || "No se pudo guardar la ubicación",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingLocation(false)
+    }
+  }
+
+  const handleEditLocation = (location: CampusLocation) => {
+    setEditingLocation(location)
+    setNewLocationData({
+      name: location.name,
+      type: location.type,
+      description: location.description || "",
+      floor: location.floor || "",
+      hours: location.opening_hours ? (location.opening_hours as any).hours || "" : "",
+      icon: (location.icon || "") as LocationIconName | "",
+    })
+    setSelectedCoordinates({
+      x: Number(location.coordinate_x),
+      y: Number(location.coordinate_y),
+    })
+    setIsLocationModalOpen(true)
+  }
+
+  const handleDeleteLocation = async (locationId: string) => {
+    try {
+      await deleteCampusLocation(locationId)
+      toast({
+        title: "Ubicación eliminada",
+        description: "La ubicación se ha eliminado correctamente",
+      })
+      await loadCampusLocations()
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar la ubicación",
+        variant: "destructive",
       })
     }
   }
@@ -544,6 +687,31 @@ export default function SettingsPage() {
         </Card>
         )}
 
+        {/* Map Image Configuration - Admin Only */}
+        {user?.role === 'admin' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="h-5 w-5" />
+                Imagen del Mapa del Campus
+              </CardTitle>
+              <CardDescription>Configura la imagen del mapa utilizada en todas las ubicaciones</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MapImageUploader
+                currentImageUrl={mapImageUrl}
+                onUploadSuccess={(newUrl) => {
+                  setMapImageUrl(newUrl)
+                  toast({
+                    title: "Mapa actualizado",
+                    description: "La imagen del mapa se ha actualizado. Recarga la página para ver los cambios.",
+                  })
+                }}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Map Settings */}
         <Card>
           <CardHeader>
@@ -611,9 +779,13 @@ export default function SettingsPage() {
                 </DialogTrigger>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Crear ubicación del Campus</DialogTitle>
+                    <DialogTitle>
+                      {editingLocation ? "Editar Ubicación del Campus" : "Crear Ubicación del Campus"}
+                    </DialogTitle>
                     <DialogDescription>
-                      Haz clic en el mapa para seleccionar las coordenadas de tu nueva ubicación
+                      {editingLocation
+                        ? "Modifica la información de la ubicación y ajusta su posición en el mapa"
+                        : "Haz clic en el mapa para seleccionar las coordenadas de tu nueva ubicación"}
                     </DialogDescription>
                   </DialogHeader>
 
@@ -625,7 +797,7 @@ export default function SettingsPage() {
                         onClick={handleMapClick}
                       >
                         <img
-                          src="/university-campus-map-layout-with-buildings-and-pa.jpg"
+                          src={mapImageUrl}
                           alt="Mapa del Campus Universitario"
                           className="w-full h-full object-cover"
                         />
@@ -731,6 +903,13 @@ export default function SettingsPage() {
                         rows={3}
                       />
                     </div>
+
+                    <IconSelector
+                      value={newLocationData.icon as LocationIconName}
+                      onChange={(iconName) => setNewLocationData({ ...newLocationData, icon: iconName })}
+                      label="Icono de la ubicación"
+                      required
+                    />
                   </div>
 
                   <DialogFooter>
@@ -739,27 +918,115 @@ export default function SettingsPage() {
                       onClick={() => {
                         setIsLocationModalOpen(false)
                         setSelectedCoordinates(null)
+                        setEditingLocation(null)
                         setNewLocationData({
                           name: "",
                           type: "",
                           description: "",
                           floor: "",
                           hours: "",
+                          icon: "",
                         })
                       }}
+                      disabled={isSavingLocation}
                     >
                       Cancelar
                     </Button>
                     <Button
                       onClick={handleSaveCustomLocation}
-                      disabled={!newLocationData.name.trim() || !selectedCoordinates}
+                      disabled={!newLocationData.name.trim() || !selectedCoordinates || !newLocationData.icon || isSavingLocation}
                     >
-                      <Save className="h-4 w-4 mr-2" />
-                      Guardar Ubicación
+                      {isSavingLocation ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          {editingLocation ? "Actualizar Ubicación" : "Guardar Ubicación"}
+                        </>
+                      )}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+
+              {/* Lista de ubicaciones creadas */}
+              <div className="space-y-3 mt-4">
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-medium">
+                    Ubicaciones del Campus ({campusLocations.length})
+                  </Label>
+                </div>
+
+                {isLoadingLocations ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : campusLocations.length > 0 ? (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {campusLocations.map((location) => (
+                      <div
+                        key={location.id}
+                        className="flex items-start gap-3 p-3 rounded-lg border bg-background"
+                      >
+                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <MapPin className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-sm">{location.name}</p>
+                            <Badge variant="outline" className="text-xs">
+                              {location.type}
+                            </Badge>
+                          </div>
+                          {location.description && (
+                            <p className="text-xs text-muted-foreground mb-1">
+                              {location.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            {location.floor && <span>{location.floor}</span>}
+                            {location.coordinate_x && location.coordinate_y && (
+                              <span>
+                                • X: {Number(location.coordinate_x).toFixed(1)}%, Y: {Number(location.coordinate_y).toFixed(1)}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditLocation(location)}
+                            className="h-8 w-8 p-0"
+                            title="Editar"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteLocation(location.id)}
+                            className="h-8 w-8 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No hay ubicaciones del campus configuradas</p>
+                    <p className="text-xs mt-1">Crea tu primera ubicación usando el botón arriba</p>
+                  </div>
+                )}
+              </div>
             </div>
             )}
           </CardContent>
