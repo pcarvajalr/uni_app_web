@@ -176,8 +176,11 @@ export default function MapsPage() {
     if (e.key === 'Escape') setGalleryOpen(false)
   }
 
-  const MapContent = ({ isZoomed = false }: { isZoomed?: boolean }) => (
-    <div className={`${isZoomed ? "w-full h-full" : "h-[40vh]"} bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative overflow-hidden`}>
+  const MapContent = ({ isZoomed = false }: { isZoomed?: boolean }) => {
+    const selectedLocationData = orderedLocations.find(loc => loc.id === selectedLocation)
+
+    return (
+    <div className={`${isZoomed ? "w-full h-full" : "h-[40vh]"} bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative ${isZoomed ? "overflow-visible" : "overflow-visible"}`}>
       <TransformWrapper
         initialScale={1}
         minScale={isZoomed ? 0.3 : 0.5}
@@ -204,7 +207,6 @@ export default function MapsPage() {
             {orderedLocations.map((location) => {
               const Icon = getIconComponent(location.icon)
               const isSelected = selectedLocation === location.id
-              const hours = location.opening_hours ? (location.opening_hours as any).hours || "" : ""
               return (
                 <div
                   key={location.id}
@@ -236,42 +238,6 @@ export default function MapsPage() {
                     {isSelected && (
                       <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
                     )}
-
-                    {isSelected && (
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-white rounded-lg shadow-xl border p-3 z-20">
-                        <div className="flex items-start space-x-2">
-                          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Icon className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <h4 className="font-medium text-sm">{location.name}</h4>
-                              <Badge variant="outline" className="text-xs">
-                                {location.type}
-                              </Badge>
-                            </div>
-                            {location.description && (
-                              <p className="text-xs text-muted-foreground mb-2">{location.description}</p>
-                            )}
-                            <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                              {location.floor && (
-                                <span className="flex items-center">
-                                  <Building className="h-3 w-3 mr-1" />
-                                  {location.floor}
-                                </span>
-                              )}
-                              {hours && (
-                                <span className="flex items-center">
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  {hours}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
-                      </div>
-                    )}
                   </div>
                 </div>
               )
@@ -279,8 +245,56 @@ export default function MapsPage() {
           </div>
         </TransformComponent>
       </TransformWrapper>
+
+      {/* Tooltip fuera del TransformComponent para evitar recorte */}
+      {selectedLocationData && (
+        <div
+          className="absolute w-64 bg-white rounded-lg shadow-xl border p-3 z-[9999] pointer-events-none"
+          style={{
+            left: `${selectedLocationData.coordinate_x}%`,
+            top: `calc(${selectedLocationData.coordinate_y}% - 2rem)`,
+            transform: 'translate(-50%, -100%)'
+          }}
+        >
+          <div className="flex items-start space-x-2">
+            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+              {(() => {
+                const Icon = getIconComponent(selectedLocationData.icon)
+                return <Icon className="h-4 w-4 text-primary" />
+              })()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-1">
+                <h4 className="font-medium text-sm">{selectedLocationData.name}</h4>
+                <Badge variant="outline" className="text-xs">
+                  {selectedLocationData.type}
+                </Badge>
+              </div>
+              {selectedLocationData.description && (
+                <p className="text-xs text-muted-foreground mb-2">{selectedLocationData.description}</p>
+              )}
+              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                {selectedLocationData.floor && (
+                  <span className="flex items-center">
+                    <Building className="h-3 w-3 mr-1" />
+                    {selectedLocationData.floor}
+                  </span>
+                )}
+                {selectedLocationData.opening_hours && (selectedLocationData.opening_hours as any).hours && (
+                  <span className="flex items-center">
+                    <Clock className="h-3 w-3 mr-1" />
+                    {(selectedLocationData.opening_hours as any).hours}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
+        </div>
+      )}
     </div>
-  )
+    )
+  }
 
   if (selectedOption === null) {
     return (
@@ -408,8 +422,8 @@ export default function MapsPage() {
           </div>
 
           <div ref={mapCardRef}>
-            <Card>
-              <CardContent className="p-0 relative">
+            <Card className="overflow-visible">
+              <CardContent className="p-0 relative overflow-visible">
               <div className="relative">
                 <MapContent />
 
@@ -461,7 +475,6 @@ export default function MapsPage() {
                                     {orderedLocations.map((location) => {
                                       const Icon = getIconComponent(location.icon)
                                       const isSelected = selectedLocation === location.id
-                                      const hours = location.opening_hours ? (location.opening_hours as any).hours || "" : ""
                                       return (
                                         <div
                                           key={location.id}
@@ -492,42 +505,6 @@ export default function MapsPage() {
 
                                             {isSelected && (
                                               <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
-                                            )}
-
-                                            {isSelected && (
-                                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-white rounded-lg shadow-xl border p-3 z-20">
-                                                <div className="flex items-start space-x-2">
-                                                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                    <Icon className="h-4 w-4 text-primary" />
-                                                  </div>
-                                                  <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center space-x-2 mb-1">
-                                                      <h4 className="font-medium text-sm">{location.name}</h4>
-                                                      <Badge variant="outline" className="text-xs">
-                                                        {location.type}
-                                                      </Badge>
-                                                    </div>
-                                                    {location.description && (
-                                                      <p className="text-xs text-muted-foreground mb-2">{location.description}</p>
-                                                    )}
-                                                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                                                      {location.floor && (
-                                                        <span className="flex items-center">
-                                                          <Building className="h-3 w-3 mr-1" />
-                                                          {location.floor}
-                                                        </span>
-                                                      )}
-                                                      {hours && (
-                                                        <span className="flex items-center">
-                                                          <Clock className="h-3 w-3 mr-1" />
-                                                          {hours}
-                                                        </span>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
-                                              </div>
                                             )}
                                           </div>
                                         </div>
