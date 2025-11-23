@@ -32,6 +32,7 @@ import {
   Filter,
 } from "lucide-react"
 import { useState, useRef, useEffect, useMemo } from "react"
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"
 import { getCampusLocations } from "@/services/campus-locations.service"
 import { getMapImageUrl } from "@/services/campus-settings.service"
 import { getLocationCategories } from "@/services/location-categories.service"
@@ -46,13 +47,6 @@ export default function MapsPage() {
   const [selectedOption, setSelectedOption] = useState<"nearby" | "campus" | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
   const [mapZoomOpen, setMapZoomOpen] = useState(false)
-  const [zoomLevel, setZoomLevel] = useState(1)
-  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 })
-  const mapContainerRef = useRef<HTMLDivElement>(null)
-  const isDraggingRef = useRef(false)
-  const dragStartRef = useRef({ x: 0, y: 0 })
-  const currentPanRef = useRef({ x: 0, y: 0 }) // store current pan position for smooth dragging
-  const mapImageRef = useRef<HTMLDivElement>(null) // ref for the transformed div
   const mapCardRef = useRef<HTMLDivElement>(null) // ref for scrolling to map when selecting from list
 
   // Campus locations and map image from database
@@ -162,98 +156,6 @@ export default function MapsPage() {
     return [selected, ...others]
   }, [filteredLocations, selectedLocation])
 
-  const handleMapMouseDown = (e: React.MouseEvent) => {
-    if (zoomLevel > 1) {
-      isDraggingRef.current = true
-      dragStartRef.current = { x: e.clientX, y: e.clientY }
-    }
-  }
-
-  const handleMapMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current || !mapImageRef.current) return
-
-    const deltaX = e.clientX - dragStartRef.current.x
-    const deltaY = e.clientY - dragStartRef.current.y
-
-    const newX = currentPanRef.current.x + deltaX
-    const newY = currentPanRef.current.y + deltaY
-
-    mapImageRef.current.style.transform = `scale(${zoomLevel}) translate(${newX / zoomLevel}px, ${newY / zoomLevel}px)`
-  }
-
-  const handleMapMouseUp = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current) return
-
-    isDraggingRef.current = false
-
-    const deltaX = e.clientX - dragStartRef.current.x
-    const deltaY = e.clientY - dragStartRef.current.y
-
-    currentPanRef.current = {
-      x: currentPanRef.current.x + deltaX,
-      y: currentPanRef.current.y + deltaY,
-    }
-
-    setPanPosition(currentPanRef.current)
-  }
-
-  const handleMapTouchStart = (e: React.TouchEvent) => {
-    if (zoomLevel > 1 && e.touches.length === 1) {
-      isDraggingRef.current = true
-      dragStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-    }
-  }
-
-  const handleMapTouchMove = (e: React.TouchEvent) => {
-    if (!isDraggingRef.current || !mapImageRef.current || e.touches.length !== 1) return
-
-    const deltaX = e.touches[0].clientX - dragStartRef.current.x
-    const deltaY = e.touches[0].clientY - dragStartRef.current.y
-
-    const newX = currentPanRef.current.x + deltaX
-    const newY = currentPanRef.current.y + deltaY
-
-    mapImageRef.current.style.transform = `scale(${zoomLevel}) translate(${newX / zoomLevel}px, ${newY / zoomLevel}px)`
-  }
-
-  const handleMapTouchEnd = (e: React.TouchEvent) => {
-    if (!isDraggingRef.current) return
-
-    isDraggingRef.current = false
-
-    const touch = e.changedTouches[0]
-    const deltaX = touch.clientX - dragStartRef.current.x
-    const deltaY = touch.clientY - dragStartRef.current.y
-
-    currentPanRef.current = {
-      x: currentPanRef.current.x + deltaX,
-      y: currentPanRef.current.y + deltaY,
-    }
-
-    setPanPosition(currentPanRef.current)
-  }
-
-  const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev + 0.5, 3))
-  }
-
-  const handleZoomOut = () => {
-    setZoomLevel((prev) => {
-      const newZoom = Math.max(prev - 0.5, 1)
-      if (newZoom === 1) {
-        setPanPosition({ x: 0, y: 0 })
-        currentPanRef.current = { x: 0, y: 0 } // reset ref on zoom out
-      }
-      return newZoom
-    })
-  }
-
-  const resetMap = () => {
-    setZoomLevel(1)
-    setPanPosition({ x: 0, y: 0 })
-    currentPanRef.current = { x: 0, y: 0 } // reset ref on reset
-  }
-
   const openGallery = (images: string[], startIndex: number = 0) => {
     setGalleryImages(images)
     setCurrentImageIndex(startIndex)
@@ -275,124 +177,108 @@ export default function MapsPage() {
   }
 
   const MapContent = ({ isZoomed = false }: { isZoomed?: boolean }) => (
-    <div
-      ref={isZoomed ? mapContainerRef : null}
-      className={`aspect-video ${isZoomed ? "w-full h-full overflow-hidden cursor-grab active:cursor-grabbing" : ""} bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative`}
-      style={isZoomed ? { cursor: zoomLevel > 1 ? "grab" : "default" } : undefined}
-      onMouseDown={handleMapMouseDown}
-      onMouseMove={handleMapMouseMove}
-      onMouseUp={handleMapMouseUp}
-      onMouseLeave={handleMapMouseUp}
-      onTouchStart={handleMapTouchStart}
-      onTouchMove={handleMapTouchMove}
-      onTouchEnd={handleMapTouchEnd}
-    >
-      <div
-        ref={isZoomed ? mapImageRef : null}
-        className={isZoomed ? "w-full h-full" : "w-full h-full transition-transform duration-100"}
-        style={
-          isZoomed
-            ? {
-                transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
-                transformOrigin: "center center",
-                willChange: "transform",
-              }
-            : undefined
-        }
+    <div className={`${isZoomed ? "w-full h-full" : "h-[40vh]"} bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative overflow-hidden`}>
+      <TransformWrapper
+        initialScale={1}
+        minScale={isZoomed ? 0.3 : 0.5}
+        maxScale={isZoomed ? 5 : 3}
+        centerOnInit
+        limitToBounds={true}
+        pinch={{ step: 0.05 }}
+        wheel={{ step: 0.05 }}
+        doubleClick={{ disabled: false, step: 0.7 }}
+        panning={{ disabled: false }}
       >
-        <img
-          src={mapImageUrl}
-          alt="Mapa del Campus Universitario"
-          className="w-full h-full object-cover"
-          draggable={false}
-        />
+        <TransformComponent
+          wrapperClass="w-full h-full"
+          contentClass="w-full h-full flex items-center justify-center"
+        >
+          <div className="relative w-full h-full flex items-center justify-center">
+            <img
+              src={mapImageUrl}
+              alt="Mapa del Campus Universitario"
+              className="max-w-full max-h-full object-contain"
+              draggable={false}
+            />
 
-        {orderedLocations.map((location) => {
-          const Icon = getIconComponent(location.icon)
-          const isSelected = selectedLocation === location.id
-          const hours = location.opening_hours ? (location.opening_hours as any).hours || "" : ""
-          return (
-            <div
-              key={location.id}
-              className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110 ${
-                isSelected ? "z-50" : "z-0"
-              }`}
-              style={{
-                left: `${location.coordinate_x}%`,
-                top: `${location.coordinate_y}%`,
-              }}
-              onClick={() => {
-                if (!isSelected) {
-                  setShowFilters(false)
-                }
-                setSelectedLocation(isSelected ? null : location.id)
-              }}
-            >
-              <div className={`relative ${isSelected ? "animate-bounce" : ""}`}>
+            {orderedLocations.map((location) => {
+              const Icon = getIconComponent(location.icon)
+              const isSelected = selectedLocation === location.id
+              const hours = location.opening_hours ? (location.opening_hours as any).hours || "" : ""
+              return (
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
-                    isSelected
-                      ? "bg-primary text-white scale-125"
-                      : "bg-white text-primary hover:bg-primary hover:text-white"
+                  key={location.id}
+                  className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110 ${
+                    isSelected ? "z-50" : "z-20"
                   }`}
+                  style={{
+                    left: `${location.coordinate_x}%`,
+                    top: `${location.coordinate_y}%`,
+                  }}
+                  onClick={() => {
+                    if (!isSelected) {
+                      setShowFilters(false)
+                    }
+                    setSelectedLocation(isSelected ? null : location.id)
+                  }}
                 >
-                  <Icon className="h-4 w-4" />
-                </div>
-
-                {isSelected && (
-                  <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
-                )}
-
-                {isSelected && (
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-white rounded-lg shadow-xl border p-3 z-20">
-                    <div className="flex items-start space-x-2">
-                      <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Icon className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h4 className="font-medium text-sm">{location.name}</h4>
-                          <Badge variant="outline" className="text-xs">
-                            {location.type}
-                          </Badge>
-                        </div>
-                        {location.description && (
-                          <p className="text-xs text-muted-foreground mb-2">{location.description}</p>
-                        )}
-                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                          {location.floor && (
-                            <span className="flex items-center">
-                              <Building className="h-3 w-3 mr-1" />
-                              {location.floor}
-                            </span>
-                          )}
-                          {hours && (
-                            <span className="flex items-center">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {hours}
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                  <div className={`relative ${isSelected ? "animate-bounce" : ""}`}>
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
+                        isSelected
+                          ? "bg-primary text-white scale-125"
+                          : "bg-white text-primary hover:bg-primary hover:text-white"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
                     </div>
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )
-        })}
 
-        {/* {selectedLocation === null && (
-          <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
-            <div className="text-center text-white">
-              <MapPin className="h-12 w-12 mx-auto mb-2" />
-              <p className="text-lg font-semibold">Mapa Interactivo del Campus</p>
-              <p className="text-sm opacity-90">Toca los marcadores para ver información</p>
-            </div>
+                    {isSelected && (
+                      <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
+                    )}
+
+                    {isSelected && (
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-white rounded-lg shadow-xl border p-3 z-20">
+                        <div className="flex items-start space-x-2">
+                          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Icon className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h4 className="font-medium text-sm">{location.name}</h4>
+                              <Badge variant="outline" className="text-xs">
+                                {location.type}
+                              </Badge>
+                            </div>
+                            {location.description && (
+                              <p className="text-xs text-muted-foreground mb-2">{location.description}</p>
+                            )}
+                            <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                              {location.floor && (
+                                <span className="flex items-center">
+                                  <Building className="h-3 w-3 mr-1" />
+                                  {location.floor}
+                                </span>
+                              )}
+                              {hours && (
+                                <span className="flex items-center">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {hours}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        )} */}
-      </div>
+        </TransformComponent>
+      </TransformWrapper>
     </div>
   )
 
@@ -469,7 +355,7 @@ export default function MapsPage() {
                   placeholder="¿Qué estás buscando?"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleGoogleMapsSearch()}
+                  onKeyDown={(e) => e.key === "Enter" && handleGoogleMapsSearch()}
                 />
                 <Button onClick={handleGoogleMapsSearch} disabled={!searchQuery.trim()}>
                   <ExternalLink className="h-4 w-4 mr-2" />
@@ -537,64 +423,173 @@ export default function MapsPage() {
                       <Maximize2 className="h-4 w-4" />
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="w-screen h-screen max-w-none max-h-none p-0 sm:rounded-none flex flex-col">
-                    <div className="relative flex-1 overflow-hidden">
-                      <DialogHeader className="absolute top-0 left-0 right-0 z-20 bg-background/80 backdrop-blur px-4 py-2 border-b">
-                        <DialogTitle>Mapa Interactivo del Campus</DialogTitle>
-                      </DialogHeader>
+                  <DialogContent className="w-[95vw] md:w-[80vw] h-[80vh] p-0 rounded-lg flex flex-col overflow-hidden">
+                    <DialogHeader className="flex-shrink-0 z-20 bg-background/95 backdrop-blur px-4 py-3 border-b rounded-t-lg">
+                      <DialogTitle>Mapa Interactivo del Campus</DialogTitle>
+                    </DialogHeader>
 
-                      <div className="w-full h-full pt-16">
-                        <MapContent isZoomed={true} />
-                      </div>
+                    <div className="relative flex-1 overflow-hidden rounded-b-lg flex flex-col">
+                      <div className="w-full flex-1 bg-gradient-to-br from-green-100 to-blue-100 relative overflow-hidden" style={{ display: 'flex', flexDirection: 'column' }}>
+                          <TransformWrapper
+                            initialScale={1}
+                            minScale={0.3}
+                            maxScale={5}
+                            centerOnInit
+                            limitToBounds={true}
+                            pinch={{ step: 0.05 }}
+                            wheel={{ step: 0.05 }}
+                            doubleClick={{ disabled: false, step: 0.7 }}
+                            panning={{ disabled: false }}
+                          >
+                            {({ zoomIn, zoomOut, resetTransform, ...instance }) => (
+                              <>
+                                <TransformComponent
+                                  wrapperClass="!w-full !h-full"
+                                  contentClass="!w-full !h-full !flex !items-center !justify-center"
+                                  wrapperStyle={{ width: '100%', height: '100%' }}
+                                  contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <div className="relative inline-block h-full">
+                                    <img
+                                      src={mapImageUrl}
+                                      alt="Mapa del Campus Universitario"
+                                      className="h-full w-auto object-contain block"
+                                      draggable={false}
+                                      style={{ maxHeight: '100%' }}
+                                    />
 
-                      <div className="absolute bottom-6 left-6 right-6 z-20 flex gap-2 items-center justify-center md:left-auto md:right-6">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="bg-background/80 backdrop-blur"
-                          onClick={handleZoomOut}
-                          disabled={zoomLevel <= 1}
-                        >
-                          −
-                        </Button>
-                        <span className="text-sm font-medium min-w-[60px] text-center bg-background/80 backdrop-blur px-3 py-1 rounded">
-                          {Math.round(zoomLevel * 100)}%
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="bg-background/80 backdrop-blur"
-                          onClick={handleZoomIn}
-                          disabled={zoomLevel >= 3}
-                        >
-                          +
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="bg-background/80 backdrop-blur"
-                          onClick={resetMap}
-                          disabled={zoomLevel === 1 && panPosition.x === 0 && panPosition.y === 0}
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </div>
+                                    {orderedLocations.map((location) => {
+                                      const Icon = getIconComponent(location.icon)
+                                      const isSelected = selectedLocation === location.id
+                                      const hours = location.opening_hours ? (location.opening_hours as any).hours || "" : ""
+                                      return (
+                                        <div
+                                          key={location.id}
+                                          className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110 ${
+                                            isSelected ? "z-50" : "z-20"
+                                          }`}
+                                          style={{
+                                            left: `${location.coordinate_x}%`,
+                                            top: `${location.coordinate_y}%`,
+                                          }}
+                                          onClick={() => {
+                                            if (!isSelected) {
+                                              setShowFilters(false)
+                                            }
+                                            setSelectedLocation(isSelected ? null : location.id)
+                                          }}
+                                        >
+                                          <div className={`relative ${isSelected ? "animate-bounce" : ""}`}>
+                                            <div
+                                              className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
+                                                isSelected
+                                                  ? "bg-primary text-white scale-125"
+                                                  : "bg-white text-primary hover:bg-primary hover:text-white"
+                                              }`}
+                                            >
+                                              <Icon className="h-4 w-4" />
+                                            </div>
 
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="absolute top-4 right-4 z-20 bg-background/80 backdrop-blur"
-                        onClick={() => setMapZoomOpen(false)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                                            {isSelected && (
+                                              <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
+                                            )}
 
-                      {zoomLevel > 1 && (
-                        <div className="absolute top-20 left-4 right-4 z-15 bg-background/80 backdrop-blur px-3 py-2 rounded text-sm text-muted-foreground">
-                          Arrastra para mover • Usa los botones para zoom
+                                            {isSelected && (
+                                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-white rounded-lg shadow-xl border p-3 z-20">
+                                                <div className="flex items-start space-x-2">
+                                                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                    <Icon className="h-4 w-4 text-primary" />
+                                                  </div>
+                                                  <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center space-x-2 mb-1">
+                                                      <h4 className="font-medium text-sm">{location.name}</h4>
+                                                      <Badge variant="outline" className="text-xs">
+                                                        {location.type}
+                                                      </Badge>
+                                                    </div>
+                                                    {location.description && (
+                                                      <p className="text-xs text-muted-foreground mb-2">{location.description}</p>
+                                                    )}
+                                                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                                      {location.floor && (
+                                                        <span className="flex items-center">
+                                                          <Building className="h-3 w-3 mr-1" />
+                                                          {location.floor}
+                                                        </span>
+                                                      )}
+                                                      {hours && (
+                                                        <span className="flex items-center">
+                                                          <Clock className="h-3 w-3 mr-1" />
+                                                          {hours}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </TransformComponent>
+
+                                {/* Controles de zoom */}
+                                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-30 flex gap-2 items-center justify-center bg-background/95 backdrop-blur-md px-4 py-2 rounded-full shadow-lg border">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => zoomOut(0.5)}
+                                    disabled={instance.instance.transformState.scale <= 0.3}
+                                  >
+                                    −
+                                  </Button>
+                                  <span className="text-sm font-medium min-w-[50px] text-center">
+                                    {Math.round(instance.instance.transformState.scale * 100)}%
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => zoomIn(0.5)}
+                                    disabled={instance.instance.transformState.scale >= 5}
+                                  >
+                                    +
+                                  </Button>
+                                  <div className="w-px h-4 bg-border mx-1"></div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => resetTransform()}
+                                    title="Restablecer vista"
+                                  >
+                                    <ChevronDown className="h-4 w-4" />
+                                  </Button>
+                                </div>
+
+                                {instance.instance.transformState.scale > 1 && (
+                                  <div className="absolute top-16 left-4 right-4 z-25 bg-background/90 backdrop-blur-sm px-4 py-2 rounded-lg text-xs text-muted-foreground text-center shadow-md border">
+                                    Arrastra para mover • Pellizca para zoom • Doble tap para acercar
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </TransformWrapper>
                         </div>
-                      )}
-                    </div>
+
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="absolute top-2 right-2 z-30 bg-background hover:bg-background/90 shadow-lg border-2"
+                          onClick={() => setMapZoomOpen(false)}
+                        >
+                          <X className="h-5 w-5" />
+                        </Button>
+                      </div>
                   </DialogContent>
                 </Dialog>
               </div>
