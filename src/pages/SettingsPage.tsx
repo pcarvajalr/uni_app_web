@@ -9,9 +9,19 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth"
-import { Bell, MapPin, Shield, Palette, Download, Trash2, Save, Plus, X, Map, Ticket, Upload, ImageIcon } from 'lucide-react'
+import { Bell, MapPin, Shield, Palette, Download, Trash2, Save, Plus, X, Map, Ticket, Upload, ImageIcon, Settings, Edit2, Loader2, Info } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
+import {
+  getLocationCategories,
+  createLocationCategory,
+  updateLocationCategory,
+  deleteLocationCategory,
+} from "@/services/location-categories.service"
+import type { Database } from "@/types/database.types"
+
+type Category = Database['public']['Tables']['categories']['Row']
 import {
   Dialog,
   DialogContent,
@@ -76,12 +86,45 @@ export default function SettingsPage() {
     language: "es",
   })
 
+  // Location categories state
+  const [locationCategories, setLocationCategories] = useState<Category[]>([])
+  const [isLocationCategoriesDialogOpen, setIsLocationCategoriesDialogOpen] = useState(false)
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false)
+  const [isSavingCategory, setIsSavingCategory] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [categoryFormData, setCategoryFormData] = useState({
+    name: "",
+    description: "",
+  })
+
   // Load coupons on component mount
   useEffect(() => {
     const stored = localStorage.getItem("uniapp_coupons")
     if (stored) {
       setCoupons(JSON.parse(stored))
     }
+  }, [])
+
+  // Load location categories
+  const loadLocationCategories = async () => {
+    setIsLoadingCategories(true)
+    try {
+      const categories = await getLocationCategories()
+      setLocationCategories(categories)
+    } catch (error) {
+      console.error('Error cargando categorías de ubicación:', error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las categorías de ubicación",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingCategories(false)
+    }
+  }
+
+  useEffect(() => {
+    loadLocationCategories()
   }, [])
 
   // ... existing handlers ...
@@ -211,6 +254,90 @@ export default function SettingsPage() {
     })
   }
 
+  // Location Categories Handlers
+  const handleOpenCategoryDialog = (category?: Category) => {
+    if (category) {
+      setEditingCategory(category)
+      setCategoryFormData({
+        name: category.name,
+        description: category.description || "",
+      })
+    } else {
+      setEditingCategory(null)
+      setCategoryFormData({
+        name: "",
+        description: "",
+      })
+    }
+    setIsLocationCategoriesDialogOpen(true)
+  }
+
+  const handleSaveCategory = async () => {
+    if (!categoryFormData.name.trim()) {
+      toast({
+        title: "Campo requerido",
+        description: "El nombre de la categoría es obligatorio",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSavingCategory(true)
+    try {
+      if (editingCategory) {
+        // Update
+        await updateLocationCategory(editingCategory.id, {
+          name: categoryFormData.name.trim(),
+          description: categoryFormData.description.trim() || null,
+        })
+        toast({
+          title: "Categoría actualizada",
+          description: "La categoría se ha actualizado correctamente",
+        })
+      } else {
+        // Create
+        await createLocationCategory({
+          name: categoryFormData.name.trim(),
+          description: categoryFormData.description.trim() || null,
+        })
+        toast({
+          title: "Categoría creada",
+          description: "La nueva categoría se ha creado correctamente",
+        })
+      }
+
+      await loadLocationCategories()
+      setIsLocationCategoriesDialogOpen(false)
+      setCategoryFormData({ name: "", description: "" })
+      setEditingCategory(null)
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo guardar la categoría",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingCategory(false)
+    }
+  }
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    try {
+      await deleteLocationCategory(categoryId)
+      toast({
+        title: "Categoría eliminada",
+        description: "La categoría se ha eliminado correctamente",
+      })
+      await loadLocationCategories()
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar la categoría",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -218,6 +345,204 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold text-foreground">Configuración</h1>
           <p className="text-muted-foreground">Personaliza tu experiencia en UniApp</p>
         </div>
+
+        {/* Location Categories Settings */}
+        {user?.role === 'admin' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Tipos de Ubicación
+              </CardTitle>
+              <CardDescription>Gestiona los tipos de ubicación disponibles en el mapa del campus</CardDescription>
+            </CardHeader>
+          <CardContent>
+            <Button
+              onClick={() => handleOpenCategoryDialog()}
+              className="w-full"
+              disabled={isLoadingCategories}
+            >
+              {isLoadingCategories ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Cargando...
+                </>
+              ) : (
+                <>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configurar tipos de ubicación
+                </>
+              )}
+            </Button>
+
+            {/* Location Categories Dialog */}
+            <Dialog open={isLocationCategoriesDialogOpen} onOpenChange={setIsLocationCategoriesDialogOpen}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingCategory ? "Editar Tipo de Ubicación" : "Gestionar Tipos de Ubicación"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {editingCategory
+                      ? "Modifica la información del tipo de ubicación"
+                      : "Crea y administra los tipos de ubicación disponibles en el mapa"}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-6">
+                  {/* Formulario de creación/edición */}
+                  <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                    <h3 className="font-medium text-sm">
+                      {editingCategory ? "Editar categoría" : "Crear nueva categoría"}
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="category-name">Nombre *</Label>
+                        <Input
+                          id="category-name"
+                          placeholder="Ej: Académico, Servicios, Recreativo..."
+                          value={categoryFormData.name}
+                          onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="category-description">Descripción</Label>
+                        <Textarea
+                          id="category-description"
+                          placeholder="Describe este tipo de ubicación..."
+                          value={categoryFormData.description}
+                          onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        {editingCategory && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingCategory(null)
+                              setCategoryFormData({ name: "", description: "" })
+                            }}
+                            disabled={isSavingCategory}
+                          >
+                            Cancelar edición
+                          </Button>
+                        )}
+                        <Button
+                          onClick={handleSaveCategory}
+                          disabled={isSavingCategory || !categoryFormData.name.trim()}
+                        >
+                          {isSavingCategory ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Guardando...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="h-4 w-4 mr-2" />
+                              {editingCategory ? "Actualizar" : "Crear"}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Lista de categorías existentes */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-medium">
+                        Categorías existentes ({locationCategories.length})
+                      </Label>
+                      {editingCategory && locationCategories.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenCategoryDialog()}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Nueva
+                        </Button>
+                      )}
+                    </div>
+
+                    {isLoadingCategories ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : locationCategories.length > 0 ? (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {locationCategories.map((category) => (
+                          <div
+                            key={category.id}
+                            className={`flex items-start gap-3 p-3 rounded-lg border ${editingCategory?.id === category.id
+                                ? "bg-primary/10 border-primary"
+                                : "bg-background border-border"
+                              }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm">{category.name}</p>
+                              {category.description && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {category.description}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenCategoryDialog(category)}
+                                className="h-8 w-8 p-0"
+                                title="Editar"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteCategory(category.id)}
+                                className="h-8 w-8 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-sm text-muted-foreground">
+                        <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No hay tipos de ubicación configurados</p>
+                        <p className="text-xs mt-1">Crea tu primer tipo de ubicación arriba</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsLocationCategoriesDialogOpen(false)
+                      setEditingCategory(null)
+                      setCategoryFormData({ name: "", description: "" })
+                    }}
+                  >
+                    Cerrar
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+        )}
 
         {/* Map Settings */}
         <Card>
@@ -229,6 +554,16 @@ export default function SettingsPage() {
             <CardDescription>Gestiona tus ubicaciones favoritas del campus</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {locationCategories.length === 0 && user?.role === 'admin' && (
+              <Alert className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+                <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Configura tipos de ubicación primero:</strong> Para crear ubicaciones personalizadas en el mapa,
+                  primero debes configurar los tipos de ubicación disponibles en la sección
+                  <span className="font-semibold"> "Tipos de Ubicación"</span> arriba.
+                </AlertDescription>
+              </Alert>
+            )}
             <div>
               <Label>Ubicaciones favoritas</Label>
               <div className="flex flex-wrap gap-2 mt-2">
@@ -252,16 +587,17 @@ export default function SettingsPage() {
                 placeholder="Agregar nueva ubicación favorita"
                 value={newLocation}
                 onChange={(e) => setNewLocation(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleAddFavoriteLocation()}
+                onKeyDown={(e) => e.key === "Enter" && handleAddFavoriteLocation()}
               />
               <Button onClick={handleAddFavoriteLocation} size="sm">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-
-            <Separator />
-            <div className="space-y-3">
-              <Label className="text-base font-medium">Crear Ubicación Personalizada</Label>
+            {/*Crear Ubicación Personalizada*/}
+            {user?.role === 'admin' && (
+              <div className="space-y-3">
+                <Separator />
+                <Label className="text-base font-medium">Crear Ubicación del Campus</Label>
               <p className="text-sm text-muted-foreground">
                 Haz clic en el mapa del campus para seleccionar una ubicación y crear tu propio punto de referencia
               </p>
@@ -275,7 +611,7 @@ export default function SettingsPage() {
                 </DialogTrigger>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Crear Ubicación Personalizada</DialogTitle>
+                    <DialogTitle>Crear ubicación del Campus</DialogTitle>
                     <DialogDescription>
                       Haz clic en el mapa para seleccionar las coordenadas de tu nueva ubicación
                     </DialogDescription>
@@ -344,18 +680,24 @@ export default function SettingsPage() {
                         <Select
                           value={newLocationData.type}
                           onValueChange={(value) => setNewLocationData({ ...newLocationData, type: value })}
+                          disabled={locationCategories.length === 0}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar tipo" />
+                            <SelectValue placeholder={locationCategories.length === 0 ? "No hay tipos configurados" : "Seleccionar tipo"} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Académico">Académico</SelectItem>
-                            <SelectItem value="Servicios">Servicios</SelectItem>
-                            <SelectItem value="Recreativo">Recreativo</SelectItem>
-                            <SelectItem value="Administrativo">Administrativo</SelectItem>
-                            <SelectItem value="Otro">Otro</SelectItem>
+                            {locationCategories.map((category) => (
+                              <SelectItem key={category.id} value={category.name}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
+                        {locationCategories.length === 0 && user?.role === 'admin' && (
+                          <p className="text-xs text-muted-foreground">
+                            Configura tipos de ubicación en la sección "Tipos de Ubicación" arriba
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -419,17 +761,20 @@ export default function SettingsPage() {
                 </DialogContent>
               </Dialog>
             </div>
+            )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Ticket className="h-5 w-5" />
-              Gestión de Cupones
-            </CardTitle>
-            <CardDescription>Sube y gestiona los cupones disponibles para los estudiantes</CardDescription>
-          </CardHeader>
+        {/* Coupon Management Settings */}
+        {user?.role === 'admin' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Ticket className="h-5 w-5" />
+                Gestión de Cupones
+              </CardTitle>
+              <CardDescription>Sube y gestiona los cupones disponibles para los estudiantes</CardDescription>
+            </CardHeader>
           <CardContent className="space-y-4">
             <Dialog open={isCouponModalOpen} onOpenChange={setIsCouponModalOpen}>
               <DialogTrigger asChild>
@@ -591,6 +936,7 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* ... existing cards ... */}
 
@@ -652,7 +998,7 @@ export default function SettingsPage() {
               />
             </div>
           </CardContent>
-        </Card>        
+        </Card>
 
         {/* Privacy Settings */}
         <Card>
