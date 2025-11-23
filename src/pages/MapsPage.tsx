@@ -193,15 +193,17 @@ export default function MapsPage() {
         panning={{ disabled: false }}
       >
         <TransformComponent
-          wrapperClass="w-full h-full"
-          contentClass="w-full h-full flex items-center justify-center"
+          wrapperClass="w-full h-full !overflow-visible"
+          contentClass="w-full h-full flex items-center justify-center !overflow-visible"
+          wrapperStyle={{ overflow: 'visible' }}
         >
-          <div className="relative w-full h-full flex items-center justify-center">
+          <div className="relative inline-block max-h-full max-w-full !overflow-visible" style={{ overflow: 'visible', padding: '2rem' }}>
             <img
               src={mapImageUrl}
               alt="Mapa del Campus Universitario"
-              className="max-w-full max-h-full object-contain"
+              className="h-full w-auto object-contain block"
               draggable={false}
+              style={{ maxWidth: '100%', maxHeight: '100%' }}
             />
 
             {orderedLocations.map((location) => {
@@ -458,18 +460,18 @@ export default function MapsPage() {
                             {({ zoomIn, zoomOut, resetTransform, ...instance }) => (
                               <>
                                 <TransformComponent
-                                  wrapperClass="!w-full !h-full"
-                                  contentClass="!w-full !h-full !flex !items-center !justify-center"
-                                  wrapperStyle={{ width: '100%', height: '100%' }}
-                                  contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                  wrapperClass="!w-full !h-full !overflow-visible"
+                                  contentClass="!w-full !h-full !flex !items-center !justify-center !overflow-visible"
+                                  wrapperStyle={{ width: '100%', height: '100%', overflow: 'visible' }}
+                                  contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}
                                 >
-                                  <div className="relative inline-block h-full">
+                                  <div className="relative inline-block max-h-full max-w-full !overflow-visible" style={{ overflow: 'visible', padding: '2rem' }}>
                                     <img
                                       src={mapImageUrl}
                                       alt="Mapa del Campus Universitario"
                                       className="h-full w-auto object-contain block"
                                       draggable={false}
-                                      style={{ maxHeight: '100%' }}
+                                      style={{ maxHeight: '100%', maxWidth: '100%' }}
                                     />
 
                                     {orderedLocations.map((location) => {
