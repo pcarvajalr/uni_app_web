@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   MapPin,
   Search,
   Navigation,
@@ -26,10 +33,12 @@ import {
 import { useState, useRef, useEffect } from "react"
 import { getCampusLocations } from "@/services/campus-locations.service"
 import { getMapImageUrl } from "@/services/campus-settings.service"
+import { getLocationCategories } from "@/services/location-categories.service"
 import { getIconComponent } from "@/lib/icon-mapper"
 import type { Database } from "@/types/database.types"
 
 type CampusLocation = Database['public']['Tables']['campus_locations']['Row']
+type Category = Database['public']['Tables']['categories']['Row']
 
 export default function MapsPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -54,17 +63,24 @@ export default function MapsPage() {
   const [galleryImages, setGalleryImages] = useState<string[]>([])
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
+  // Campus search and filter state
+  const [campusSearchQuery, setCampusSearchQuery] = useState("")
+  const [campusSelectedType, setCampusSelectedType] = useState<string>("all")
+  const [locationTypes, setLocationTypes] = useState<Category[]>([])
+
   // Load campus locations and map image
   useEffect(() => {
     const loadData = async () => {
       setIsLoadingLocations(true)
       try {
-        const [locations, imageUrl] = await Promise.all([
+        const [locations, imageUrl, types] = await Promise.all([
           getCampusLocations(),
-          getMapImageUrl()
+          getMapImageUrl(),
+          getLocationCategories()
         ])
         setCampusLocations(locations)
         setMapImageUrl(imageUrl)
+        setLocationTypes(types)
       } catch (error) {
         console.error('Error loading campus data:', error)
       } finally {
@@ -92,6 +108,28 @@ export default function MapsPage() {
     const query = encodeURIComponent(category + " cerca de universidad")
     window.open(`https://www.google.com/maps/search/${query}`, "_blank")
   }
+
+  // Campus locations filtering (OR logic - non-exclusive filters)
+  const filteredLocations = campusLocations.filter((location) => {
+    const hasSearchFilter = campusSearchQuery.trim() !== ""
+    const hasTypeFilter = campusSelectedType !== "all"
+
+    // No filters active: show all
+    if (!hasSearchFilter && !hasTypeFilter) return true
+
+    const matchesSearch = location.name.toLowerCase().includes(campusSearchQuery.toLowerCase())
+    const matchesType = location.type === campusSelectedType
+
+    // With filters: show if matches ANY filter (OR logic)
+    return (hasSearchFilter && matchesSearch) || (hasTypeFilter && matchesType)
+  })
+
+  const clearCampusFilters = () => {
+    setCampusSearchQuery("")
+    setCampusSelectedType("all")
+  }
+
+  const hasActiveFilters = campusSearchQuery.trim() !== "" || campusSelectedType !== "all"
 
   const handleMapMouseDown = (e: React.MouseEvent) => {
     if (zoomLevel > 1) {
@@ -238,7 +276,7 @@ export default function MapsPage() {
           draggable={false}
         />
 
-        {campusLocations.map((location) => {
+        {filteredLocations.map((location) => {
           const Icon = getIconComponent(location.icon)
           const isSelected = selectedLocation === location.id
           const hours = location.opening_hours ? (location.opening_hours as any).hours || "" : ""
@@ -307,7 +345,7 @@ export default function MapsPage() {
           )
         })}
 
-        {selectedLocation === null && (
+        {/* {selectedLocation === null && (
           <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
             <div className="text-center text-white">
               <MapPin className="h-12 w-12 mx-auto mb-2" />
@@ -315,7 +353,7 @@ export default function MapsPage() {
               <p className="text-sm opacity-90">Toca los marcadores para ver información</p>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   )
@@ -524,27 +562,72 @@ export default function MapsPage() {
             </CardContent>
           </Card>
 
+          {/* Search and Filters Card */}
+          <Card className="py-3">
+            <CardContent className="px-4">
+              <div className="flex flex-col md:flex-row gap-3">
+                {/* Search input */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    placeholder="Buscar por nombre..."
+                    value={campusSearchQuery}
+                    onChange={(e) => setCampusSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                {/* Type filter */}
+                <Select value={campusSelectedType} onValueChange={setCampusSelectedType}>
+                  <SelectTrigger className="w-full md:w-[200px]">
+                    <SelectValue placeholder="Todos los tipos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los tipos</SelectItem>
+                    {locationTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.name}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Clear filters button */}
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="icon" onClick={clearCampusFilters} title="Limpiar filtros">
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Results counter */}
+              <p className="text-sm text-muted-foreground mt-3">
+                {filteredLocations.length} ubicación{filteredLocations.length !== 1 ? 'es' : ''} encontrada{filteredLocations.length !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
+
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Ubicaciones del Campus</h2>
             {isLoadingLocations ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : campusLocations.length > 0 ? (
+            ) : filteredLocations.length > 0 ? (
               <div className="space-y-3">
-                {campusLocations.map((location) => {
+                {filteredLocations.map((location) => {
                   const Icon = getIconComponent(location.icon)
                   const isSelected = selectedLocation === location.id
                   const hours = location.opening_hours ? (location.opening_hours as any).hours || "" : ""
                   return (
                     <Card
                       key={location.id}
-                      className={`hover:shadow-md transition-all cursor-pointer ${
+                      className={`hover:shadow-md transition-all cursor-pointer py-3 ${
                         isSelected ? "ring-2 ring-primary shadow-md" : ""
                       }`}
                       onClick={() => setSelectedLocation(isSelected ? null : location.id)}
                     >
-                      <CardContent className="p-4">
+                      <CardContent className="px-4">
                         <div className="flex items-start space-x-3">
                           <div
                             className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
