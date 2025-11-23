@@ -29,7 +29,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="pb-20 px-4 py-6">{children}</main>
+      <main className="pb-20 px-2 py-6">{children}</main>
       <MobileNav />
     </div>
   )
