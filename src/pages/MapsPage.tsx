@@ -53,6 +53,7 @@ export default function MapsPage() {
   const dragStartRef = useRef({ x: 0, y: 0 })
   const currentPanRef = useRef({ x: 0, y: 0 }) // store current pan position for smooth dragging
   const mapImageRef = useRef<HTMLDivElement>(null) // ref for the transformed div
+  const mapCardRef = useRef<HTMLDivElement>(null) // ref for scrolling to map when selecting from list
 
   // Campus locations and map image from database
   const [campusLocations, setCampusLocations] = useState<CampusLocation[]>([])
@@ -520,8 +521,9 @@ export default function MapsPage() {
             <h1 className="text-xl font-bold">Mapa del Campus</h1>
           </div>
 
-          <Card>
-            <CardContent className="p-0 relative">
+          <div ref={mapCardRef}>
+            <Card>
+              <CardContent className="p-0 relative">
               <div className="relative">
                 <MapContent />
 
@@ -597,7 +599,8 @@ export default function MapsPage() {
                 </Dialog>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
 
           {/* Filters Control Bar */}
           <div className="flex items-center justify-between">
@@ -688,7 +691,18 @@ export default function MapsPage() {
                       className={`hover:shadow-md transition-all cursor-pointer py-3 ${
                         isSelected ? "ring-2 ring-primary shadow-md" : ""
                       }`}
-                      onClick={() => setSelectedLocation(isSelected ? null : location.id)}
+                      onClick={() => {
+                        setSelectedLocation(isSelected ? null : location.id)
+                        // Scroll to map when selecting from list
+                        if (!isSelected && mapCardRef.current) {
+                          setTimeout(() => {
+                            mapCardRef.current?.scrollIntoView({
+                              behavior: 'smooth',
+                              block: 'start',
+                            })
+                          }, 50)
+                        }
+                      }}
                     >
                       <CardContent className="px-4">
                         <div className="flex items-start space-x-3">
