@@ -2,8 +2,8 @@ import { supabase, handleSupabaseError, unwrapData } from '../lib/supabase';
 import type { Database } from '../types/database.types';
 
 type Report = Database['public']['Tables']['reports']['Row'];
-type ReportInsert = Database['public']['Tables']['reports']['Insert'];
-type ReportUpdate = Database['public']['Tables']['reports']['Update'];
+export type ReportInsert = Database['public']['Tables']['reports']['Insert'];
+export type ReportUpdate = Database['public']['Tables']['reports']['Update'];
 
 export interface ReportWithReporter extends Report {
   reporter: {

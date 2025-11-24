@@ -27,13 +27,25 @@ import {
 } from "@/services/campus-locations.service"
 import { getMapImageUrl } from "@/services/campus-settings.service"
 import { uploadLocationImage, validateImageFile } from "@/services/storage.service"
+import {
+  getUserFavoriteLocations,
+  toggleLocationFavorite,
+} from "@/services/location-favorites.service"
+import {
+  getAllCoupons,
+  createCoupon,
+  deleteCoupon,
+  uploadCouponImage,
+} from "@/services/coupons.service"
 import type { Database } from "@/types/database.types"
 import { IconSelector } from "@/components/icon-selector"
 import { MapImageUploader } from "@/components/map-image-uploader"
+import { FavoriteLocationsModal } from "@/components/FavoriteLocationsModal"
 import type { LocationIconName } from "@/lib/icon-mapper"
 
 type Category = Database['public']['Tables']['categories']['Row']
 type CampusLocation = Database['public']['Tables']['campus_locations']['Row']
+type Coupon = Database['public']['Tables']['coupons']['Row']
 import {
   Dialog,
   DialogContent,
@@ -54,14 +66,18 @@ export default function SettingsPage() {
 
   // ... existing state ...
 
-  const [coupons, setCoupons] = useState<any[]>([])
+  const [coupons, setCoupons] = useState<Coupon[]>([])
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false)
+  const [isSavingCoupon, setIsSavingCoupon] = useState(false)
+  const [couponImageFile, setCouponImageFile] = useState<File | null>(null)
   const [newCoupon, setNewCoupon] = useState({
     title: "",
     discount: "",
     code: "",
     expiry: "",
     category: "",
+    description: "",
+    discountType: "percentage" as "percentage" | "fixed_amount",
     image: "",
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -75,8 +91,8 @@ export default function SettingsPage() {
     general: false,
   })
 
-  const [favoriteLocations, setFavoriteLocations] = useState(["Biblioteca Central", "Cafetería Principal"])
-  const [newLocation, setNewLocation] = useState("")
+  const [favoriteLocations, setFavoriteLocations] = useState<CampusLocation[]>([])
+  const [isFavoriteLocationsModalOpen, setIsFavoriteLocationsModalOpen] = useState(false)
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
   const [selectedCoordinates, setSelectedCoordinates] = useState<{ x: number; y: number } | null>(null)
   const [newLocationData, setNewLocationData] = useState({
@@ -92,6 +108,10 @@ export default function SettingsPage() {
   // Estado para archivos de imágenes seleccionados
   const [selectedImageFiles, setSelectedImageFiles] = useState<File[]>([])
   const imageInputRef = useRef<HTMLInputElement>(null)
+
+  // Refs para el mapa de configuración
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapImageRef = useRef<HTMLImageElement>(null)
 
   // Campus locations state
   const [campusLocations, setCampusLocations] = useState<CampusLocation[]>([])
@@ -123,11 +143,19 @@ export default function SettingsPage() {
   })
 
   // Load coupons on component mount
+  // Cargar cupones desde Supabase
   useEffect(() => {
-    const stored = localStorage.getItem("uniapp_coupons")
-    if (stored) {
-      setCoupons(JSON.parse(stored))
+    const loadCoupons = async () => {
+      try {
+        const allCoupons = await getAllCoupons()
+        setCoupons(allCoupons)
+      } catch (error) {
+        console.error('Error cargando cupones:', error)
+        // No mostrar toast aquí para no molestar al usuario al cargar
+      }
     }
+
+    loadCoupons()
   }, [])
 
   // Load location categories
@@ -176,31 +204,47 @@ export default function SettingsPage() {
     }
   }
 
+  // Load favorite locations from database
+  const loadFavoriteLocations = async () => {
+    if (!user) return
+    try {
+      const favorites = await getUserFavoriteLocations(user.id)
+      // Extract campus_location from favorites
+      const locations = favorites
+        .map((fav: any) => fav.campus_location)
+        .filter((loc: any) => loc !== null) as CampusLocation[]
+      setFavoriteLocations(locations)
+    } catch (error) {
+      console.error('Error cargando ubicaciones favoritas:', error)
+    }
+  }
+
   useEffect(() => {
     loadLocationCategories()
     loadCampusLocations()
     loadMapImageUrl()
+    loadFavoriteLocations()
   }, [])
 
   // ... existing handlers ...
 
-  const handleAddFavoriteLocation = () => {
-    if (newLocation.trim()) {
-      setFavoriteLocations([...favoriteLocations, newLocation.trim()])
-      setNewLocation("")
+  const handleRemoveFavoriteLocation = async (locationId: string) => {
+    if (!user) return
+    try {
+      await toggleLocationFavorite(locationId, user.id)
+      await loadFavoriteLocations()
       toast({
-        title: "Ubicación agregada",
-        description: "La ubicación ha sido añadida a tus favoritos.",
+        title: "Ubicación eliminada",
+        description: "La ubicación ha sido removida de tus favoritos.",
+      })
+    } catch (error) {
+      console.error('Error eliminando favorito:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la ubicación de favoritos",
+        variant: "destructive",
       })
     }
-  }
-
-  const handleRemoveFavoriteLocation = (location: string) => {
-    setFavoriteLocations(favoriteLocations.filter((loc) => loc !== location))
-    toast({
-      title: "Ubicación eliminada",
-      description: "La ubicación ha sido removida de tus favoritos.",
-    })
   }
 
   const handleExportData = () => {
@@ -219,9 +263,25 @@ export default function SettingsPage() {
   }
 
   const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    const x = ((event.clientX - rect.left) / rect.width) * 100
-    const y = ((event.clientY - rect.top) / rect.height) * 100
+    const img = mapImageRef.current
+    if (!img) return
+
+    // Obtener dimensiones de la imagen renderizada (no del contenedor)
+    const imgRect = img.getBoundingClientRect()
+
+    // Calcular coordenadas relativas a la imagen VISIBLE
+    const x = ((event.clientX - imgRect.left) / imgRect.width) * 100
+    const y = ((event.clientY - imgRect.top) / imgRect.height) * 100
+
+    // Verificar que el clic fue dentro de la imagen
+    if (x < 0 || x > 100 || y < 0 || y > 100) {
+      toast({
+        title: "Clic fuera del mapa",
+        description: "Por favor, haz clic dentro de la imagen del mapa",
+        variant: "destructive",
+      })
+      return
+    }
 
     setSelectedCoordinates({ x, y })
   }
@@ -418,6 +478,10 @@ export default function SettingsPage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      // Guardar el archivo para subirlo después
+      setCouponImageFile(file)
+
+      // Leer como data URL para preview
       const reader = new FileReader()
       reader.onloadend = () => {
         setNewCoupon({ ...newCoupon, image: reader.result as string })
@@ -426,55 +490,122 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSaveCoupon = () => {
+  const handleSaveCoupon = async () => {
+    // Validar campos requeridos
     if (
-      newCoupon.title.trim() &&
-      newCoupon.discount.trim() &&
-      newCoupon.code.trim() &&
-      newCoupon.expiry.trim() &&
-      newCoupon.category.trim() &&
-      newCoupon.image
+      !newCoupon.title.trim() ||
+      !newCoupon.discount.trim() ||
+      !newCoupon.code.trim() ||
+      !newCoupon.expiry.trim() ||
+      !couponImageFile
     ) {
-      const couponToSave = {
-        id: Date.now().toString(),
-        ...newCoupon,
+      toast({
+        title: "Campos incompletos",
+        description: "Por favor completa todos los campos requeridos e incluye una imagen.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSavingCoupon(true)
+
+    try {
+      // 1. Subir imagen a Storage
+      const imageUrl = await uploadCouponImage(couponImageFile, newCoupon.code.toUpperCase())
+
+      // 2. Parsear el descuento (puede ser "20%" o "20" para porcentaje, o "$10" para fixed_amount)
+      let discountType: 'percentage' | 'fixed_amount' = newCoupon.discountType
+      let discountValue = 0
+
+      const discountStr = newCoupon.discount.trim()
+      if (discountStr.includes('%')) {
+        discountType = 'percentage'
+        discountValue = parseFloat(discountStr.replace('%', ''))
+      } else if (discountStr.includes('$')) {
+        discountType = 'fixed_amount'
+        discountValue = parseFloat(discountStr.replace('$', ''))
+      } else {
+        // Si no tiene símbolo, usar el tipo seleccionado
+        discountValue = parseFloat(discountStr)
       }
 
-      const updatedCoupons = [...coupons, couponToSave]
-      setCoupons(updatedCoupons)
-      localStorage.setItem("uniapp_coupons", JSON.stringify(updatedCoupons))
+      // Validar que el descuento sea un número válido
+      if (isNaN(discountValue) || discountValue <= 0) {
+        throw new Error('El valor del descuento debe ser un número válido mayor a 0')
+      }
 
+      // 3. Convertir la fecha de expiración a timestamp ISO
+      const validUntil = new Date(newCoupon.expiry).toISOString()
+
+      // 4. Crear el cupón en Supabase
+      const couponData = {
+        code: newCoupon.code.toUpperCase(),
+        title: newCoupon.title.trim(),
+        description: newCoupon.description.trim() || null,
+        discount_type: discountType,
+        discount_value: discountValue,
+        image_url: imageUrl,
+        valid_until: validUntil,
+        applicable_to: newCoupon.category as 'products' | 'tutoring' | 'both' | null,
+        is_active: true,
+      }
+
+      const savedCoupon = await createCoupon(couponData)
+
+      // 5. Actualizar estado local
+      setCoupons([savedCoupon, ...coupons])
+
+      // 6. Limpiar formulario
       setNewCoupon({
         title: "",
         discount: "",
         code: "",
         expiry: "",
         category: "",
+        description: "",
+        discountType: "percentage",
         image: "",
       })
+      setCouponImageFile(null)
       setIsCouponModalOpen(false)
 
       toast({
-        title: "Cupón agregado",
-        description: "El cupón ha sido guardado exitosamente.",
+        title: "Cupón creado",
+        description: "El cupón ha sido guardado exitosamente en la base de datos.",
       })
-    } else {
+    } catch (error: any) {
+      console.error('Error creando cupón:', error)
       toast({
-        title: "Campos incompletos",
-        description: "Por favor completa todos los campos.",
+        title: "Error al crear cupón",
+        description: error.message || "Hubo un error al guardar el cupón. Por favor intenta de nuevo.",
         variant: "destructive",
       })
+    } finally {
+      setIsSavingCoupon(false)
     }
   }
 
-  const handleRemoveCoupon = (couponId: string) => {
-    const updatedCoupons = coupons.filter((c) => c.id !== couponId)
-    setCoupons(updatedCoupons)
-    localStorage.setItem("uniapp_coupons", JSON.stringify(updatedCoupons))
-    toast({
-      title: "Cupón eliminado",
-      description: "El cupón ha sido removido.",
-    })
+  const handleRemoveCoupon = async (couponId: string) => {
+    try {
+      // Eliminar de Supabase
+      await deleteCoupon(couponId)
+
+      // Actualizar estado local
+      const updatedCoupons = coupons.filter((c) => c.id !== couponId)
+      setCoupons(updatedCoupons)
+
+      toast({
+        title: "Cupón eliminado",
+        description: "El cupón ha sido removido exitosamente.",
+      })
+    } catch (error: any) {
+      console.error('Error eliminando cupón:', error)
+      toast({
+        title: "Error al eliminar cupón",
+        description: error.message || "Hubo un error al eliminar el cupón.",
+        variant: "destructive",
+      })
+    }
   }
 
   // Location Categories Handlers
@@ -813,33 +944,38 @@ export default function SettingsPage() {
               </Alert>
             )}
             <div>
-              <Label>Ubicaciones favoritas</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {favoriteLocations.map((location, index) => (
-                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                    {location}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                      onClick={() => handleRemoveFavoriteLocation(location)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ))}
+              <div className="flex items-center justify-between mb-2">
+                <Label>Ubicaciones favoritas</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsFavoriteLocationsModalOpen(true)}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Gestionar favoritos
+                </Button>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Agregar nueva ubicación favorita"
-                value={newLocation}
-                onChange={(e) => setNewLocation(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddFavoriteLocation()}
-              />
-              <Button onClick={handleAddFavoriteLocation} size="sm">
-                <Plus className="h-4 w-4" />
-              </Button>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {favoriteLocations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No tienes ubicaciones favoritas. Haz clic en "Gestionar favoritos" para agregar.
+                  </p>
+                ) : (
+                  favoriteLocations.map((location) => (
+                    <Badge key={location.id} variant="secondary" className="flex items-center gap-1">
+                      {location.name}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => handleRemoveFavoriteLocation(location.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))
+                )}
+              </div>
             </div>
             {/*Crear Ubicación Personalizada*/}
             {user?.role === 'admin' && (
@@ -850,7 +986,7 @@ export default function SettingsPage() {
                 Haz clic en el mapa del campus para seleccionar una ubicación y crear tu propio punto de referencia
               </p>
 
-              <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
+              <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}> 
                 <DialogTrigger asChild>
                   <Button variant="outline" className="w-full bg-transparent">
                     <Map className="h-4 w-4 mr-2" />
@@ -873,21 +1009,25 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                       <Label>Seleccionar ubicación en el mapa</Label>
                       <div
-                        className="aspect-video bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative overflow-hidden cursor-crosshair border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors"
+                        ref={mapContainerRef}
+                        className="w-full max-h-[500px] bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative overflow-hidden cursor-crosshair border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors flex items-center justify-center"
                         onClick={handleMapClick}
                       >
                         <img
+                          ref={mapImageRef}
                           src={mapImageUrl}
                           alt="Mapa del Campus Universitario"
-                          className="w-full h-full object-cover"
+                          className="max-w-full max-h-full object-contain block"
+                          style={{ maxHeight: '500px' }}
                         />
 
                         {selectedCoordinates && (
                           <div
-                            className="absolute transform -translate-x-1/2 -translate-y-1/2 animate-bounce"
+                            className="absolute pointer-events-none"
                             style={{
                               left: `${selectedCoordinates.x}%`,
                               top: `${selectedCoordinates.y}%`,
+                              transform: 'translate(-50%, -50%)'
                             }}
                           >
                             <div className="w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
@@ -898,7 +1038,7 @@ export default function SettingsPage() {
                         )}
 
                         {!selectedCoordinates && (
-                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
                             <div className="text-center text-white bg-black/50 p-4 rounded-lg">
                               <MapPin className="h-8 w-8 mx-auto mb-2" />
                               <p className="font-semibold">Haz clic en el mapa</p>
@@ -1272,68 +1412,110 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="coupon-title">Título del Cupón</Label>
+                    <Label htmlFor="coupon-title">Título del Cupón *</Label>
                     <Input
                       id="coupon-title"
                       placeholder="Ej: Descuento en Comida"
                       value={newCoupon.title}
                       onChange={(e) => setNewCoupon({ ...newCoupon, title: e.target.value })}
+                      disabled={isSavingCoupon}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="coupon-discount">Descuento</Label>
-                    <Input
-                      id="coupon-discount"
-                      placeholder="Ej: 20% OFF"
-                      value={newCoupon.discount}
-                      onChange={(e) => setNewCoupon({ ...newCoupon, discount: e.target.value })}
+                    <Label htmlFor="coupon-description">Descripción (opcional)</Label>
+                    <Textarea
+                      id="coupon-description"
+                      placeholder="Descripción del cupón"
+                      value={newCoupon.description}
+                      onChange={(e) => setNewCoupon({ ...newCoupon, description: e.target.value })}
+                      disabled={isSavingCoupon}
+                      rows={2}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="coupon-code">Código Promocional</Label>
+                    <Label htmlFor="coupon-code">Código Promocional *</Label>
                     <Input
                       id="coupon-code"
                       placeholder="Ej: UNIAPP20"
                       value={newCoupon.code}
-                      onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value })}
+                      onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })}
+                      disabled={isSavingCoupon}
                     />
                   </div>
 
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="coupon-discount-type">Tipo de Descuento *</Label>
+                      <Select
+                        value={newCoupon.discountType}
+                        onValueChange={(value: "percentage" | "fixed_amount") => setNewCoupon({ ...newCoupon, discountType: value })}
+                        disabled={isSavingCoupon}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentage">Porcentaje (%)</SelectItem>
+                          <SelectItem value="fixed_amount">Monto Fijo ($)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="coupon-discount">Valor *</Label>
+                      <Input
+                        id="coupon-discount"
+                        type="number"
+                        placeholder={newCoupon.discountType === 'percentage' ? '20' : '10'}
+                        value={newCoupon.discount}
+                        onChange={(e) => setNewCoupon({ ...newCoupon, discount: e.target.value })}
+                        disabled={isSavingCoupon}
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="coupon-category">Categoría</Label>
-                    <Select value={newCoupon.category} onValueChange={(value) => setNewCoupon({ ...newCoupon, category: value })}>
+                    <Label htmlFor="coupon-category">Aplicable a</Label>
+                    <Select value={newCoupon.category} onValueChange={(value) => setNewCoupon({ ...newCoupon, category: value })} disabled={isSavingCoupon}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar categoría" />
+                        <SelectValue placeholder="Seleccionar tipo" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Alimentos">Alimentos</SelectItem>
-                        <SelectItem value="Tecnología">Tecnología</SelectItem>
-                        <SelectItem value="Ropa">Ropa</SelectItem>
-                        <SelectItem value="Libros">Libros</SelectItem>
-                        <SelectItem value="Servicios">Servicios</SelectItem>
-                        <SelectItem value="Otro">Otro</SelectItem>
+                        <SelectItem value="both">Productos y Tutorías</SelectItem>
+                        <SelectItem value="products">Solo Productos</SelectItem>
+                        <SelectItem value="tutoring">Solo Tutorías</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="coupon-expiry">Fecha de Vencimiento</Label>
+                    <Label htmlFor="coupon-expiry">Fecha de Vencimiento *</Label>
                     <Input
                       id="coupon-expiry"
-                      placeholder="Ej: 31 Dic 2024"
+                      type="date"
                       value={newCoupon.expiry}
                       onChange={(e) => setNewCoupon({ ...newCoupon, expiry: e.target.value })}
+                      disabled={isSavingCoupon}
                     />
                   </div>
                 </div>
 
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCouponModalOpen(false)}>
+                  <Button variant="outline" onClick={() => setIsCouponModalOpen(false)} disabled={isSavingCoupon}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleSaveCoupon}>Guardar Cupón</Button>
+                  <Button onClick={handleSaveCoupon} disabled={isSavingCoupon}>
+                    {isSavingCoupon ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      'Guardar Cupón'
+                    )}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -1349,13 +1531,18 @@ export default function SettingsPage() {
                       className="flex items-center gap-3 p-3 bg-muted rounded-lg"
                     >
                       <img
-                        src={coupon.image || "/placeholder.svg"}
+                        src={coupon.image_url || "/placeholder.svg"}
                         alt={coupon.title}
                         className="w-12 h-12 rounded object-cover"
                       />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{coupon.title}</p>
-                        <p className="text-xs text-muted-foreground">{coupon.code}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-muted-foreground">{coupon.code}</p>
+                          {!coupon.is_active && (
+                            <Badge variant="secondary" className="text-xs">Inactivo</Badge>
+                          )}
+                        </div>
                       </div>
                       <Button
                         size="sm"
@@ -1530,6 +1717,13 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal de gestión de ubicaciones favoritas */}
+      <FavoriteLocationsModal
+        open={isFavoriteLocationsModalOpen}
+        onOpenChange={setIsFavoriteLocationsModalOpen}
+        onFavoritesChange={loadFavoriteLocations}
+      />
     </AppLayout>
   )
 }

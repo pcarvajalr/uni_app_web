@@ -5,16 +5,33 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Ticket, Download, Copy, Heart } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
+import { getActiveCoupons } from "@/services/coupons.service"
+import type { Database } from "@/types/database.types"
 
-interface Coupon {
-  id: string
-  image: string
-  title: string
-  discount: string
-  code: string
-  expiry: string
-  category: string
-  isFavorite: boolean
+type Coupon = Database['public']['Tables']['coupons']['Row']
+
+// Helper para formatear el descuento
+const formatDiscount = (type: string, value: number): string => {
+  if (type === 'percentage') {
+    return `${value}% OFF`
+  } else {
+    return `$${value} OFF`
+  }
+}
+
+// Helper para formatear la fecha
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// Helper para formatear categoría
+const formatCategory = (applicableTo: string | null): string => {
+  if (!applicableTo) return 'General'
+  if (applicableTo === 'products') return 'Productos'
+  if (applicableTo === 'tutoring') return 'Tutorías'
+  if (applicableTo === 'both') return 'Productos y Tutorías'
+  return applicableTo
 }
 
 export default function CouponsPage() {
@@ -24,12 +41,24 @@ export default function CouponsPage() {
   const [filter, setFilter] = useState("all")
 
   useEffect(() => {
-    // Load coupons from localStorage
-    const stored = localStorage.getItem("uniapp_coupons")
-    if (stored) {
-      setCoupons(JSON.parse(stored))
+    // Load coupons from Supabase
+    const loadCoupons = async () => {
+      try {
+        const activeCoupons = await getActiveCoupons()
+        setCoupons(activeCoupons)
+      } catch (error) {
+        console.error('Error cargando cupones:', error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los cupones. Por favor intenta de nuevo.",
+          variant: "destructive",
+        })
+      }
     }
 
+    loadCoupons()
+
+    // Load favorites from localStorage (user preference)
     const storedFavorites = localStorage.getItem("uniapp_coupon_favorites")
     if (storedFavorites) {
       setFavorites(JSON.parse(storedFavorites))
@@ -52,9 +81,18 @@ export default function CouponsPage() {
     localStorage.setItem("uniapp_coupon_favorites", JSON.stringify(newFavorites))
   }
 
-  const handleDownloadCoupon = (image: string, title: string) => {
+  const handleDownloadCoupon = (imageUrl: string | null, title: string) => {
+    if (!imageUrl) {
+      toast({
+        title: "Error",
+        description: "Este cupón no tiene imagen disponible",
+        variant: "destructive",
+      })
+      return
+    }
+
     const link = document.createElement("a")
-    link.href = image
+    link.href = imageUrl
     link.download = `${title}.jpg`
     link.click()
     toast({
@@ -64,9 +102,13 @@ export default function CouponsPage() {
   }
 
   const filteredCoupons =
-    filter === "favorites" ? coupons.filter((c) => favorites.includes(c.id)) : coupons
+    filter === "favorites"
+      ? coupons.filter((c) => favorites.includes(c.id))
+      : filter === "all"
+      ? coupons
+      : coupons.filter((c) => c.applicable_to === filter)
 
-  const categories = [...new Set(coupons.map((c) => c.category))]
+  const categories = [...new Set(coupons.map((c) => c.applicable_to).filter((cat): cat is string => cat !== null))]
 
   return (
     <AppLayout>
@@ -106,7 +148,7 @@ export default function CouponsPage() {
                 onClick={() => setFilter(category)}
                 className="whitespace-nowrap"
               >
-                {category}
+                {formatCategory(category)}
               </Button>
             ))}
           </div>
@@ -123,7 +165,7 @@ export default function CouponsPage() {
                 {/* Coupon Image */}
                 <div className="relative w-full aspect-video bg-muted overflow-hidden">
                   <img
-                    src={coupon.image || "/placeholder.svg"}
+                    src={coupon.image_url || "/placeholder.svg"}
                     alt={coupon.title}
                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                   />
@@ -148,11 +190,16 @@ export default function CouponsPage() {
                 <CardContent className="pt-4 space-y-3">
                   <div className="space-y-1">
                     <h3 className="font-semibold text-foreground truncate">{coupon.title}</h3>
+                    {coupon.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{coupon.description}</p>
+                    )}
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="bg-primary/10 text-primary">
-                        {coupon.discount}
+                        {formatDiscount(coupon.discount_type, coupon.discount_value)}
                       </Badge>
-                      <Badge variant="outline">{coupon.category}</Badge>
+                      {coupon.applicable_to && (
+                        <Badge variant="outline">{formatCategory(coupon.applicable_to)}</Badge>
+                      )}
                     </div>
                   </div>
 
@@ -162,7 +209,7 @@ export default function CouponsPage() {
                       <p className="font-mono font-bold text-secondary text-center">{coupon.code}</p>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Válido hasta: <span className="font-semibold">{coupon.expiry}</span>
+                      Válido hasta: <span className="font-semibold">{formatDate(coupon.valid_until)}</span>
                     </p>
                   </div>
 
@@ -180,7 +227,7 @@ export default function CouponsPage() {
                       size="sm"
                       variant="outline"
                       className="flex-1 bg-transparent"
-                      onClick={() => handleDownloadCoupon(coupon.image, coupon.title)}
+                      onClick={() => handleDownloadCoupon(coupon.image_url, coupon.title)}
                     >
                       <Download className="h-4 w-4 mr-1" />
                       Descargar

@@ -186,7 +186,7 @@ export const AVAILABLE_LOCATION_ICONS: LocationIconDefinition[] = [
   {
     name: 'map-pin',
     component: MapPin,
-    label: 'Ubicación General',
+    label: 'Ubicación',
     description: 'Marcador general de ubicación',
     category: 'basic',
   },

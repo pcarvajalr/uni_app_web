@@ -2,90 +2,224 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { useAuth } from "@/lib/auth"
+import { useToast } from "@/hooks/use-toast"
 import { Loader2, Upload, X } from "lucide-react"
+import { createProduct } from "@/services/products.service"
+import { uploadFile } from "@/services/storage.service"
+import { createProductSchema, validateImageFiles, type CreateProductFormData } from "@/lib/product-validation"
+import type { Database } from "@/types/database.types"
 
 interface CreateProductDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onProductCreated?: () => void
 }
 
-export function CreateProductDialog({ open, onOpenChange }: CreateProductDialogProps) {
+type Category = Database['public']['Tables']['categories']['Row']
+
+export function CreateProductDialog({ open, onOpenChange, onProductCreated }: CreateProductDialogProps) {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    price: "",
-    category: "",
-    condition: "",
-    location: "",
-    images: [] as string[],
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
+
+  const {
+    register,
+    handleSubmit: handleFormSubmit,
+    formState: { errors },
+    reset,
+    setValue,
+    watch,
+  } = useForm<CreateProductFormData>({
+    resolver: zodResolver(createProductSchema),
+    defaultValues: {
+      is_negotiable: true,
+    },
   })
 
-  const categories = [
-    { value: "libros", label: "Libros" },
-    { value: "electronica", label: "Electrónicos" },
-    { value: "ropa", label: "Ropa" },
-    { value: "muebles", label: "Muebles" },
-    { value: "deportes", label: "Deportes" },
-    { value: "otros", label: "Otros" },
-  ]
+  const isNegotiable = watch('is_negotiable')
+  const selectedCondition = watch('condition')
+
+  // Cargar categorías de productos
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const { getProductCategories } = await import('@/services/products.service')
+        const data = await getProductCategories()
+        setCategories(data)
+      } catch (error) {
+        console.error('Error loading categories:', error)
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar las categorías',
+          variant: 'destructive',
+        })
+      } finally {
+        setLoadingCategories(false)
+      }
+    }
+    loadCategories()
+  }, [toast])
 
   const conditions = [
-    { value: "nuevo", label: "Nuevo" },
-    { value: "como-nuevo", label: "Como Nuevo" },
-    { value: "usado", label: "Usado" },
-    { value: "para-reparar", label: "Para Reparar" },
-  ]
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    // Reset form and close dialog
-    setFormData({
-      title: "",
-      description: "",
-      price: "",
-      category: "",
-      condition: "",
-      location: "",
-      images: [],
-    })
-    setIsSubmitting(false)
-    onOpenChange(false)
-  }
-
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    { value: "new", label: "Nuevo" },
+    { value: "like_new", label: "Como Nuevo" },
+    { value: "good", label: "Bueno" },
+    { value: "fair", label: "Regular" },
+    { value: "poor", label: "Malo" },
+  ] as const
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files) {
-      // Simulate image upload - in real app, upload to cloud storage
-      const newImages = Array.from(files).map((file) => URL.createObjectURL(file))
-      setFormData((prev) => ({ ...prev, images: [...prev.images, ...newImages].slice(0, 5) }))
+    if (!files || files.length === 0) return
+
+    const newFiles = Array.from(files)
+    const allFiles = [...imageFiles, ...newFiles].slice(0, 5)
+
+    // Validar archivos
+    const validation = validateImageFiles(allFiles)
+    if (!validation.valid) {
+      toast({
+        title: 'Error en las imágenes',
+        description: validation.error,
+        variant: 'destructive',
+      })
+      return
     }
+
+    // Crear previews
+    const newPreviews = allFiles.map(file => URL.createObjectURL(file))
+
+    setImageFiles(allFiles)
+    setImagePreviews(newPreviews)
   }
 
   const removeImage = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }))
+    // Limpiar URL del preview
+    URL.revokeObjectURL(imagePreviews[index])
+
+    setImageFiles(prev => prev.filter((_, i) => i !== index))
+    setImagePreviews(prev => prev.filter((_, i) => i !== index))
   }
+
+  const uploadImages = async (): Promise<string[]> => {
+    if (imageFiles.length === 0) {
+      throw new Error('Debes subir al menos 1 imagen')
+    }
+
+    const uploadedUrls: string[] = []
+
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i]
+      const progress = ((i + 1) / imageFiles.length) * 100
+      setUploadProgress(progress)
+
+      try {
+        const result = await uploadFile('products', file, user!.id)
+        if (!result.success || !result.url) {
+          throw new Error(result.error || 'Error al subir imagen')
+        }
+        uploadedUrls.push(result.url)
+      } catch (error) {
+        console.error(`Error uploading image ${i + 1}:`, error)
+        throw new Error(`Error al subir imagen ${i + 1}`)
+      }
+    }
+
+    return uploadedUrls
+  }
+
+  const onSubmit = async (data: CreateProductFormData) => {
+    if (!user) {
+      toast({
+        title: 'Error',
+        description: 'Debes iniciar sesión para publicar productos',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (imageFiles.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Debes subir al menos 1 imagen',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+    setUploadProgress(0)
+
+    try {
+      // 1. Subir imágenes a Supabase Storage
+      const imageUrls = await uploadImages()
+
+      // 2. Crear el producto en la base de datos
+      await createProduct({
+        seller_id: user.id,
+        title: data.title,
+        description: data.description,
+        price: data.price,
+        category_id: data.category_id,
+        condition: data.condition,
+        location: data.location,
+        is_negotiable: data.is_negotiable,
+        images: imageUrls,
+        tags: data.tags,
+      })
+
+      // 3. Mostrar mensaje de éxito
+      toast({
+        title: 'Producto publicado',
+        description: 'Tu producto ha sido publicado exitosamente',
+      })
+
+      // 4. Limpiar formulario
+      reset()
+      setImageFiles([])
+      setImagePreviews([])
+      setUploadProgress(0)
+
+      // 5. Notificar al componente padre
+      onProductCreated?.()
+
+      // 6. Cerrar diálogo
+      onOpenChange(false)
+    } catch (error) {
+      console.error('Error creating product:', error)
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'No se pudo publicar el producto',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmitting(false)
+      setUploadProgress(0)
+    }
+  }
+
+  // Limpiar previews al desmontar
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach(url => URL.revokeObjectURL(url))
+    }
+  }, [imagePreviews])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -95,38 +229,49 @@ export function CreateProductDialog({ open, onOpenChange }: CreateProductDialogP
           <DialogDescription>Crea una nueva publicación para vender tu producto</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Título del Producto</Label>
+            <Label htmlFor="title">Título del Producto *</Label>
             <Input
               id="title"
               placeholder="Ej: iPhone 13 Pro Max 256GB"
-              value={formData.title}
-              onChange={(e) => handleChange("title", e.target.value)}
-              required
+              {...register('title')}
             />
+            {errors.title && (
+              <p className="text-sm text-red-500">{errors.title.message}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="category">Categoría</Label>
-              <Select value={formData.category} onValueChange={(value) => handleChange("category", value)} required>
+              <Label htmlFor="category_id">Categoría *</Label>
+              <Select
+                value={watch('category_id')}
+                onValueChange={(value) => setValue('category_id', value)}
+                disabled={loadingCategories}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona categoría" />
+                  <SelectValue placeholder={loadingCategories ? "Cargando..." : "Selecciona categoría"} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
-                    <SelectItem key={category.value} value={category.value}>
-                      {category.label}
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {errors.category_id && (
+                <p className="text-sm text-red-500">{errors.category_id.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="condition">Estado</Label>
-              <Select value={formData.condition} onValueChange={(value) => handleChange("condition", value)} required>
+              <Label htmlFor="condition">Condición *</Label>
+              <Select
+                value={selectedCondition}
+                onValueChange={(value) => setValue('condition', value as any)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Estado del producto" />
                 </SelectTrigger>
@@ -138,79 +283,102 @@ export function CreateProductDialog({ open, onOpenChange }: CreateProductDialogP
                   ))}
                 </SelectContent>
               </Select>
+              {errors.condition && (
+                <p className="text-sm text-red-500">{errors.condition.message}</p>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="price">Precio (COP)</Label>
+              <Label htmlFor="price">Precio (COP) *</Label>
               <Input
                 id="price"
                 type="number"
+                step="0.01"
                 placeholder="50000"
-                value={formData.price}
-                onChange={(e) => handleChange("price", e.target.value)}
-                required
+                {...register('price', { valueAsNumber: true })}
               />
+              {errors.price && (
+                <p className="text-sm text-red-500">{errors.price.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="location">Ubicación</Label>
+              <Label htmlFor="location">Ubicación *</Label>
               <Input
                 id="location"
                 placeholder="Campus Norte"
-                value={formData.location}
-                onChange={(e) => handleChange("location", e.target.value)}
-                required
+                {...register('location')}
               />
+              {errors.location && (
+                <p className="text-sm text-red-500">{errors.location.message}</p>
+              )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Descripción</Label>
+            <Label htmlFor="description">Descripción *</Label>
             <Textarea
               id="description"
               placeholder="Describe tu producto, incluye detalles importantes como estado, accesorios incluidos, etc."
-              value={formData.description}
-              onChange={(e) => handleChange("description", e.target.value)}
               rows={4}
-              required
+              {...register('description')}
             />
+            {errors.description && (
+              <p className="text-sm text-red-500">{errors.description.message}</p>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="is_negotiable"
+              checked={isNegotiable}
+              onCheckedChange={(checked) => setValue('is_negotiable', checked)}
+            />
+            <Label htmlFor="is_negotiable" className="cursor-pointer">
+              Precio negociable
+            </Label>
           </div>
 
           {/* Image Upload */}
           <div className="space-y-2">
-            <Label>Imágenes (máximo 5)</Label>
+            <Label>Imágenes * (máximo 5)</Label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
               <input
                 type="file"
                 multiple
-                accept="image/*"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
                 onChange={handleImageUpload}
                 className="hidden"
                 id="image-upload"
-                disabled={formData.images.length >= 5}
+                disabled={imageFiles.length >= 5 || isSubmitting}
               />
               <label
                 htmlFor="image-upload"
                 className={`flex flex-col items-center justify-center cursor-pointer ${
-                  formData.images.length >= 5 ? "opacity-50 cursor-not-allowed" : ""
+                  imageFiles.length >= 5 || isSubmitting ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
                 <Upload className="h-8 w-8 text-gray-400 mb-2" />
                 <span className="text-sm text-gray-600">
-                  {formData.images.length >= 5 ? "Máximo 5 imágenes" : "Haz clic para subir imágenes"}
+                  {imageFiles.length >= 5
+                    ? "Máximo 5 imágenes"
+                    : `Haz clic para subir imágenes (${imageFiles.length}/5)`}
+                </span>
+                <span className="text-xs text-gray-500 mt-1">
+                  Formatos: JPG, PNG, WebP (máx. 5MB cada una)
                 </span>
               </label>
             </div>
 
             {/* Image Preview */}
-            {formData.images.length > 0 && (
+            {imagePreviews.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mt-2">
-                {formData.images.map((image, index) => (
+                {imagePreviews.map((preview, index) => (
                   <div key={index} className="relative">
                     <img
-                      src={image || "/placeholder.svg"}
+                      src={preview}
                       alt={`Preview ${index + 1}`}
                       className="w-full h-20 object-cover rounded"
                     />
@@ -220,11 +388,28 @@ export function CreateProductDialog({ open, onOpenChange }: CreateProductDialogP
                       size="sm"
                       className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
                       onClick={() => removeImage(index)}
+                      disabled={isSubmitting}
                     >
                       <X className="h-3 w-3" />
                     </Button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Upload Progress */}
+            {isSubmitting && uploadProgress > 0 && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Subiendo imágenes...</span>
+                  <span>{Math.round(uploadProgress)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
               </div>
             )}
           </div>

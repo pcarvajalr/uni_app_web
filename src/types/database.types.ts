@@ -144,6 +144,7 @@ export type Database = {
           discount_type: string
           discount_value: number
           id: string
+          image_url: string | null
           is_active: boolean | null
           max_discount_amount: number | null
           min_purchase_amount: number | null
@@ -163,6 +164,7 @@ export type Database = {
           discount_type: string
           discount_value: number
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           max_discount_amount?: number | null
           min_purchase_amount?: number | null
@@ -182,6 +184,7 @@ export type Database = {
           discount_type?: string
           discount_value?: number
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           max_discount_amount?: number | null
           min_purchase_amount?: number | null
@@ -196,6 +199,7 @@ export type Database = {
       }
       favorites: {
         Row: {
+          campus_location_id: string | null
           created_at: string | null
           id: string
           item_type: string
@@ -204,6 +208,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          campus_location_id?: string | null
           created_at?: string | null
           id?: string
           item_type: string
@@ -212,6 +217,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          campus_location_id?: string | null
           created_at?: string | null
           id?: string
           item_type?: string
@@ -220,6 +226,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "favorites_campus_location_id_fkey"
+            columns: ["campus_location_id"]
+            isOneToOne: false
+            referencedRelation: "campus_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "favorites_product_id_fkey"
             columns: ["product_id"]
