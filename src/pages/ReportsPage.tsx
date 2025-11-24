@@ -3,25 +3,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Clock, MapPin, Eye, Phone, X, Maximize2 } from 'lucide-react'
+import { Plus, Clock, MapPin, Eye, Phone, X, Maximize2, Loader2, AlertCircle } from 'lucide-react'
 import { useState, useRef } from "react"
 import { CreateReportDialog } from "@/components/reports/create-report-dialog"
 import { ReportDetailsDialog } from "@/components/reports/report-details-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-
-interface Report {
-  id: string
-  title: string
-  type: "robo" | "vandalismo" | "sospechoso" | "emergencia"
-  description: string
-  location: string
-  coordinates: { x: number; y: number }
-  date: string
-  time: string
-  status: "activo" | "investigando" | "resuelto"
-  reporter: string
-  priority: "alta" | "media" | "baja"
-}
+import { useReports, type Report } from "@/hooks/useReports"
 
 export default function ReportsPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -39,73 +26,8 @@ export default function ReportsPage() {
   const currentPanRef = useRef({ x: 0, y: 0 })
   const mapImageRef = useRef<HTMLDivElement>(null)
 
-  const mockReports: Report[] = [
-    {
-      id: "1",
-      title: "Robo de bicicleta",
-      type: "robo",
-      description: "Bicicleta azul marca Trek robada del estacionamiento de bicicletas",
-      location: "Estacionamiento Norte",
-      coordinates: { x: 35, y: 25 },
-      date: "2024-01-15",
-      time: "14:30",
-      status: "investigando",
-      reporter: "Estudiante Anónimo",
-      priority: "alta",
-    },
-    {
-      id: "2",
-      title: "Persona sospechosa",
-      type: "sospechoso",
-      description: "Persona no identificada merodeando cerca de los dormitorios",
-      location: "Residencias Estudiantiles",
-      coordinates: { x: 65, y: 45 },
-      date: "2024-01-14",
-      time: "22:15",
-      status: "activo",
-      reporter: "María González",
-      priority: "media",
-    },
-    {
-      id: "3",
-      title: "Vandalismo en baños",
-      type: "vandalismo",
-      description: "Grafitis y daños en los baños del segundo piso",
-      location: "Edificio de Ciencias",
-      coordinates: { x: 50, y: 60 },
-      date: "2024-01-13",
-      time: "16:45",
-      status: "resuelto",
-      reporter: "Carlos Ruiz",
-      priority: "baja",
-    },
-    {
-      id: "4",
-      title: "Robo de electrónico",
-      type: "robo",
-      description: "Laptop robada de la biblioteca",
-      location: "Biblioteca Central",
-      coordinates: { x: 45, y: 30 },
-      date: "2024-01-12",
-      time: "18:20",
-      status: "investigando",
-      reporter: "Jorge López",
-      priority: "alta",
-    },
-    {
-      id: "5",
-      title: "Intento de fraude",
-      type: "sospechoso",
-      description: "Persona intentando acceder a áreas restringidas",
-      location: "Entrada Principal",
-      coordinates: { x: 20, y: 55 },
-      date: "2024-01-11",
-      time: "10:30",
-      status: "resuelto",
-      reporter: "Seguridad Campus",
-      priority: "media",
-    },
-  ]
+  // Cargar reportes desde la BD
+  const { reports, loading, error, refetch } = useReports()
 
   const handleMapMouseDown = (e: React.MouseEvent) => {
     if (zoomLevel > 1) {
@@ -199,7 +121,7 @@ export default function ReportsPage() {
     currentPanRef.current = { x: 0, y: 0 }
   }
 
-  const filteredReports = mockReports.filter((report) => {
+  const filteredReports = reports.filter((report) => {
     if (filterType && report.type !== filterType) return false
     if (filterStatus && report.status !== filterStatus) return false
     if (filterPriority && report.priority !== filterPriority) return false
@@ -280,18 +202,20 @@ export default function ReportsPage() {
           draggable={false}
         />
 
-        {filteredReports.map((report) => {
-          const isSelected = selectedReport?.id === report.id
-          return (
-            <div
-              key={report.id}
-              className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110"
-              style={{
-                left: `${report.coordinates.x}%`,
-                top: `${report.coordinates.y}%`,
-              }}
-              onClick={() => setSelectedReport(isSelected ? null : report)}
-            >
+        {filteredReports
+          .filter((report) => report.coordinates !== null)
+          .map((report) => {
+            const isSelected = selectedReport?.id === report.id
+            return (
+              <div
+                key={report.id}
+                className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110"
+                style={{
+                  left: `${report.coordinates!.x}%`,
+                  top: `${report.coordinates!.y}%`,
+                }}
+                onClick={() => setSelectedReport(isSelected ? null : report)}
+              >
               <div className={`relative ${isSelected ? "animate-bounce" : ""}`}>
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
@@ -334,6 +258,44 @@ export default function ReportsPage() {
   const activeReports = filteredReports.filter((r) => r.status === "activo").length
   const investigatingReports = filteredReports.filter((r) => r.status === "investigando").length
   const highPriorityReports = filteredReports.filter((r) => r.priority === "alta").length
+
+  // Mostrar estado de carga
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground">Cargando reportes...</p>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  // Mostrar error si ocurre
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <Card className="max-w-md">
+            <CardContent className="p-6 text-center space-y-4">
+              <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Error al cargar reportes</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {error.message || "Ocurrió un error al cargar los reportes"}
+                </p>
+                <Button onClick={() => refetch()}>
+                  Reintentar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    )
+  }
 
   return (
     <AppLayout>
@@ -740,7 +702,11 @@ export default function ReportsPage() {
         </Tabs>
       </div>
 
-      <CreateReportDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
+      <CreateReportDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSuccess={refetch}
+      />
 
       <ReportDetailsDialog
         report={selectedReport}

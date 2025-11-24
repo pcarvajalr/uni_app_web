@@ -4,19 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { MapPin, Clock, User, AlertTriangle, Phone } from "lucide-react"
-
-interface Report {
-  id: string
-  title: string
-  type: "robo" | "vandalismo" | "sospechoso" | "emergencia"
-  description: string
-  location: string
-  date: string
-  time: string
-  status: "activo" | "investigando" | "resuelto"
-  reporter: string
-  priority: "alta" | "media" | "baja"
-}
+import type { Report } from "@/hooks/useReports"
 
 interface ReportDetailsDialogProps {
   report: Report | null

@@ -2,6 +2,8 @@ import { supabase, handleSupabaseError, unwrapData } from '../lib/supabase';
 import type { Database } from '../types/database.types';
 
 type Coupon = Database['public']['Tables']['coupons']['Row'];
+type CouponInsert = Database['public']['Tables']['coupons']['Insert'];
+type CouponUpdate = Database['public']['Tables']['coupons']['Update'];
 type UserCoupon = Database['public']['Tables']['user_coupons']['Row'];
 
 export interface CouponWithUsage extends Coupon {
@@ -289,6 +291,157 @@ export const getCouponsByType = async (applicableTo: 'products' | 'tutoring' | '
     return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo cupones por tipo:', error);
+    throw error;
+  }
+};
+
+// ============================================
+// FUNCIONES ADMINISTRATIVAS
+// ============================================
+
+// Subir imagen de cupón a Supabase Storage
+export const uploadCouponImage = async (file: File, couponCode: string): Promise<string> => {
+  try {
+    // Validar tipo de archivo
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      throw new Error('Tipo de archivo no válido. Solo se permiten imágenes JPG, PNG o WebP');
+    }
+
+    // Validar tamaño (máximo 2MB)
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      throw new Error('La imagen es demasiado grande. Tamaño máximo: 2MB');
+    }
+
+    // Generar nombre único para el archivo
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${couponCode}_${Date.now()}.${fileExt}`;
+    const filePath = `coupons/${fileName}`;
+
+    // Subir archivo a Storage
+    const { data, error } = await supabase.storage
+      .from('coupons')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    // Obtener URL pública
+    const { data: publicUrlData } = supabase.storage
+      .from('coupons')
+      .getPublicUrl(filePath);
+
+    return publicUrlData.publicUrl;
+  } catch (error) {
+    console.error('Error subiendo imagen de cupón:', error);
+    throw error;
+  }
+};
+
+// Eliminar imagen de cupón de Supabase Storage
+export const deleteCouponImage = async (imageUrl: string): Promise<void> => {
+  try {
+    // Extraer el path de la URL
+    const urlParts = imageUrl.split('/storage/v1/object/public/coupons/');
+    if (urlParts.length < 2) {
+      return; // No es una URL válida de Storage, ignorar
+    }
+
+    const filePath = urlParts[1];
+
+    const { error } = await supabase.storage
+      .from('coupons')
+      .remove([`coupons/${filePath}`]);
+
+    if (error) {
+      console.error('Error eliminando imagen:', error);
+      // No lanzar error, solo registrar
+    }
+  } catch (error) {
+    console.error('Error eliminando imagen de cupón:', error);
+    // No lanzar error para no bloquear la eliminación del cupón
+  }
+};
+
+// Crear nuevo cupón (solo administradores)
+export const createCoupon = async (couponData: CouponInsert): Promise<Coupon> => {
+  try {
+    const { data, error } = await supabase
+      .from('coupons')
+      .insert(couponData)
+      .select()
+      .single();
+
+    return unwrapData(data, error);
+  } catch (error) {
+    console.error('Error creando cupón:', error);
+    throw error;
+  }
+};
+
+// Actualizar cupón existente (solo administradores)
+export const updateCoupon = async (couponId: string, couponData: CouponUpdate): Promise<Coupon> => {
+  try {
+    const { data, error } = await supabase
+      .from('coupons')
+      .update(couponData)
+      .eq('id', couponId)
+      .select()
+      .single();
+
+    return unwrapData(data, error);
+  } catch (error) {
+    console.error('Error actualizando cupón:', error);
+    throw error;
+  }
+};
+
+// Eliminar cupón (solo administradores)
+export const deleteCoupon = async (couponId: string): Promise<void> => {
+  try {
+    // Primero obtener el cupón para eliminar su imagen si existe
+    const { data: coupon } = await supabase
+      .from('coupons')
+      .select('*')
+      .eq('id', couponId)
+      .single();
+
+    // Eliminar el cupón de la base de datos
+    const { error } = await supabase
+      .from('coupons')
+      .delete()
+      .eq('id', couponId);
+
+    if (error) {
+      throw error;
+    }
+
+    // Eliminar imagen si existe (esto se ejecuta después de eliminar el cupón)
+    if (coupon?.image_url) {
+      await deleteCouponImage(coupon.image_url);
+    }
+  } catch (error) {
+    console.error('Error eliminando cupón:', error);
+    throw error;
+  }
+};
+
+// Obtener todos los cupones (para administradores, incluye inactivos y expirados)
+export const getAllCoupons = async (): Promise<Coupon[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    return unwrapData(data, error);
+  } catch (error) {
+    console.error('Error obteniendo todos los cupones:', error);
     throw error;
   }
 };

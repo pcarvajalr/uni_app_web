@@ -31,6 +31,12 @@ import {
   getUserFavoriteLocations,
   toggleLocationFavorite,
 } from "@/services/location-favorites.service"
+import {
+  getAllCoupons,
+  createCoupon,
+  deleteCoupon,
+  uploadCouponImage,
+} from "@/services/coupons.service"
 import type { Database } from "@/types/database.types"
 import { IconSelector } from "@/components/icon-selector"
 import { MapImageUploader } from "@/components/map-image-uploader"
@@ -39,6 +45,7 @@ import type { LocationIconName } from "@/lib/icon-mapper"
 
 type Category = Database['public']['Tables']['categories']['Row']
 type CampusLocation = Database['public']['Tables']['campus_locations']['Row']
+type Coupon = Database['public']['Tables']['coupons']['Row']
 import {
   Dialog,
   DialogContent,
@@ -59,14 +66,18 @@ export default function SettingsPage() {
 
   // ... existing state ...
 
-  const [coupons, setCoupons] = useState<any[]>([])
+  const [coupons, setCoupons] = useState<Coupon[]>([])
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false)
+  const [isSavingCoupon, setIsSavingCoupon] = useState(false)
+  const [couponImageFile, setCouponImageFile] = useState<File | null>(null)
   const [newCoupon, setNewCoupon] = useState({
     title: "",
     discount: "",
     code: "",
     expiry: "",
     category: "",
+    description: "",
+    discountType: "percentage" as "percentage" | "fixed_amount",
     image: "",
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -132,11 +143,19 @@ export default function SettingsPage() {
   })
 
   // Load coupons on component mount
+  // Cargar cupones desde Supabase
   useEffect(() => {
-    const stored = localStorage.getItem("uniapp_coupons")
-    if (stored) {
-      setCoupons(JSON.parse(stored))
+    const loadCoupons = async () => {
+      try {
+        const allCoupons = await getAllCoupons()
+        setCoupons(allCoupons)
+      } catch (error) {
+        console.error('Error cargando cupones:', error)
+        // No mostrar toast aquí para no molestar al usuario al cargar
+      }
     }
+
+    loadCoupons()
   }, [])
 
   // Load location categories
@@ -459,6 +478,10 @@ export default function SettingsPage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      // Guardar el archivo para subirlo después
+      setCouponImageFile(file)
+
+      // Leer como data URL para preview
       const reader = new FileReader()
       reader.onloadend = () => {
         setNewCoupon({ ...newCoupon, image: reader.result as string })
@@ -467,55 +490,122 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSaveCoupon = () => {
+  const handleSaveCoupon = async () => {
+    // Validar campos requeridos
     if (
-      newCoupon.title.trim() &&
-      newCoupon.discount.trim() &&
-      newCoupon.code.trim() &&
-      newCoupon.expiry.trim() &&
-      newCoupon.category.trim() &&
-      newCoupon.image
+      !newCoupon.title.trim() ||
+      !newCoupon.discount.trim() ||
+      !newCoupon.code.trim() ||
+      !newCoupon.expiry.trim() ||
+      !couponImageFile
     ) {
-      const couponToSave = {
-        id: Date.now().toString(),
-        ...newCoupon,
+      toast({
+        title: "Campos incompletos",
+        description: "Por favor completa todos los campos requeridos e incluye una imagen.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSavingCoupon(true)
+
+    try {
+      // 1. Subir imagen a Storage
+      const imageUrl = await uploadCouponImage(couponImageFile, newCoupon.code.toUpperCase())
+
+      // 2. Parsear el descuento (puede ser "20%" o "20" para porcentaje, o "$10" para fixed_amount)
+      let discountType: 'percentage' | 'fixed_amount' = newCoupon.discountType
+      let discountValue = 0
+
+      const discountStr = newCoupon.discount.trim()
+      if (discountStr.includes('%')) {
+        discountType = 'percentage'
+        discountValue = parseFloat(discountStr.replace('%', ''))
+      } else if (discountStr.includes('$')) {
+        discountType = 'fixed_amount'
+        discountValue = parseFloat(discountStr.replace('$', ''))
+      } else {
+        // Si no tiene símbolo, usar el tipo seleccionado
+        discountValue = parseFloat(discountStr)
       }
 
-      const updatedCoupons = [...coupons, couponToSave]
-      setCoupons(updatedCoupons)
-      localStorage.setItem("uniapp_coupons", JSON.stringify(updatedCoupons))
+      // Validar que el descuento sea un número válido
+      if (isNaN(discountValue) || discountValue <= 0) {
+        throw new Error('El valor del descuento debe ser un número válido mayor a 0')
+      }
 
+      // 3. Convertir la fecha de expiración a timestamp ISO
+      const validUntil = new Date(newCoupon.expiry).toISOString()
+
+      // 4. Crear el cupón en Supabase
+      const couponData = {
+        code: newCoupon.code.toUpperCase(),
+        title: newCoupon.title.trim(),
+        description: newCoupon.description.trim() || null,
+        discount_type: discountType,
+        discount_value: discountValue,
+        image_url: imageUrl,
+        valid_until: validUntil,
+        applicable_to: newCoupon.category as 'products' | 'tutoring' | 'both' | null,
+        is_active: true,
+      }
+
+      const savedCoupon = await createCoupon(couponData)
+
+      // 5. Actualizar estado local
+      setCoupons([savedCoupon, ...coupons])
+
+      // 6. Limpiar formulario
       setNewCoupon({
         title: "",
         discount: "",
         code: "",
         expiry: "",
         category: "",
+        description: "",
+        discountType: "percentage",
         image: "",
       })
+      setCouponImageFile(null)
       setIsCouponModalOpen(false)
 
       toast({
-        title: "Cupón agregado",
-        description: "El cupón ha sido guardado exitosamente.",
+        title: "Cupón creado",
+        description: "El cupón ha sido guardado exitosamente en la base de datos.",
       })
-    } else {
+    } catch (error: any) {
+      console.error('Error creando cupón:', error)
       toast({
-        title: "Campos incompletos",
-        description: "Por favor completa todos los campos.",
+        title: "Error al crear cupón",
+        description: error.message || "Hubo un error al guardar el cupón. Por favor intenta de nuevo.",
         variant: "destructive",
       })
+    } finally {
+      setIsSavingCoupon(false)
     }
   }
 
-  const handleRemoveCoupon = (couponId: string) => {
-    const updatedCoupons = coupons.filter((c) => c.id !== couponId)
-    setCoupons(updatedCoupons)
-    localStorage.setItem("uniapp_coupons", JSON.stringify(updatedCoupons))
-    toast({
-      title: "Cupón eliminado",
-      description: "El cupón ha sido removido.",
-    })
+  const handleRemoveCoupon = async (couponId: string) => {
+    try {
+      // Eliminar de Supabase
+      await deleteCoupon(couponId)
+
+      // Actualizar estado local
+      const updatedCoupons = coupons.filter((c) => c.id !== couponId)
+      setCoupons(updatedCoupons)
+
+      toast({
+        title: "Cupón eliminado",
+        description: "El cupón ha sido removido exitosamente.",
+      })
+    } catch (error: any) {
+      console.error('Error eliminando cupón:', error)
+      toast({
+        title: "Error al eliminar cupón",
+        description: error.message || "Hubo un error al eliminar el cupón.",
+        variant: "destructive",
+      })
+    }
   }
 
   // Location Categories Handlers
@@ -1322,68 +1412,110 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="coupon-title">Título del Cupón</Label>
+                    <Label htmlFor="coupon-title">Título del Cupón *</Label>
                     <Input
                       id="coupon-title"
                       placeholder="Ej: Descuento en Comida"
                       value={newCoupon.title}
                       onChange={(e) => setNewCoupon({ ...newCoupon, title: e.target.value })}
+                      disabled={isSavingCoupon}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="coupon-discount">Descuento</Label>
-                    <Input
-                      id="coupon-discount"
-                      placeholder="Ej: 20% OFF"
-                      value={newCoupon.discount}
-                      onChange={(e) => setNewCoupon({ ...newCoupon, discount: e.target.value })}
+                    <Label htmlFor="coupon-description">Descripción (opcional)</Label>
+                    <Textarea
+                      id="coupon-description"
+                      placeholder="Descripción del cupón"
+                      value={newCoupon.description}
+                      onChange={(e) => setNewCoupon({ ...newCoupon, description: e.target.value })}
+                      disabled={isSavingCoupon}
+                      rows={2}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="coupon-code">Código Promocional</Label>
+                    <Label htmlFor="coupon-code">Código Promocional *</Label>
                     <Input
                       id="coupon-code"
                       placeholder="Ej: UNIAPP20"
                       value={newCoupon.code}
-                      onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value })}
+                      onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })}
+                      disabled={isSavingCoupon}
                     />
                   </div>
 
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="coupon-discount-type">Tipo de Descuento *</Label>
+                      <Select
+                        value={newCoupon.discountType}
+                        onValueChange={(value: "percentage" | "fixed_amount") => setNewCoupon({ ...newCoupon, discountType: value })}
+                        disabled={isSavingCoupon}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentage">Porcentaje (%)</SelectItem>
+                          <SelectItem value="fixed_amount">Monto Fijo ($)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="coupon-discount">Valor *</Label>
+                      <Input
+                        id="coupon-discount"
+                        type="number"
+                        placeholder={newCoupon.discountType === 'percentage' ? '20' : '10'}
+                        value={newCoupon.discount}
+                        onChange={(e) => setNewCoupon({ ...newCoupon, discount: e.target.value })}
+                        disabled={isSavingCoupon}
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="coupon-category">Categoría</Label>
-                    <Select value={newCoupon.category} onValueChange={(value) => setNewCoupon({ ...newCoupon, category: value })}>
+                    <Label htmlFor="coupon-category">Aplicable a</Label>
+                    <Select value={newCoupon.category} onValueChange={(value) => setNewCoupon({ ...newCoupon, category: value })} disabled={isSavingCoupon}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar categoría" />
+                        <SelectValue placeholder="Seleccionar tipo" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Alimentos">Alimentos</SelectItem>
-                        <SelectItem value="Tecnología">Tecnología</SelectItem>
-                        <SelectItem value="Ropa">Ropa</SelectItem>
-                        <SelectItem value="Libros">Libros</SelectItem>
-                        <SelectItem value="Servicios">Servicios</SelectItem>
-                        <SelectItem value="Otro">Otro</SelectItem>
+                        <SelectItem value="both">Productos y Tutorías</SelectItem>
+                        <SelectItem value="products">Solo Productos</SelectItem>
+                        <SelectItem value="tutoring">Solo Tutorías</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="coupon-expiry">Fecha de Vencimiento</Label>
+                    <Label htmlFor="coupon-expiry">Fecha de Vencimiento *</Label>
                     <Input
                       id="coupon-expiry"
-                      placeholder="Ej: 31 Dic 2024"
+                      type="date"
                       value={newCoupon.expiry}
                       onChange={(e) => setNewCoupon({ ...newCoupon, expiry: e.target.value })}
+                      disabled={isSavingCoupon}
                     />
                   </div>
                 </div>
 
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCouponModalOpen(false)}>
+                  <Button variant="outline" onClick={() => setIsCouponModalOpen(false)} disabled={isSavingCoupon}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleSaveCoupon}>Guardar Cupón</Button>
+                  <Button onClick={handleSaveCoupon} disabled={isSavingCoupon}>
+                    {isSavingCoupon ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      'Guardar Cupón'
+                    )}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -1399,13 +1531,18 @@ export default function SettingsPage() {
                       className="flex items-center gap-3 p-3 bg-muted rounded-lg"
                     >
                       <img
-                        src={coupon.image || "/placeholder.svg"}
+                        src={coupon.image_url || "/placeholder.svg"}
                         alt={coupon.title}
                         className="w-12 h-12 rounded object-cover"
                       />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{coupon.title}</p>
-                        <p className="text-xs text-muted-foreground">{coupon.code}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-muted-foreground">{coupon.code}</p>
+                          {!coupon.is_active && (
+                            <Badge variant="secondary" className="text-xs">Inactivo</Badge>
+                          )}
+                        </div>
                       </div>
                       <Button
                         size="sm"

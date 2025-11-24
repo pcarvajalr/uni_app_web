@@ -3,31 +3,19 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Filter, Heart, Star, X } from "lucide-react"
-import { useState } from "react"
+import { Plus, Search, Filter, Heart, Star, X, Loader2 } from "lucide-react"
+import { useState, useEffect } from "react"
 import { CreateProductDialog } from "@/components/marketplace/create-product-dialog"
 import { ProductDetailsDialog } from "@/components/marketplace/product-details-dialog"
+import { getProducts, getProductCategories, type ProductWithSeller } from "@/services/products.service"
+import { useToast } from "@/hooks/use-toast"
+import type { Database } from "@/types/database.types"
 
-interface Product {
-  id: string
-  title: string
-  description: string
-  price: number
-  category: string
-  condition: "nuevo" | "como-nuevo" | "usado" | "para-reparar"
-  images: string[]
-  seller: {
-    name: string
-    rating: number
-    studentId: string
-  }
-  location: string
-  datePosted: string
-  likes: number
-  isLiked: boolean
-}
+type Product = ProductWithSeller
+type Category = Database['public']['Tables']['categories']['Row']
 
 export default function MarketplacePage() {
+  const { toast } = useToast()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -36,125 +24,87 @@ export default function MarketplacePage() {
   const [maxPrice, setMaxPrice] = useState<number>(5000000)
   const [selectedCondition, setSelectedCondition] = useState<string | null>(null)
 
-  const categories = [
-    { id: "todos", name: "Todos", count: 48 },
-    { id: "libros", name: "Libros", count: 15 },
-    { id: "electronica", name: "Electrónicos", count: 12 },
-    { id: "ropa", name: "Ropa", count: 8 },
-    { id: "muebles", name: "Muebles", count: 6 },
-    { id: "deportes", name: "Deportes", count: 4 },
-    { id: "otros", name: "Otros", count: 3 },
-  ]
+  // Estados para datos reales
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const conditions = [
-    { id: "todos", name: "Todas las Condiciones" },
-    { id: "nuevo", name: "Nuevo" },
-    { id: "como-nuevo", name: "Como Nuevo" },
-    { id: "usado", name: "Usado" },
-    { id: "para-reparar", name: "Para Reparar" },
+    { value: "new", label: "Nuevo" },
+    { value: "like_new", label: "Como Nuevo" },
+    { value: "good", label: "Bueno" },
+    { value: "fair", label: "Regular" },
+    { value: "poor", label: "Malo" },
   ]
 
-  const mockProducts: Product[] = [
-    {
-      id: "1",
-      title: "Cálculo Diferencial - Stewart",
-      description:
-        "Libro de cálculo en excelente estado, con todas las páginas y sin rayones. Perfecto para estudiantes de ingeniería.",
-      price: 45000,
-      category: "libros",
-      condition: "como-nuevo",
-      images: ["/placeholder.svg?height=200&width=200&text=Libro+Calculo"],
-      seller: {
-        name: "Ana García",
-        rating: 4.8,
-        studentId: "2023001",
-      },
-      location: "Campus Norte",
-      datePosted: "2024-01-14",
-      likes: 12,
-      isLiked: false,
-    },
-    {
-      id: "2",
-      title: "MacBook Air M1 2020",
-      description:
-        "MacBook Air en excelente estado, usado solo para estudios. Incluye cargador original y funda protectora.",
-      price: 2800000,
-      category: "electronica",
-      condition: "usado",
-      images: ["/placeholder.svg?height=200&width=200&text=MacBook+Air"],
-      seller: {
-        name: "Carlos Ruiz",
-        rating: 4.9,
-        studentId: "2022045",
-      },
-      location: "Campus Sur",
-      datePosted: "2024-01-13",
-      likes: 28,
-      isLiked: true,
-    },
-    {
-      id: "3",
-      title: "Escritorio de Estudio",
-      description:
-        "Escritorio de madera en buen estado, ideal para estudiar. Incluye cajones y espacio para computador.",
-      price: 150000,
-      category: "muebles",
-      condition: "usado",
-      images: ["/placeholder.svg?height=200&width=200&text=Escritorio"],
-      seller: {
-        name: "María López",
-        rating: 4.6,
-        studentId: "2023078",
-      },
-      location: "Residencias",
-      datePosted: "2024-01-12",
-      likes: 8,
-      isLiked: false,
-    },
-    {
-      id: "4",
-      title: "Calculadora Científica Casio",
-      description: "Calculadora científica programable, perfecta para ingeniería y matemáticas avanzadas.",
-      price: 85000,
-      category: "electronica",
-      condition: "como-nuevo",
-      images: ["/placeholder.svg?height=200&width=200&text=Calculadora"],
-      seller: {
-        name: "Diego Morales",
-        rating: 4.7,
-        studentId: "2023156",
-      },
-      location: "Campus Central",
-      datePosted: "2024-01-11",
-      likes: 5,
-      isLiked: false,
-    },
-  ]
+  // Cargar productos y categorías
+  useEffect(() => {
+    loadData()
+  }, [])
 
-  const filteredProducts = mockProducts.filter((product) => {
+  async function loadData() {
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Cargar productos y categorías en paralelo
+      const [productsData, categoriesData] = await Promise.all([
+        getProducts(),
+        getProductCategories(),
+      ])
+
+      setProducts(productsData)
+      setCategories(categoriesData)
+    } catch (err) {
+      console.error('Error loading marketplace data:', err)
+      setError('No se pudieron cargar los productos. Por favor, intenta de nuevo.')
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los productos',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Callback cuando se crea un producto
+  function handleProductCreated() {
+    loadData()
+  }
+
+  const filteredProducts = products.filter((product) => {
     const matchesSearch =
       product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = !selectedCategory || product.category === selectedCategory
+    const matchesCategory = !selectedCategory || product.category_id === selectedCategory
     const matchesPrice = product.price >= minPrice && product.price <= maxPrice
     const matchesCondition = !selectedCondition || product.condition === selectedCondition
-    return matchesSearch && matchesCategory && matchesPrice && matchesCondition
+    const matchesStatus = product.status === 'available' // Solo mostrar productos disponibles
+    return matchesSearch && matchesCategory && matchesPrice && matchesCondition && matchesStatus
   })
 
-  const getConditionColor = (condition: string) => {
+  const getConditionColor = (condition: string | null) => {
     switch (condition) {
-      case "nuevo":
+      case "new":
         return "bg-green-100 text-green-800"
-      case "como-nuevo":
+      case "like_new":
         return "bg-blue-100 text-blue-800"
-      case "usado":
+      case "good":
         return "bg-yellow-100 text-yellow-800"
-      case "para-reparar":
+      case "fair":
+        return "bg-orange-100 text-orange-800"
+      case "poor":
         return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
+  }
+
+  const getConditionLabel = (condition: string | null) => {
+    const found = conditions.find(c => c.value === condition)
+    return found ? found.label : condition || 'N/A'
   }
 
   const formatPrice = (price: number) => {
@@ -209,14 +159,14 @@ export default function MarketplacePage() {
                   value={selectedCategory || ""}
                   onChange={(e) => setSelectedCategory(e.target.value || null)}
                   className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                  disabled={loading}
                 >
                   <option value="">Todas las Categorías</option>
-                  <option value="libros">Libros</option>
-                  <option value="electronica">Electrónicos</option>
-                  <option value="ropa">Ropa</option>
-                  <option value="muebles">Muebles</option>
-                  <option value="deportes">Deportes</option>
-                  <option value="otros">Otros</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -229,10 +179,11 @@ export default function MarketplacePage() {
                   className="w-full px-3 py-2 border rounded-md text-sm bg-background"
                 >
                   <option value="">Todas las Condiciones</option>
-                  <option value="nuevo">Nuevo</option>
-                  <option value="como-nuevo">Como Nuevo</option>
-                  <option value="usado">Usado</option>
-                  <option value="para-reparar">Para Reparar</option>
+                  {conditions.map((condition) => (
+                    <option key={condition.value} value={condition.value}>
+                      {condition.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -291,68 +242,102 @@ export default function MarketplacePage() {
           </CardContent>
         </Card>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProducts.map((product) => (
-            <Card
-              key={product.id}
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => setSelectedProduct(product)}
-            >
-              <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
-                <img
-                  src={product.images[0] || "/placeholder.svg"}
-                  alt={product.title}
-                  className="w-full h-full object-cover"
-                />
+        {/* Loading State */}
+        {loading && (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
+              <h3 className="text-lg font-medium mb-2">Cargando productos...</h3>
+              <p className="text-muted-foreground">Un momento por favor</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <div className="text-muted-foreground">
+                <X className="h-12 w-12 mx-auto mb-4 opacity-50 text-red-500" />
+                <h3 className="text-lg font-medium mb-2">Error al cargar productos</h3>
+                <p className="mb-4">{error}</p>
+                <Button onClick={loadData}>Reintentar</Button>
               </div>
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between">
-                    <h3 className="font-medium line-clamp-2 text-sm">{product.title}</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`p-1 ${product.isLiked ? "text-red-500" : "text-gray-400"}`}
-                    >
-                      <Heart className={`h-4 w-4 ${product.isLiked ? "fill-current" : ""}`} />
-                    </Button>
-                  </div>
+            </CardContent>
+          </Card>
+        )}
 
-                  <p className="text-lg font-bold text-primary">{formatPrice(product.price)}</p>
-
-                  <div className="flex items-center space-x-2">
-                    <Badge className={getConditionColor(product.condition)} variant="secondary">
-                      {product.condition}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {product.category}
-                    </Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <div className="flex items-center space-x-1">
-                      <Star className="h-3 w-3 fill-current text-yellow-400" />
-                      <span>{product.seller.rating}</span>
-                      <span>•</span>
-                      <span>{product.seller.name}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Heart className="h-3 w-3" />
-                      <span>{product.likes}</span>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-muted-foreground">
-                    {product.location} • {product.datePosted}
-                  </div>
+        {/* Products Grid */}
+        {!loading && !error && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredProducts.map((product) => (
+              <Card
+                key={product.id}
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setSelectedProduct(product)}
+              >
+                <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
+                  <img
+                    src={(product.images && product.images[0]) || "/placeholder.svg"}
+                    alt={product.title}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                <CardContent className="p-4">
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <h3 className="font-medium line-clamp-2 text-sm">{product.title}</h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-1 text-gray-400"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          // TODO: Implementar funcionalidad de favoritos
+                        }}
+                      >
+                        <Heart className="h-4 w-4" />
+                      </Button>
+                    </div>
 
-        {filteredProducts.length === 0 && (
+                    <p className="text-lg font-bold text-primary">{formatPrice(product.price)}</p>
+
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getConditionColor(product.condition)} variant="secondary">
+                        {getConditionLabel(product.condition)}
+                      </Badge>
+                      {product.category && (
+                        <Badge variant="outline" className="text-xs">
+                          {product.category.name}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center space-x-1">
+                        <Star className="h-3 w-3 fill-current text-yellow-400" />
+                        <span>{product.seller.rating?.toFixed(1) || '0.0'}</span>
+                        <span>•</span>
+                        <span>{product.seller.full_name}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Heart className="h-3 w-3" />
+                        <span>{product.favorites_count || 0}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      {product.location || 'Sin ubicación'} •{' '}
+                      {product.created_at ? new Date(product.created_at).toLocaleDateString('es-CO') : 'N/A'}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {!loading && !error && filteredProducts.length === 0 && (
           <Card>
             <CardContent className="p-8 text-center">
               <div className="text-muted-foreground">
@@ -365,38 +350,44 @@ export default function MarketplacePage() {
         )}
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-primary">48</div>
-              <p className="text-sm text-muted-foreground">Productos Activos</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">23</div>
-              <p className="text-sm text-muted-foreground">Vendidos Hoy</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">156</div>
-              <p className="text-sm text-muted-foreground">Usuarios Activos</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-purple-600">4.8</div>
-              <p className="text-sm text-muted-foreground">Rating Promedio</p>
-            </CardContent>
-          </Card>
-        </div>
+        {!loading && !error && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-primary">{products.filter(p => p.status === 'available').length}</div>
+                <p className="text-sm text-muted-foreground">Productos Disponibles</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-green-600">{products.filter(p => p.status === 'sold').length}</div>
+                <p className="text-sm text-muted-foreground">Vendidos</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-blue-600">{categories.length}</div>
+                <p className="text-sm text-muted-foreground">Categorías</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-purple-600">{filteredProducts.length}</div>
+                <p className="text-sm text-muted-foreground">Resultados Filtrados</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
-      <CreateProductDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
+      <CreateProductDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onProductCreated={handleProductCreated}
+      />
 
       <ProductDetailsDialog
-        product={selectedProduct}
+        product={selectedProduct as any}
         open={!!selectedProduct}
         onOpenChange={(open) => !open && setSelectedProduct(null)}
       />

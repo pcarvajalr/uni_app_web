@@ -10,8 +10,8 @@ export interface ProductWithSeller extends Product {
     id: string;
     full_name: string;
     avatar_url: string | null;
-    rating: number;
-    total_sales: number;
+    rating: number | null;
+    total_sales: number | null;
   };
   category: {
     id: string;

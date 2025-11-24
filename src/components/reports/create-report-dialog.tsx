@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,42 +11,95 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/lib/auth"
 import { Loader2, AlertTriangle } from "lucide-react"
+import { useCreateReport } from "@/hooks/useCreateReport"
+import { useToast } from "@/hooks/use-toast"
+import type { FrontendReportType, FrontendPriority } from "@/utils/report-mappers"
 
 interface CreateReportDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
-export function CreateReportDialog({ open, onOpenChange }: CreateReportDialogProps) {
+export function CreateReportDialog({ open, onOpenChange, onSuccess }: CreateReportDialogProps) {
   const { user } = useAuth()
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
+  const { createNewReport, isCreating, error, success, reset } = useCreateReport()
   const [formData, setFormData] = useState({
     title: "",
-    type: "",
+    type: "" as FrontendReportType | "",
     description: "",
     location: "",
-    priority: "media",
+    priority: "media" as FrontendPriority,
     anonymous: false,
   })
 
+  // Efecto para manejar el éxito de la creación
+  useEffect(() => {
+    if (success) {
+      toast({
+        title: "Reporte creado exitosamente",
+        description: "Tu reporte ha sido enviado y será revisado por el equipo de seguridad.",
+      })
+
+      // Reset form
+      setFormData({
+        title: "",
+        type: "",
+        description: "",
+        location: "",
+        priority: "media",
+        anonymous: false,
+      })
+
+      // Llamar callback de éxito para refrescar lista
+      onSuccess?.()
+
+      // Cerrar diálogo
+      onOpenChange(false)
+
+      // Reset estado del hook
+      reset()
+    }
+  }, [success, onSuccess, onOpenChange, toast, reset])
+
+  // Efecto para manejar errores
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error al crear reporte",
+        description: error.message || "Ocurrió un error al enviar tu reporte. Por favor intenta nuevamente.",
+        variant: "destructive",
+      })
+    }
+  }, [error, toast])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    // Validar que el tipo esté seleccionado
+    if (!formData.type) {
+      toast({
+        title: "Tipo de incidente requerido",
+        description: "Por favor selecciona el tipo de incidente.",
+        variant: "destructive",
+      })
+      return
+    }
 
-    // Reset form and close dialog
-    setFormData({
-      title: "",
-      type: "",
-      description: "",
-      location: "",
-      priority: "media",
-      anonymous: false,
-    })
-    setIsSubmitting(false)
-    onOpenChange(false)
+    try {
+      await createNewReport({
+        title: formData.title,
+        type: formData.type,
+        description: formData.description,
+        location: formData.location,
+        priority: formData.priority,
+        anonymous: formData.anonymous,
+      })
+    } catch (err) {
+      // El error ya se maneja en el useEffect
+      console.error('Error en handleSubmit:', err)
+    }
   }
 
   const handleChange = (field: string, value: string | boolean) => {
@@ -142,11 +195,11 @@ export function CreateReportDialog({ open, onOpenChange }: CreateReportDialogPro
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isCreating}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
+            <Button type="submit" disabled={isCreating}>
+              {isCreating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Enviando...

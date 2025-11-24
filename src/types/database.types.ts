@@ -144,6 +144,7 @@ export type Database = {
           discount_type: string
           discount_value: number
           id: string
+          image_url: string | null
           is_active: boolean | null
           max_discount_amount: number | null
           min_purchase_amount: number | null
@@ -163,6 +164,7 @@ export type Database = {
           discount_type: string
           discount_value: number
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           max_discount_amount?: number | null
           min_purchase_amount?: number | null
@@ -182,6 +184,7 @@ export type Database = {
           discount_type?: string
           discount_value?: number
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           max_discount_amount?: number | null
           min_purchase_amount?: number | null
