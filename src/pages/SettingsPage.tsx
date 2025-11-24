@@ -93,6 +93,10 @@ export default function SettingsPage() {
   const [selectedImageFiles, setSelectedImageFiles] = useState<File[]>([])
   const imageInputRef = useRef<HTMLInputElement>(null)
 
+  // Refs para el mapa de configuración
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapImageRef = useRef<HTMLImageElement>(null)
+
   // Campus locations state
   const [campusLocations, setCampusLocations] = useState<CampusLocation[]>([])
   const [isLoadingLocations, setIsLoadingLocations] = useState(false)
@@ -219,9 +223,25 @@ export default function SettingsPage() {
   }
 
   const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    const x = ((event.clientX - rect.left) / rect.width) * 100
-    const y = ((event.clientY - rect.top) / rect.height) * 100
+    const img = mapImageRef.current
+    if (!img) return
+
+    // Obtener dimensiones de la imagen renderizada (no del contenedor)
+    const imgRect = img.getBoundingClientRect()
+
+    // Calcular coordenadas relativas a la imagen VISIBLE
+    const x = ((event.clientX - imgRect.left) / imgRect.width) * 100
+    const y = ((event.clientY - imgRect.top) / imgRect.height) * 100
+
+    // Verificar que el clic fue dentro de la imagen
+    if (x < 0 || x > 100 || y < 0 || y > 100) {
+      toast({
+        title: "Clic fuera del mapa",
+        description: "Por favor, haz clic dentro de la imagen del mapa",
+        variant: "destructive",
+      })
+      return
+    }
 
     setSelectedCoordinates({ x, y })
   }
@@ -873,18 +893,21 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                       <Label>Seleccionar ubicación en el mapa</Label>
                       <div
-                        className="aspect-video bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative overflow-hidden cursor-crosshair border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors"
+                        ref={mapContainerRef}
+                        className="w-full max-h-[500px] bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative overflow-hidden cursor-crosshair border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors flex items-center justify-center"
                         onClick={handleMapClick}
                       >
                         <img
+                          ref={mapImageRef}
                           src={mapImageUrl}
                           alt="Mapa del Campus Universitario"
-                          className="w-full h-full object-contain"
+                          className="max-w-full max-h-full object-contain block"
+                          style={{ maxHeight: '500px' }}
                         />
 
                         {selectedCoordinates && (
                           <div
-                            className="absolute transform -translate-x-1/2 -translate-y-1/2 animate-bounce"
+                            className="absolute transform -translate-x-1/2 -translate-y-1/2 animate-bounce pointer-events-none"
                             style={{
                               left: `${selectedCoordinates.x}%`,
                               top: `${selectedCoordinates.y}%`,
@@ -898,7 +921,7 @@ export default function SettingsPage() {
                         )}
 
                         {!selectedCoordinates && (
-                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
                             <div className="text-center text-white bg-black/50 p-4 rounded-lg">
                               <MapPin className="h-8 w-8 mx-auto mb-2" />
                               <p className="font-semibold">Haz clic en el mapa</p>
