@@ -204,7 +204,7 @@ export default function MapsPage() {
                   alt="Mapa del Campus Universitario"
                   className="h-full w-auto object-contain block"
                   draggable={false}
-                  style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: '12px' }}
+                  style={{ maxWidth: '100%', maxHeight: '100%' }}
                 />
 
                 {orderedLocations.map((location) => {
@@ -437,7 +437,7 @@ export default function MapsPage() {
           </div>
 
           <div ref={mapCardRef}>
-            <Card className="overflow-visible p-0">
+            <Card className="overflow-visible p-0 border-0">
               <CardContent className="p-0 relative overflow-visible">
                 <div className="relative">
                   <MapContent />

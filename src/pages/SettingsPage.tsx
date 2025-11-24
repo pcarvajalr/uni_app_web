@@ -850,7 +850,7 @@ export default function SettingsPage() {
                 Haz clic en el mapa del campus para seleccionar una ubicación y crear tu propio punto de referencia
               </p>
 
-              <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
+              <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}> 
                 <DialogTrigger asChild>
                   <Button variant="outline" className="w-full bg-transparent">
                     <Map className="h-4 w-4 mr-2" />
@@ -879,7 +879,7 @@ export default function SettingsPage() {
                         <img
                           src={mapImageUrl}
                           alt="Mapa del Campus Universitario"
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
 
                         {selectedCoordinates && (
