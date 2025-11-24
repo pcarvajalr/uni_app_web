@@ -117,13 +117,13 @@ export function MapImageUploader({
 
       {/* Imagen actual */}
       {currentImageUrl && !previewUrl && (
-        <div className="border rounded-lg p-4 bg-muted/50">
+        <div className="border rounded-lg p-2 bg-muted/50">
           <p className="text-sm font-medium mb-2">Imagen actual:</p>
           <div className="aspect-video relative bg-gradient-to-br from-green-100 to-blue-100 rounded-lg overflow-hidden">
             <img
               src={currentImageUrl}
               alt="Mapa del campus actual"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           </div>
         </div>
@@ -149,7 +149,7 @@ export function MapImageUploader({
             <img
               src={previewUrl}
               alt="Preview del nuevo mapa"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           </div>
         </div>

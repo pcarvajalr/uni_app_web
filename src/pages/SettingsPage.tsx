@@ -907,10 +907,11 @@ export default function SettingsPage() {
 
                         {selectedCoordinates && (
                           <div
-                            className="absolute transform -translate-x-1/2 -translate-y-1/2 animate-bounce pointer-events-none"
+                            className="absolute pointer-events-none"
                             style={{
                               left: `${selectedCoordinates.x}%`,
                               top: `${selectedCoordinates.y}%`,
+                              transform: 'translate(-50%, -50%)'
                             }}
                           >
                             <div className="w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
