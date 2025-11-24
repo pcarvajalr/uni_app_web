@@ -196,6 +196,7 @@ export type Database = {
       }
       favorites: {
         Row: {
+          campus_location_id: string | null
           created_at: string | null
           id: string
           item_type: string
@@ -204,6 +205,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          campus_location_id?: string | null
           created_at?: string | null
           id?: string
           item_type: string
@@ -212,6 +214,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          campus_location_id?: string | null
           created_at?: string | null
           id?: string
           item_type?: string
@@ -220,6 +223,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "favorites_campus_location_id_fkey"
+            columns: ["campus_location_id"]
+            isOneToOne: false
+            referencedRelation: "campus_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "favorites_product_id_fkey"
             columns: ["product_id"]

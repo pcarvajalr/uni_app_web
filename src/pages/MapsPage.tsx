@@ -30,19 +30,29 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
+  Heart,
 } from "lucide-react"
 import { useState, useRef, useEffect, useMemo } from "react"
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"
 import { getCampusLocations } from "@/services/campus-locations.service"
 import { getMapImageUrl } from "@/services/campus-settings.service"
 import { getLocationCategories } from "@/services/location-categories.service"
+import {
+  toggleLocationFavorite,
+  getUserFavoriteLocationIds,
+} from "@/services/location-favorites.service"
 import { getIconComponent } from "@/lib/icon-mapper"
+import { useAuth } from "@/lib/auth"
+import { useToast } from "@/hooks/use-toast"
 import type { Database } from "@/types/database.types"
 
 type CampusLocation = Database['public']['Tables']['campus_locations']['Row']
 type Category = Database['public']['Tables']['categories']['Row']
 
 export default function MapsPage() {
+  const { user } = useAuth()
+  const { toast } = useToast()
+
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedOption, setSelectedOption] = useState<"nearby" | "campus" | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
@@ -53,6 +63,10 @@ export default function MapsPage() {
   const [campusLocations, setCampusLocations] = useState<CampusLocation[]>([])
   const [isLoadingLocations, setIsLoadingLocations] = useState(true)
   const [mapImageUrl, setMapImageUrl] = useState("/university-campus-map-layout-with-buildings-and-pa.jpg")
+
+  // Favorites state
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
+  const [togglingFavoriteId, setTogglingFavoriteId] = useState<string | null>(null)
 
   // Image gallery state
   const [galleryOpen, setGalleryOpen] = useState(false)
@@ -78,9 +92,16 @@ export default function MapsPage() {
           getMapImageUrl(),
           getLocationCategories()
         ])
+
         setCampusLocations(locations)
         setMapImageUrl(imageUrl)
         setLocationTypes(types)
+
+        // Load favorites if user is authenticated
+        if (user) {
+          const favoriteIdsData = await getUserFavoriteLocationIds(user.id)
+          setFavoriteIds(new Set(favoriteIdsData))
+        }
       } catch (error) {
         console.error('Error loading campus data:', error)
       } finally {
@@ -88,7 +109,7 @@ export default function MapsPage() {
       }
     }
     loadData()
-  }, [])
+  }, [user])
 
   // Auto-scroll to selected location when clicking on map marker
   useEffect(() => {
@@ -132,6 +153,14 @@ export default function MapsPage() {
     if (!hasSearchFilter && !hasTypeFilter) return true
 
     const matchesSearch = location.name.toLowerCase().includes(campusSearchQuery.toLowerCase())
+
+    // Special case: favorites filter
+    if (campusSelectedType === "favorites") {
+      const isFavorite = favoriteIds.has(location.id)
+      // If search is also active, must match both
+      return hasSearchFilter ? (matchesSearch && isFavorite) : isFavorite
+    }
+
     const matchesType = location.type === campusSelectedType
 
     // With filters: show if matches ANY filter (OR logic)
@@ -174,6 +203,42 @@ export default function MapsPage() {
     if (e.key === 'ArrowRight') nextImage()
     if (e.key === 'ArrowLeft') prevImage()
     if (e.key === 'Escape') setGalleryOpen(false)
+  }
+
+  // Toggle favorite location
+  const handleToggleFavorite = async (locationId: string) => {
+    if (!user) return
+
+    setTogglingFavoriteId(locationId)
+    try {
+      const isFavorite = await toggleLocationFavorite(locationId, user.id)
+
+      setFavoriteIds((prev) => {
+        const newSet = new Set(prev)
+        if (isFavorite) {
+          newSet.add(locationId)
+        } else {
+          newSet.delete(locationId)
+        }
+        return newSet
+      })
+
+      toast({
+        title: isFavorite ? 'Agregado a favoritos' : 'Eliminado de favoritos',
+        description: isFavorite
+          ? 'La ubicación se agregó a tus favoritos'
+          : 'La ubicación se eliminó de tus favoritos',
+      })
+    } catch (error) {
+      console.error('Error toggling favorito:', error)
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar el favorito',
+        variant: 'destructive',
+      })
+    } finally {
+      setTogglingFavoriteId(null)
+    }
   }
 
   const MapContent = ({ isZoomed = false }: { isZoomed?: boolean }) => {
@@ -692,6 +757,12 @@ export default function MapsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos los tipos</SelectItem>
+                      <SelectItem value="favorites">
+                        <div className="flex items-center gap-2">
+                          <Heart className="h-4 w-4" />
+                          Favoritos
+                        </div>
+                      </SelectItem>
                       {locationTypes.map((type) => (
                         <SelectItem key={type.id} value={type.name}>
                           {type.name}
@@ -740,6 +811,9 @@ export default function MapsPage() {
                       className={`hover:shadow-md transition-all cursor-pointer py-3 ${isSelected ? "ring-2 ring-primary shadow-md" : ""
                         }`}
                       onClick={() => {
+                        if (!isSelected) {
+                          setShowFilters(false)
+                        }
                         setSelectedLocation(isSelected ? null : location.id)
                         // Scroll to map when selecting from list
                         if (!isSelected && mapCardRef.current) {
@@ -761,11 +835,31 @@ export default function MapsPage() {
                             <Icon className="h-5 w-5" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <h3 className="font-medium truncate">{location.name}</h3>
-                              <Badge variant="outline" className="text-xs">
-                                {location.type}
-                              </Badge>
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center space-x-2 min-w-0">
+                                <h3 className="font-medium truncate">{location.name}</h3>
+                                <Badge variant="outline" className="text-xs">
+                                  {location.type}
+                                </Badge>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 flex-shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleToggleFavorite(location.id)
+                                }}
+                                disabled={togglingFavoriteId === location.id}
+                              >
+                                <Heart
+                                  className={`h-4 w-4 ${
+                                    favoriteIds.has(location.id)
+                                      ? 'fill-destructive text-destructive'
+                                      : 'text-muted-foreground'
+                                  }`}
+                                />
+                              </Button>
                             </div>
                             {location.description && (
                               <p className="text-sm text-muted-foreground mb-2">{location.description}</p>

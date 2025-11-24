@@ -27,9 +27,14 @@ import {
 } from "@/services/campus-locations.service"
 import { getMapImageUrl } from "@/services/campus-settings.service"
 import { uploadLocationImage, validateImageFile } from "@/services/storage.service"
+import {
+  getUserFavoriteLocations,
+  toggleLocationFavorite,
+} from "@/services/location-favorites.service"
 import type { Database } from "@/types/database.types"
 import { IconSelector } from "@/components/icon-selector"
 import { MapImageUploader } from "@/components/map-image-uploader"
+import { FavoriteLocationsModal } from "@/components/FavoriteLocationsModal"
 import type { LocationIconName } from "@/lib/icon-mapper"
 
 type Category = Database['public']['Tables']['categories']['Row']
@@ -75,8 +80,8 @@ export default function SettingsPage() {
     general: false,
   })
 
-  const [favoriteLocations, setFavoriteLocations] = useState(["Biblioteca Central", "Cafetería Principal"])
-  const [newLocation, setNewLocation] = useState("")
+  const [favoriteLocations, setFavoriteLocations] = useState<CampusLocation[]>([])
+  const [isFavoriteLocationsModalOpen, setIsFavoriteLocationsModalOpen] = useState(false)
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
   const [selectedCoordinates, setSelectedCoordinates] = useState<{ x: number; y: number } | null>(null)
   const [newLocationData, setNewLocationData] = useState({
@@ -180,31 +185,47 @@ export default function SettingsPage() {
     }
   }
 
+  // Load favorite locations from database
+  const loadFavoriteLocations = async () => {
+    if (!user) return
+    try {
+      const favorites = await getUserFavoriteLocations(user.id)
+      // Extract campus_location from favorites
+      const locations = favorites
+        .map((fav: any) => fav.campus_location)
+        .filter((loc: any) => loc !== null) as CampusLocation[]
+      setFavoriteLocations(locations)
+    } catch (error) {
+      console.error('Error cargando ubicaciones favoritas:', error)
+    }
+  }
+
   useEffect(() => {
     loadLocationCategories()
     loadCampusLocations()
     loadMapImageUrl()
+    loadFavoriteLocations()
   }, [])
 
   // ... existing handlers ...
 
-  const handleAddFavoriteLocation = () => {
-    if (newLocation.trim()) {
-      setFavoriteLocations([...favoriteLocations, newLocation.trim()])
-      setNewLocation("")
+  const handleRemoveFavoriteLocation = async (locationId: string) => {
+    if (!user) return
+    try {
+      await toggleLocationFavorite(locationId, user.id)
+      await loadFavoriteLocations()
       toast({
-        title: "Ubicación agregada",
-        description: "La ubicación ha sido añadida a tus favoritos.",
+        title: "Ubicación eliminada",
+        description: "La ubicación ha sido removida de tus favoritos.",
+      })
+    } catch (error) {
+      console.error('Error eliminando favorito:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la ubicación de favoritos",
+        variant: "destructive",
       })
     }
-  }
-
-  const handleRemoveFavoriteLocation = (location: string) => {
-    setFavoriteLocations(favoriteLocations.filter((loc) => loc !== location))
-    toast({
-      title: "Ubicación eliminada",
-      description: "La ubicación ha sido removida de tus favoritos.",
-    })
   }
 
   const handleExportData = () => {
@@ -833,33 +854,38 @@ export default function SettingsPage() {
               </Alert>
             )}
             <div>
-              <Label>Ubicaciones favoritas</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {favoriteLocations.map((location, index) => (
-                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                    {location}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                      onClick={() => handleRemoveFavoriteLocation(location)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ))}
+              <div className="flex items-center justify-between mb-2">
+                <Label>Ubicaciones favoritas</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsFavoriteLocationsModalOpen(true)}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Gestionar favoritos
+                </Button>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Agregar nueva ubicación favorita"
-                value={newLocation}
-                onChange={(e) => setNewLocation(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddFavoriteLocation()}
-              />
-              <Button onClick={handleAddFavoriteLocation} size="sm">
-                <Plus className="h-4 w-4" />
-              </Button>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {favoriteLocations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No tienes ubicaciones favoritas. Haz clic en "Gestionar favoritos" para agregar.
+                  </p>
+                ) : (
+                  favoriteLocations.map((location) => (
+                    <Badge key={location.id} variant="secondary" className="flex items-center gap-1">
+                      {location.name}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => handleRemoveFavoriteLocation(location.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))
+                )}
+              </div>
             </div>
             {/*Crear Ubicación Personalizada*/}
             {user?.role === 'admin' && (
@@ -1554,6 +1580,13 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal de gestión de ubicaciones favoritas */}
+      <FavoriteLocationsModal
+        open={isFavoriteLocationsModalOpen}
+        onOpenChange={setIsFavoriteLocationsModalOpen}
+        onFavoritesChange={loadFavoriteLocations}
+      />
     </AppLayout>
   )
 }
