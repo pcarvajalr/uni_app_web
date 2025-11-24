@@ -180,137 +180,134 @@ export default function MapsPage() {
     const selectedLocationData = orderedLocations.find(loc => loc.id === selectedLocation)
 
     return (
-    <div className={`${isZoomed ? "w-full h-full" : "h-[40vh]"} bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative ${isZoomed ? "overflow-visible" : "overflow-visible"}`}>
-      <TransformWrapper
-        initialScale={1}
-        minScale={isZoomed ? 0.3 : 0.5}
-        maxScale={isZoomed ? 5 : 3}
-        centerOnInit
-        limitToBounds={true}
-        pinch={{ step: 0.05 }}
-        wheel={{ step: 0.05 }}
-        doubleClick={{ disabled: false, step: 0.7 }}
-        panning={{ disabled: false }}
-      >
-        <TransformComponent
-          wrapperClass="w-full h-full !overflow-visible"
-          contentClass="w-full h-full flex items-center justify-center !overflow-visible"
-          wrapperStyle={{ overflow: 'visible' }}
+      <div className={`w-full h-full bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative ${isZoomed ? "overflow-visible" : "overflow-visible"}`}>
+        <TransformWrapper
+          initialScale={1}
+          minScale={isZoomed ? 0.3 : 0.5}
+          maxScale={isZoomed ? 5 : 3}
+          centerOnInit
+          limitToBounds={true}
+          pinch={{ step: 0.05 }}
+          wheel={{ step: 0.05 }}
+          doubleClick={{ disabled: false, step: 0.7 }}
+          panning={{ disabled: false }}
         >
-          <div style={{ padding: '2rem' }}>
-            <div className="relative inline-block max-h-full max-w-full !overflow-visible" style={{ overflow: 'visible' }}>
-              <img
-                src={mapImageUrl}
-                alt="Mapa del Campus Universitario"
-                className="h-full w-auto object-contain block"
-                draggable={false}
-                style={{ maxWidth: '100%', maxHeight: '100%' }}
-              />
+          <TransformComponent
+            wrapperClass="w-full h-full !overflow-visible"
+            contentClass="w-full h-full flex items-center justify-center !overflow-visible"
+            wrapperStyle={{ overflow: 'visible' }}
+          >
+            <div >
+              <div className="relative inline-block max-h-full max-w-full !overflow-visible" style={{ overflow: 'visible' }}>
+                <img
+                  src={mapImageUrl}
+                  alt="Mapa del Campus Universitario"
+                  className="h-full w-auto object-contain block"
+                  draggable={false}
+                  style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: '12px' }}
+                />
 
-              {orderedLocations.map((location) => {
-                const Icon = getIconComponent(location.icon)
-                const isSelected = selectedLocation === location.id
-                return (
+                {orderedLocations.map((location) => {
+                  const Icon = getIconComponent(location.icon)
+                  const isSelected = selectedLocation === location.id
+                  return (
+                    <div
+                      key={location.id}
+                      className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer transition-all duration-200 hover:scale-110 ${isSelected ? "z-50" : "z-20"
+                        }`}
+                      style={{
+                        left: `${location.coordinate_x}%`,
+                        top: `${location.coordinate_y}%`,
+                      }}
+                      onClick={() => {
+                        if (!isSelected) {
+                          setShowFilters(false)
+                        }
+                        setSelectedLocation(isSelected ? null : location.id)
+                      }}
+                    >
+                      <div className={`relative flex flex-col items-center ${isSelected ? "animate-bounce" : ""}`}>
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${isSelected
+                              ? "bg-primary text-white scale-125"
+                              : "bg-white text-primary hover:bg-primary hover:text-white"
+                            }`}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+
+                        {/* Punta triangular del pin - SVG para compatibilidad Android */}
+                        <svg
+                          width="10"
+                          height="8"
+                          className={`transition-transform ${isSelected ? "scale-125" : ""}`}
+                          style={{ marginTop: '-2px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
+                        >
+                          <polygon
+                            points="5,8 0,0 10,0"
+                            className={isSelected ? "fill-primary" : "fill-white"}
+                          />
+                        </svg>
+
+                        {isSelected && (
+                          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full border-2 border-primary animate-ping opacity-75"></div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Tooltip dentro del contenedor de posicionamiento para alineación correcta */}
+                {selectedLocationData && (
                   <div
-                    key={location.id}
-                    className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer transition-all duration-200 hover:scale-110 ${
-                      isSelected ? "z-50" : "z-20"
-                    }`}
+                    className="absolute w-64 bg-white rounded-lg shadow-xl border p-3 z-[9999] pointer-events-none"
                     style={{
-                      left: `${location.coordinate_x}%`,
-                      top: `${location.coordinate_y}%`,
-                    }}
-                    onClick={() => {
-                      if (!isSelected) {
-                        setShowFilters(false)
-                      }
-                      setSelectedLocation(isSelected ? null : location.id)
+                      left: `${selectedLocationData.coordinate_x}%`,
+                      top: `calc(${selectedLocationData.coordinate_y}% - 3rem)`,
+                      transform: 'translate(-50%, -100%)'
                     }}
                   >
-                    <div className={`relative flex flex-col items-center ${isSelected ? "animate-bounce" : ""}`}>
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
-                          isSelected
-                            ? "bg-primary text-white scale-125"
-                            : "bg-white text-primary hover:bg-primary hover:text-white"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
+                    <div className="flex items-start space-x-2">
+                      <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                        {(() => {
+                          const Icon = getIconComponent(selectedLocationData.icon)
+                          return <Icon className="h-4 w-4 text-primary" />
+                        })()}
                       </div>
-
-                      {/* Punta triangular del pin */}
-                      <div
-                        className={`w-0 h-0 transition-colors ${
-                          isSelected ? "scale-125" : ""
-                        }`}
-                        style={{
-                          borderLeft: '4px solid transparent',
-                          borderRight: '4px solid transparent',
-                          borderTop: isSelected ? '6px solid hsl(var(--primary))' : '6px solid white',
-                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
-                          marginTop: '-2px'
-                        }}
-                      />
-
-                      {isSelected && (
-                        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full border-2 border-primary animate-ping opacity-75"></div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-
-              {/* Tooltip dentro del contenedor de posicionamiento para alineación correcta */}
-              {selectedLocationData && (
-                <div
-                  className="absolute w-64 bg-white rounded-lg shadow-xl border p-3 z-[9999] pointer-events-none"
-                  style={{
-                    left: `${selectedLocationData.coordinate_x}%`,
-                    top: `calc(${selectedLocationData.coordinate_y}% - 3rem)`,
-                    transform: 'translate(-50%, -100%)'
-                  }}
-                >
-                  <div className="flex items-start space-x-2">
-                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                      {(() => {
-                        const Icon = getIconComponent(selectedLocationData.icon)
-                        return <Icon className="h-4 w-4 text-primary" />
-                      })()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <h4 className="font-medium text-sm">{selectedLocationData.name}</h4>
-                        <Badge variant="outline" className="text-xs">
-                          {selectedLocationData.type}
-                        </Badge>
-                      </div>
-                      {selectedLocationData.description && (
-                        <p className="text-xs text-muted-foreground mb-2">{selectedLocationData.description}</p>
-                      )}
-                      <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                        {selectedLocationData.floor && (
-                          <span className="flex items-center">
-                            <Building className="h-3 w-3 mr-1" />
-                            {selectedLocationData.floor}
-                          </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h4 className="font-medium text-sm">{selectedLocationData.name}</h4>
+                          <Badge variant="outline" className="text-xs">
+                            {selectedLocationData.type}
+                          </Badge>
+                        </div>
+                        {selectedLocationData.description && (
+                          <p className="text-xs text-muted-foreground mb-2">{selectedLocationData.description}</p>
                         )}
-                        {selectedLocationData.opening_hours && (selectedLocationData.opening_hours as any).hours && (
-                          <span className="flex items-center">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {(selectedLocationData.opening_hours as any).hours}
-                          </span>
-                        )}
+                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                          {selectedLocationData.floor && (
+                            <span className="flex items-center">
+                              <Building className="h-3 w-3 mr-1" />
+                              {selectedLocationData.floor}
+                            </span>
+                          )}
+                          {selectedLocationData.opening_hours && (selectedLocationData.opening_hours as any).hours && (
+                            <span className="flex items-center">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {(selectedLocationData.opening_hours as any).hours}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
                   </div>
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        </TransformComponent>
-      </TransformWrapper>
-    </div>
+          </TransformComponent>
+        </TransformWrapper>
+      </div>
     )
   }
 
@@ -326,22 +323,6 @@ export default function MapsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card
               className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/50"
-              onClick={() => setSelectedOption("nearby")}
-            >
-              <CardHeader className="text-center">
-                <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <Navigation className="h-8 w-8 text-primary" />
-                </div>
-                <CardTitle>Lugares Cercanos</CardTitle>
-                <CardDescription>Busca restaurantes, bancos, farmacias y más cerca de la universidad</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full">Explorar Alrededores</Button>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/50"
               onClick={() => setSelectedOption("campus")}
             >
               <CardHeader className="text-center">
@@ -355,6 +336,22 @@ export default function MapsPage() {
                 <Button className="w-full" variant="secondary">
                   Ver Mapa del Campus
                 </Button>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/50"
+              onClick={() => setSelectedOption("nearby")}
+            >
+              <CardHeader className="text-center">
+                <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                  <Navigation className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle>Lugares Cercanos</CardTitle>
+                <CardDescription>Busca restaurantes, bancos, farmacias y más cerca de la universidad</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full">Explorar Alrededores</Button>
               </CardContent>
             </Card>
           </div>
@@ -440,28 +437,28 @@ export default function MapsPage() {
           </div>
 
           <div ref={mapCardRef}>
-            <Card className="overflow-visible">
+            <Card className="overflow-visible p-0">
               <CardContent className="p-0 relative overflow-visible">
-              <div className="relative">
-                <MapContent />
+                <div className="relative">
+                  <MapContent />
 
-                <Dialog open={mapZoomOpen} onOpenChange={setMapZoomOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      size="icon"
-                      className="absolute bottom-4 right-4 rounded-full shadow-lg z-10"
-                      title="Ampliar mapa"
-                    >
-                      <Maximize2 className="h-4 w-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="w-[95vw] md:w-[80vw] h-[80vh] p-0 rounded-lg flex flex-col overflow-hidden">
-                    <DialogHeader className="flex-shrink-0 z-20 bg-background/95 backdrop-blur px-4 py-3 border-b rounded-t-lg">
-                      <DialogTitle>Mapa Interactivo del Campus</DialogTitle>
-                    </DialogHeader>
+                  <Dialog open={mapZoomOpen} onOpenChange={setMapZoomOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        size="icon"
+                        className="absolute bottom-4 right-4 rounded-full shadow-lg z-10"
+                        title="Ampliar mapa"
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="w-[95vw] md:w-[80vw] h-[80vh] p-0 rounded-lg flex flex-col overflow-hidden">
+                      <DialogHeader className="flex-shrink-0 z-20 bg-background/95 backdrop-blur px-4 py-3 border-b rounded-t-lg">
+                        <DialogTitle>Mapa Interactivo del Campus</DialogTitle>
+                      </DialogHeader>
 
-                    <div className="relative flex-1 overflow-hidden rounded-b-lg flex flex-col">
-                      <div className="w-full flex-1 bg-gradient-to-br from-green-100 to-blue-100 relative overflow-hidden" style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div className="relative flex-1 overflow-hidden rounded-b-lg flex flex-col">
+                        <div className="w-full flex-1 bg-gradient-to-br from-green-100 to-blue-100 relative overflow-hidden" style={{ display: 'flex', flexDirection: 'column' }}>
                           <TransformWrapper
                             initialScale={1}
                             minScale={0.3}
@@ -481,14 +478,14 @@ export default function MapsPage() {
                                   wrapperStyle={{ width: '100%', height: '100%', overflow: 'visible' }}
                                   contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}
                                 >
-                                  <div style={{ padding: '2rem' }}>
+                                  <div>
                                     <div className="relative inline-block max-h-full max-w-full !overflow-visible" style={{ overflow: 'visible' }}>
                                       <img
                                         src={mapImageUrl}
                                         alt="Mapa del Campus Universitario"
                                         className="h-full w-auto object-contain block"
                                         draggable={false}
-                                        style={{ maxHeight: '100%', maxWidth: '100%' }}
+                                        style={{ maxHeight: '100%', maxWidth: '100%'}}
                                       />
 
                                       {orderedLocations.map((location) => {
@@ -497,9 +494,8 @@ export default function MapsPage() {
                                         return (
                                           <div
                                             key={location.id}
-                                            className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer transition-all duration-200 hover:scale-110 ${
-                                              isSelected ? "z-50" : "z-20"
-                                            }`}
+                                            className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer transition-all duration-200 hover:scale-110 ${isSelected ? "z-50" : "z-20"
+                                              }`}
                                             style={{
                                               left: `${location.coordinate_x}%`,
                                               top: `${location.coordinate_y}%`,
@@ -513,28 +509,26 @@ export default function MapsPage() {
                                           >
                                             <div className={`relative flex flex-col items-center ${isSelected ? "animate-bounce" : ""}`}>
                                               <div
-                                                className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
-                                                  isSelected
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${isSelected
                                                     ? "bg-primary text-white scale-125"
                                                     : "bg-white text-primary hover:bg-primary hover:text-white"
-                                                }`}
+                                                  }`}
                                               >
                                                 <Icon className="h-4 w-4" />
                                               </div>
 
-                                              {/* Punta triangular del pin */}
-                                              <div
-                                                className={`w-0 h-0 transition-colors ${
-                                                  isSelected ? "scale-125" : ""
-                                                }`}
-                                                style={{
-                                                  borderLeft: '4px solid transparent',
-                                                  borderRight: '4px solid transparent',
-                                                  borderTop: isSelected ? '6px solid hsl(var(--primary))' : '6px solid white',
-                                                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
-                                                  marginTop: '-2px'
-                                                }}
-                                              />
+                                              {/* Punta triangular del pin - SVG para compatibilidad Android */}
+                                              <svg
+                                                width="10"
+                                                height="8"
+                                                className={`transition-transform ${isSelected ? "scale-125" : ""}`}
+                                                style={{ marginTop: '-2px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
+                                              >
+                                                <polygon
+                                                  points="5,8 0,0 10,0"
+                                                  className={isSelected ? "fill-primary" : "fill-white"}
+                                                />
+                                              </svg>
 
                                               {isSelected && (
                                                 <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full border-2 border-primary animate-ping opacity-75"></div>
@@ -543,6 +537,56 @@ export default function MapsPage() {
                                           </div>
                                         )
                                       })}
+
+                                      {/* Tooltip dentro del contenedor de posicionamiento para alineación correcta */}
+                                      {(() => {
+                                        const selectedLocationData = orderedLocations.find(loc => loc.id === selectedLocation)
+                                        return selectedLocationData ? (
+                                          <div
+                                            className="absolute w-64 bg-white rounded-lg shadow-xl border p-3 z-[9999] pointer-events-none"
+                                            style={{
+                                              left: `${selectedLocationData.coordinate_x}%`,
+                                              top: `calc(${selectedLocationData.coordinate_y}% - 3rem)`,
+                                              transform: 'translate(-50%, -100%)'
+                                            }}
+                                          >
+                                            <div className="flex items-start space-x-2">
+                                              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                {(() => {
+                                                  const Icon = getIconComponent(selectedLocationData.icon)
+                                                  return <Icon className="h-4 w-4 text-primary" />
+                                                })()}
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center space-x-2 mb-1">
+                                                  <h4 className="font-medium text-sm">{selectedLocationData.name}</h4>
+                                                  <Badge variant="outline" className="text-xs">
+                                                    {selectedLocationData.type}
+                                                  </Badge>
+                                                </div>
+                                                {selectedLocationData.description && (
+                                                  <p className="text-xs text-muted-foreground mb-2">{selectedLocationData.description}</p>
+                                                )}
+                                                <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                                  {selectedLocationData.floor && (
+                                                    <span className="flex items-center">
+                                                      <Building className="h-3 w-3 mr-1" />
+                                                      {selectedLocationData.floor}
+                                                    </span>
+                                                  )}
+                                                  {selectedLocationData.opening_hours && (selectedLocationData.opening_hours as any).hours && (
+                                                    <span className="flex items-center">
+                                                      <Clock className="h-3 w-3 mr-1" />
+                                                      {(selectedLocationData.opening_hours as any).hours}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
+                                          </div>
+                                        ) : null
+                                      })()}
                                     </div>
                                   </div>
                                 </TransformComponent>
@@ -601,10 +645,10 @@ export default function MapsPage() {
                           <X className="h-5 w-5" />
                         </Button>
                       </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardContent>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardContent>
             </Card>
           </div>
 
@@ -619,9 +663,8 @@ export default function MapsPage() {
               <Filter className="h-4 w-4 mr-2" />
               {showFilters ? "Ocultar Filtros" : "Buscar Ubicación"}
               <ChevronDown
-                className={`h-4 w-4 ml-2 transition-transform duration-200 ${
-                  showFilters ? "rotate-180" : ""
-                }`}
+                className={`h-4 w-4 ml-2 transition-transform duration-200 ${showFilters ? "rotate-180" : ""
+                  }`}
               />
             </Button>
           </div>
@@ -694,9 +737,8 @@ export default function MapsPage() {
                           locationRefs.current[location.id] = el
                         }
                       }}
-                      className={`hover:shadow-md transition-all cursor-pointer py-3 ${
-                        isSelected ? "ring-2 ring-primary shadow-md" : ""
-                      }`}
+                      className={`hover:shadow-md transition-all cursor-pointer py-3 ${isSelected ? "ring-2 ring-primary shadow-md" : ""
+                        }`}
                       onClick={() => {
                         setSelectedLocation(isSelected ? null : location.id)
                         // Scroll to map when selecting from list
@@ -713,9 +755,8 @@ export default function MapsPage() {
                       <CardContent className="px-4">
                         <div className="flex items-start space-x-3">
                           <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                              isSelected ? "bg-primary text-white" : "bg-primary/10 text-primary"
-                            }`}
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? "bg-primary text-white" : "bg-primary/10 text-primary"
+                              }`}
                           >
                             <Icon className="h-5 w-5" />
                           </div>
@@ -856,11 +897,10 @@ export default function MapsPage() {
                     <button
                       key={idx}
                       onClick={() => setCurrentImageIndex(idx)}
-                      className={`flex-shrink-0 w-16 h-16 rounded overflow-hidden border-2 transition-all ${
-                        idx === currentImageIndex
+                      className={`flex-shrink-0 w-16 h-16 rounded overflow-hidden border-2 transition-all ${idx === currentImageIndex
                           ? 'border-white scale-110'
                           : 'border-transparent opacity-60 hover:opacity-100'
-                      }`}
+                        }`}
                     >
                       <img
                         src={img}
