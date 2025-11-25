@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { MapPin, AlertTriangle, ShoppingBag, GraduationCap, Home, Ticket } from 'lucide-react'
 
-const mainNavItems = [  
+const mainNavItems = [
   {
     href: "/maps",
     label: "Mapas",
@@ -14,14 +14,14 @@ const mainNavItems = [
     icon: Ticket,
   },
   {
-    href: "/reports",
-    label: "Reportes",
-    icon: AlertTriangle,
-  },
-  {
     href: "/marketplace",
     label: "Tienda",
     icon: ShoppingBag,
+  },
+  {
+    href: "/reports",
+    label: "Reportes",
+    icon: AlertTriangle,
   },
   {
     href: "/tutoring",

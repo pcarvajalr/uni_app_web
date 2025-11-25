@@ -1,77 +1,164 @@
 -- ============================================
--- MIGRACIÓN: Soporte de imágenes para cupones
+-- POLÍTICAS DE STORAGE
 -- ============================================
--- Descripción: Añade campo image_url a la tabla coupons y configura políticas de storage
---
--- IMPORTANTE: Antes de ejecutar este SQL, debes crear el bucket 'coupons' manualmente
--- desde la interfaz de Supabase Storage. Ver instrucciones en README_MIGRATION.md
-
--- ============================================
--- 1. AÑADIR CAMPO IMAGE_URL A LA TABLA COUPONS
--- ============================================
-
 ALTER TABLE public.coupons
 ADD COLUMN IF NOT EXISTS image_url TEXT;
 
 COMMENT ON COLUMN public.coupons.image_url IS 'URL de la imagen del cupón almacenada en Supabase Storage (bucket: coupons)';
 
 -- ============================================
--- 2. POLÍTICAS DE STORAGE PARA BUCKET 'coupons'
+-- VERIFICACIÓN PREVIA: is_admin() debe existir
 -- ============================================
--- Nota: Estas políticas solo funcionarán si el bucket 'coupons' ya existe
--- Si obtienes un error, primero crea el bucket desde la interfaz de Storage
+-- Si esto falla, primero ejecuta 001_create_database.sql
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc WHERE proname = 'is_admin'
+  ) THEN
+    RAISE EXCEPTION 'La función is_admin() no existe. Ejecuta 001_create_database.sql primero.';
+  END IF;
+END $$;
 
--- Eliminar políticas existentes si existen (para poder re-ejecutar el script)
-DROP POLICY IF EXISTS "Todos pueden ver imágenes de cupones" ON storage.objects;
-DROP POLICY IF EXISTS "Los admins pueden subir imágenes de cupones" ON storage.objects;
-DROP POLICY IF EXISTS "Los admins pueden actualizar imágenes de cupones" ON storage.objects;
-DROP POLICY IF EXISTS "Los admins pueden eliminar imágenes de cupones" ON storage.objects;
+-- ============================================
+-- VERIFICACIÓN PREVIA: Buckets deben existir
+-- ============================================
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE name = 'coupons') THEN
+    RAISE EXCEPTION 'El bucket "coupons" no existe. Créalo desde la interfaz de Storage primero.';
+  END IF;
 
--- Permitir a todos ver las imágenes (bucket público)
+  IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE name = 'products') THEN
+    RAISE EXCEPTION 'El bucket "products" no existe. Créalo desde la interfaz de Storage primero.';
+  END IF;
+END $$;
+
+-- ============================================
+-- POLÍTICAS PARA BUCKET 'coupons'
+-- ============================================
+
+-- Todos pueden ver imágenes de cupones
 CREATE POLICY "Todos pueden ver imágenes de cupones"
 ON storage.objects FOR SELECT
-USING (bucket_id = 'coupons');
+TO public
+USING (
+  bucket_id = 'coupons'
+);
 
--- Solo administradores pueden subir imágenes
+-- Solo admins pueden subir imágenes de cupones
 CREATE POLICY "Los admins pueden subir imágenes de cupones"
 ON storage.objects FOR INSERT
+TO authenticated
 WITH CHECK (
   bucket_id = 'coupons'
   AND public.is_admin()
 );
 
--- Solo administradores pueden actualizar imágenes
+-- Solo admins pueden actualizar imágenes de cupones
 CREATE POLICY "Los admins pueden actualizar imágenes de cupones"
 ON storage.objects FOR UPDATE
+TO authenticated
 USING (
+  bucket_id = 'coupons'
+  AND public.is_admin()
+)
+WITH CHECK (
   bucket_id = 'coupons'
   AND public.is_admin()
 );
 
--- Solo administradores pueden eliminar imágenes
+-- Solo admins pueden eliminar imágenes de cupones
 CREATE POLICY "Los admins pueden eliminar imágenes de cupones"
 ON storage.objects FOR DELETE
+TO authenticated
 USING (
   bucket_id = 'coupons'
   AND public.is_admin()
 );
 
 -- ============================================
--- 3. VERIFICACIÓN (Opcional)
+-- POLÍTICAS PARA BUCKET 'products'
 -- ============================================
--- Ejecuta estas queries para verificar que todo está configurado correctamente:
 
--- Verificar que la columna image_url existe
--- SELECT column_name, data_type, is_nullable
--- FROM information_schema.columns
--- WHERE table_name = 'coupons' AND column_name = 'image_url';
+-- Todos pueden ver imágenes de productos
+CREATE POLICY "Todos pueden ver imágenes de productos"
+ON storage.objects FOR SELECT
+TO public
+USING (
+  bucket_id = 'products'
+);
 
--- Verificar que el bucket existe
--- SELECT id, name, public, file_size_limit, allowed_mime_types
--- FROM storage.buckets
--- WHERE name = 'coupons';
+-- Usuarios autenticados pueden subir imágenes a su carpeta
+CREATE POLICY "Usuarios autenticados pueden subir imágenes de productos"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'products'
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
 
--- Verificar que las políticas están activas
--- SELECT policyname, cmd, qual
--- FROM pg_policies
--- WHERE tablename = 'objects' AND policyname LIKE '%cupones%';
+-- Usuarios pueden actualizar solo sus propias imágenes
+CREATE POLICY "Usuarios pueden actualizar sus propias imágenes de productos"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (
+  bucket_id = 'products'
+  AND (storage.foldername(name))[1] = auth.uid()::text
+)
+WITH CHECK (
+  bucket_id = 'products'
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Usuarios pueden eliminar solo sus propias imágenes
+CREATE POLICY "Usuarios pueden eliminar sus propias imágenes de productos"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'products'
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- ============================================
+-- VERIFICACIÓN POST-CREACIÓN
+-- ============================================
+-- Verifica que todas las políticas fueron creadas correctamente
+DO $$
+DECLARE
+  policy_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO policy_count
+  FROM pg_policies
+  WHERE tablename = 'objects'
+  AND (
+    policyname LIKE '%cupones%'
+    OR policyname LIKE '%productos%'
+  );
+
+  IF policy_count != 8 THEN
+    RAISE WARNING 'Se esperaban 8 políticas pero se encontraron %', policy_count;
+  ELSE
+    RAISE NOTICE '✓ Las 8 políticas fueron creadas correctamente';
+  END IF;
+END $$;
+
+-- Listar todas las políticas creadas
+SELECT
+  policyname,
+  cmd as operacion,
+  roles
+FROM pg_policies
+WHERE tablename = 'objects'
+AND (
+  policyname LIKE '%cupones%'
+  OR policyname LIKE '%productos%'
+)
+ORDER BY policyname;
+
+-- ============================================
+-- SIGUIENTE PASO
+-- ============================================
+-- Después de ejecutar este script:
+-- 1. Verifica que no haya errores en los logs de Supabase
+-- 2. Prueba el login en tu aplicación
+-- 3. Prueba subir una imagen a products o coupons (si tienes permisos)

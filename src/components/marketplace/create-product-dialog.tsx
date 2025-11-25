@@ -47,7 +47,11 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
     watch,
   } = useForm<CreateProductFormData>({
     resolver: zodResolver(createProductSchema),
+    mode: 'onSubmit',
     defaultValues: {
+      title: '',
+      description: '',
+      location: '',
       is_negotiable: true,
     },
   })
