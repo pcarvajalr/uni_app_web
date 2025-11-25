@@ -101,7 +101,7 @@ export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpd
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto overflow-x-hidden w-full max-w-[calc(100vw-2rem)]">
         <DialogHeader>
           <DialogTitle className="text-left">{product.title}</DialogTitle>
           <DialogDescription className="text-left">Publicado el {formatDate(product.created_at)}</DialogDescription>
@@ -139,9 +139,9 @@ export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpd
           </div>
 
           {/* Price and Actions */}
-          <div className="flex items-center justify-between">
-            <div className="text-3xl font-bold text-primary">{formatPrice(product.price)}</div>
-            <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row items-center sm:items-center justify-between gap-3">
+            <div className="text-2xl sm:text-3xl font-bold text-primary">{formatPrice(product.price)}</div>
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
               <ProductFavoriteButton
                 productId={product.id}
                 initialIsFavorite={isFavorite}
@@ -152,8 +152,8 @@ export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpd
                 onFavoriteChange={(newIsFavorite) => setIsFavorite(newIsFavorite)}
               />
               <Button variant="outline" size="sm">
-                <Share className="h-4 w-4 mr-1" />
-                Compartir
+                <Share className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Compartir</span>
               </Button>
               <ProductOwnerActions
                 product={product}
@@ -198,33 +198,34 @@ export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpd
           {/* Seller Info */}
           <div className="border rounded-lg p-4 space-y-3">
             <h3 className="font-medium">Vendedor</h3>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row items-center sm:items-center gap-3">
               <Avatar className="h-12 w-12">
                 <AvatarFallback className="bg-primary text-primary-foreground">{sellerInitials}</AvatarFallback>
               </Avatar>
-              <div className="flex-1">
-                <div className="flex items-center space-x-2">
+              <div className="flex-1 text-center sm:text-left">
+                <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2">
                   <span className="font-medium">{product.seller.full_name}</span>
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center gap-1">
                     <Star className="h-4 w-4 fill-current text-yellow-400" />
                     <span className="text-sm">{product.seller.rating || "Nuevo"}</span>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground">{product.seller_id}</p>
+                <p className="text-sm text-muted-foreground truncate">{product.seller_id}</p>
               </div>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 Ver Perfil
               </Button>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-2">
+          <div className="flex gap-2">
             <Button className="flex-1">
               <MessageCircle className="h-4 w-4 mr-2" />
-              Contactar Vendedor
+              <span className="hidden sm:inline">Contactar Vendedor</span>
+              <span className="sm:hidden">Contactar</span>
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" size="icon">
               <Flag className="h-4 w-4" />
             </Button>
           </div>
