@@ -285,3 +285,48 @@ export const getProductCategories = async () => {
     throw error;
   }
 };
+
+/**
+ * Verificar si un producto es favorito del usuario
+ * @param productId - ID del producto
+ * @param userId - ID del usuario
+ * @returns true si el producto es favorito, false en caso contrario
+ */
+export const isProductFavorite = async (productId: string, userId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('product_id', productId)
+      .eq('item_type', 'product')
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      handleSupabaseError(error);
+    }
+
+    return !!data;
+  } catch (error) {
+    console.error('Error verificando favorito de producto:', error);
+    return false;
+  }
+};
+
+/**
+ * Marcar producto como vendido
+ * @param id - ID del producto
+ * @returns Producto actualizado
+ */
+export const markProductAsSold = async (id: string) => {
+  return updateProduct(id, { status: 'sold' });
+};
+
+/**
+ * Marcar producto como disponible
+ * @param id - ID del producto
+ * @returns Producto actualizado
+ */
+export const markProductAsAvailable = async (id: string) => {
+  return updateProduct(id, { status: 'available' });
+};

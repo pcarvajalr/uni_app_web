@@ -25,7 +25,7 @@ export interface ReportWithReporter extends Report {
 }
 
 export interface ReportFilters {
-  type?: 'security' | 'emergency' | 'maintenance' | 'lost_found' | 'other';
+  type?: 'robo' | 'vandalismo' | 'sospechoso' | 'emergencia' | 'security' | 'emergency' | 'maintenance' | 'lost_found' | 'other';
   status?: 'open' | 'in_progress' | 'resolved' | 'closed' | 'rejected';
   priority?: 'low' | 'medium' | 'high' | 'critical';
   reporter_id?: string;

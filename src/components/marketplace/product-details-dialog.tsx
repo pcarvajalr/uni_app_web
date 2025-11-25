@@ -5,52 +5,74 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { MapPin, Clock, Heart, MessageCircle, Star, Share, Flag } from "lucide-react"
-import { useState } from "react"
-
-interface Product {
-  id: string
-  title: string
-  description: string
-  price: number
-  category: string
-  condition: "nuevo" | "como-nuevo" | "usado" | "para-reparar"
-  images: string[]
-  seller: {
-    name: string
-    rating: number
-    studentId: string
-  }
-  location: string
-  datePosted: string
-  likes: number
-  isLiked: boolean
-}
+import { useState, useEffect } from "react"
+import { ProductFavoriteButton } from "@/components/marketplace/product-favorite-button"
+import { ProductOwnerActions } from "@/components/marketplace/product-owner-actions"
+import { useAuth } from "@/lib/auth"
+import { useToast } from "@/hooks/use-toast"
+import { isProductFavorite, type ProductWithSeller } from "@/services/products.service"
 
 interface ProductDetailsDialogProps {
-  product: Product | null
+  product: ProductWithSeller | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onProductUpdated?: () => void
 }
 
-export function ProductDetailsDialog({ product, open, onOpenChange }: ProductDetailsDialogProps) {
+export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpdated }: ProductDetailsDialogProps) {
+  const { user } = useAuth()
+  const { toast } = useToast()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const [isLiked, setIsLiked] = useState(false)
+  const [isFavorite, setIsFavorite] = useState(false)
+
+  // Cargar estado de favorito cuando cambia el producto
+  useEffect(() => {
+    async function checkFavorite() {
+      if (!product || !user) {
+        setIsFavorite(false)
+        return
+      }
+
+      try {
+        const favorite = await isProductFavorite(product.id, user.id)
+        setIsFavorite(favorite)
+      } catch (error) {
+        console.error('Error checking favorite:', error)
+        setIsFavorite(false)
+      }
+    }
+
+    checkFavorite()
+  }, [product, user])
 
   if (!product) return null
 
-  const getConditionColor = (condition: string) => {
+  const getConditionColor = (condition: string | null) => {
     switch (condition) {
-      case "nuevo":
+      case "new":
         return "bg-green-100 text-green-800"
-      case "como-nuevo":
+      case "like_new":
         return "bg-blue-100 text-blue-800"
-      case "usado":
+      case "good":
         return "bg-yellow-100 text-yellow-800"
-      case "para-reparar":
+      case "fair":
+        return "bg-orange-100 text-orange-800"
+      case "poor":
         return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
+  }
+
+  const getConditionLabel = (condition: string | null) => {
+    const conditions: Record<string, string> = {
+      new: "Nuevo",
+      like_new: "Como Nuevo",
+      good: "Bueno",
+      fair: "Regular",
+      poor: "Malo",
+    }
+    return conditions[condition || ""] || condition || "N/A"
   }
 
   const formatPrice = (price: number) => {
@@ -61,9 +83,19 @@ export function ProductDetailsDialog({ product, open, onOpenChange }: ProductDet
     }).format(price)
   }
 
-  const sellerInitials = product.seller.name
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Fecha no disponible"
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat("es-CO", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(date)
+  }
+
+  const sellerInitials = product.seller.full_name
     .split(" ")
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .join("")
     .toUpperCase()
 
@@ -72,7 +104,7 @@ export function ProductDetailsDialog({ product, open, onOpenChange }: ProductDet
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-left">{product.title}</DialogTitle>
-          <DialogDescription className="text-left">Publicado el {product.datePosted}</DialogDescription>
+          <DialogDescription className="text-left">Publicado el {formatDate(product.created_at)}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -80,12 +112,12 @@ export function ProductDetailsDialog({ product, open, onOpenChange }: ProductDet
           <div className="space-y-2">
             <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
               <img
-                src={product.images[currentImageIndex] || "/placeholder.svg"}
+                src={(product.images && product.images[currentImageIndex]) || "/placeholder.svg"}
                 alt={product.title}
                 className="w-full h-full object-cover"
               />
             </div>
-            {product.images.length > 1 && (
+            {product.images && product.images.length > 1 && (
               <div className="flex space-x-2 overflow-x-auto">
                 {product.images.map((image, index) => (
                   <button
@@ -110,27 +142,40 @@ export function ProductDetailsDialog({ product, open, onOpenChange }: ProductDet
           <div className="flex items-center justify-between">
             <div className="text-3xl font-bold text-primary">{formatPrice(product.price)}</div>
             <div className="flex space-x-2">
-              <Button
+              <ProductFavoriteButton
+                productId={product.id}
+                initialIsFavorite={isFavorite}
+                initialFavoritesCount={product.favorites_count || 0}
                 variant="outline"
                 size="sm"
-                onClick={() => setIsLiked(!isLiked)}
-                className={isLiked ? "text-red-500" : ""}
-              >
-                <Heart className={`h-4 w-4 mr-1 ${isLiked ? "fill-current" : ""}`} />
-                {product.likes + (isLiked ? 1 : 0)}
-              </Button>
+                showCount={true}
+                onFavoriteChange={(newIsFavorite) => setIsFavorite(newIsFavorite)}
+              />
               <Button variant="outline" size="sm">
                 <Share className="h-4 w-4 mr-1" />
                 Compartir
               </Button>
+              <ProductOwnerActions
+                product={product}
+                onUpdate={() => {
+                  onProductUpdated?.()
+                  onOpenChange(false)
+                }}
+                onEdit={() => {
+                  toast({
+                    title: "Próximamente",
+                    description: "La edición de productos estará disponible pronto",
+                  })
+                }}
+              />
             </div>
           </div>
 
           {/* Product Info */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <Badge className={getConditionColor(product.condition)}>{product.condition}</Badge>
-              <Badge variant="outline">{product.category}</Badge>
+              <Badge className={getConditionColor(product.condition)}>{getConditionLabel(product.condition)}</Badge>
+              {product.category && <Badge variant="outline">{product.category.name}</Badge>}
             </div>
 
             <div className="space-y-2">
@@ -145,7 +190,7 @@ export function ProductDetailsDialog({ product, open, onOpenChange }: ProductDet
               </span>
               <span className="flex items-center">
                 <Clock className="h-4 w-4 mr-1" />
-                {product.datePosted}
+                {formatDate(product.created_at)}
               </span>
             </div>
           </div>
@@ -159,13 +204,13 @@ export function ProductDetailsDialog({ product, open, onOpenChange }: ProductDet
               </Avatar>
               <div className="flex-1">
                 <div className="flex items-center space-x-2">
-                  <span className="font-medium">{product.seller.name}</span>
+                  <span className="font-medium">{product.seller.full_name}</span>
                   <div className="flex items-center space-x-1">
                     <Star className="h-4 w-4 fill-current text-yellow-400" />
-                    <span className="text-sm">{product.seller.rating}</span>
+                    <span className="text-sm">{product.seller.rating || "Nuevo"}</span>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground">ID: {product.seller.studentId}</p>
+                <p className="text-sm text-muted-foreground">{product.seller_id}</p>
               </div>
               <Button variant="outline" size="sm">
                 Ver Perfil

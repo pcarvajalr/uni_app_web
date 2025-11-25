@@ -717,3 +717,22 @@ INSERT INTO public.coupons (code, title, description, discount_type, discount_va
 
 -- Para verificar que todo se creó correctamente:
 -- SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;
+
+ALTER TABLE public.reports DROP CONSTRAINT reports_type_check;
+
+
+  ALTER TABLE public.reports
+  ADD CONSTRAINT reports_type_check
+  CHECK (type IN (
+    -- Valores en español (nuevos)
+    'robo',
+    'vandalismo',
+    'sospechoso',
+    'emergencia',
+    -- Valores en inglés (compatibilidad)
+    'security',
+    'emergency',
+    'maintenance',
+    'lost_found',
+    'other'
+  ));
