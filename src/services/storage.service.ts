@@ -253,3 +253,28 @@ export const fileToBase64 = (file: File | Blob): Promise<string> => {
     reader.readAsDataURL(file)
   })
 }
+
+/**
+ * Elimina una imagen de producto del bucket 'products'
+ * @param imageUrl - URL completa de la imagen de Supabase
+ * @returns true si se eliminó correctamente, false en caso contrario
+ */
+export const deleteProductImage = async (imageUrl: string): Promise<boolean> => {
+  try {
+    // Extraer el path de la URL de Supabase
+    // Formato: https://{project-ref}.supabase.co/storage/v1/object/public/products/{path}
+    const urlParts = imageUrl.split('/storage/v1/object/public/products/')
+
+    if (urlParts.length < 2) {
+      console.error('URL de imagen inválida:', imageUrl)
+      return false
+    }
+
+    const filePath = urlParts[1]
+
+    return await deleteFile('products', filePath)
+  } catch (error) {
+    console.error('Error eliminando imagen de producto:', error)
+    return false
+  }
+}

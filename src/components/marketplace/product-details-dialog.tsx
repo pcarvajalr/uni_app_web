@@ -8,6 +8,7 @@ import { MapPin, Clock, Heart, MessageCircle, Star, Share, Flag } from "lucide-r
 import { useState, useEffect } from "react"
 import { ProductFavoriteButton } from "@/components/marketplace/product-favorite-button"
 import { ProductOwnerActions } from "@/components/marketplace/product-owner-actions"
+import { EditProductDialog } from "@/components/marketplace/edit-product-dialog"
 import { useAuth } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 import { isProductFavorite, type ProductWithSeller } from "@/services/products.service"
@@ -24,6 +25,7 @@ export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpd
   const { toast } = useToast()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isFavorite, setIsFavorite] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   // Cargar estado de favorito cuando cambia el producto
   useEffect(() => {
@@ -162,10 +164,7 @@ export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpd
                   onOpenChange(false)
                 }}
                 onEdit={() => {
-                  toast({
-                    title: "Próximamente",
-                    description: "La edición de productos estará disponible pronto",
-                  })
+                  setIsEditDialogOpen(true)
                 }}
               />
             </div>
@@ -242,6 +241,17 @@ export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpd
           </div>
         </div>
       </DialogContent>
+
+      {/* Edit Product Dialog */}
+      <EditProductDialog
+        product={product}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onProductUpdated={() => {
+          onProductUpdated?.()
+          setIsEditDialogOpen(false)
+        }}
+      />
     </Dialog>
   )
 }
