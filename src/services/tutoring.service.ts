@@ -738,47 +738,11 @@ export const addBookingReview = async (
       handleSupabaseError(updateError);
     }
 
-    // Update session average rating
-    await updateSessionRating(booking.id);
+    // Session average rating is now updated automatically by database trigger
+    // (update_session_and_tutor_rating in Supabase)
   } catch (error) {
     console.error('Error adding booking review:', error);
     throw error;
-  }
-};
-
-// Helper to update session average rating
-const updateSessionRating = async (bookingId: string): Promise<void> => {
-  try {
-    // Get session ID from booking
-    const { data: booking } = await supabase
-      .from('tutoring_bookings')
-      .select('session_id')
-      .eq('id', bookingId)
-      .single();
-
-    if (!booking) return;
-
-    // Calculate new average rating
-    const { data: ratings } = await supabase
-      .from('tutoring_bookings')
-      .select('student_rating')
-      .eq('session_id', booking.session_id)
-      .not('student_rating', 'is', null);
-
-    if (ratings && ratings.length > 0) {
-      const avgRating =
-        ratings.reduce((sum, r) => sum + (r.student_rating || 0), 0) / ratings.length;
-
-      await supabase
-        .from('tutoring_sessions')
-        .update({
-          rating: Math.round(avgRating * 10) / 10,
-          total_bookings: ratings.length,
-        })
-        .eq('id', booking.session_id);
-    }
-  } catch (error) {
-    console.error('Error updating session rating:', error);
   }
 };
 

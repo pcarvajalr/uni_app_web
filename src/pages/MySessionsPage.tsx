@@ -23,6 +23,8 @@ import {
   Loader2,
   Plus,
   AlertCircle,
+  Edit,
+  Pause,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
@@ -37,11 +39,20 @@ import {
   useMarkNoShow,
   useAddBookingReview,
 } from "@/hooks/useTutoringBookings"
-import { useMyTutoringSessions } from "@/hooks/useTutoringSessions"
+import {
+  useMyTutoringSessions,
+  usePauseTutoringSession,
+  useActivateTutoringSession,
+} from "@/hooks/useTutoringSessions"
 import { CreateTutoringDialog } from "@/components/tutoring/create-tutoring-dialog"
-import { TutoringCard } from "@/components/tutoring/tutoring-card"
+import { EditTutoringDialog } from "@/components/tutoring/edit-tutoring-dialog"
 import { TutoringMessages } from "@/components/tutoring/tutoring-messages"
-import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS, type BookingStatus } from "@/types/tutoring.types"
+import {
+  BOOKING_STATUS_COLORS,
+  BOOKING_STATUS_LABELS,
+  type BookingStatus,
+  type TutoringSessionWithTutor,
+} from "@/types/tutoring.types"
 import { getTutorActions, getStudentActions } from "@/lib/booking-states"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -62,6 +73,8 @@ export default function MySessionsPage() {
     avatar?: string | null
     sessionId: string
   } | null>(null)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [selectedSessionForEdit, setSelectedSessionForEdit] = useState<TutoringSessionWithTutor | null>(null)
 
   // Fetch data
   const { data: tutorBookings, isLoading: tutorLoading, error: tutorError, refetch: refetchTutorBookings } = useTutorBookings()
@@ -76,6 +89,8 @@ export default function MySessionsPage() {
   const completeSession = useCompleteSession()
   const markNoShow = useMarkNoShow()
   const addReview = useAddBookingReview()
+  const pauseSession = usePauseTutoringSession()
+  const activateSession = useActivateTutoringSession()
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("es-CO", {
@@ -179,6 +194,36 @@ export default function MySessionsPage() {
       setRating(5)
       setReview("")
       refetchStudentBookings()
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle pause session
+  const handlePauseSession = async (sessionId: string) => {
+    try {
+      await pauseSession.mutateAsync(sessionId)
+      toast({ title: "Sesión pausada", description: "La sesión no recibirá nuevas reservas" })
+      refetchSessions()
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle activate session
+  const handleActivateSession = async (sessionId: string) => {
+    try {
+      await activateSession.mutateAsync(sessionId)
+      toast({ title: "Sesión activada", description: "La sesión ahora está disponible para reservas" })
+      refetchSessions()
     } catch (error: any) {
       toast({
         title: "Error",
@@ -653,11 +698,66 @@ export default function MySessionsPage() {
               ))
             ) : mySessions && mySessions.length > 0 ? (
               mySessions.map((session) => (
-                <TutoringCard
-                  key={session.id}
-                  session={session}
-                  showBookButton={false}
-                />
+                <Card key={session.id}>
+                  <CardContent className="p-4">
+                    <div className="flex flex-col gap-4">
+                      {/* Session Details */}
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg">{session.title}</h3>
+                            <p className="text-sm text-muted-foreground mt-1">{session.subject}</p>
+                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                              {session.description}
+                            </p>
+                            <div className="flex items-center gap-4 mt-3 text-sm">
+                              <span className="font-semibold text-primary">
+                                {formatPrice(session.price_per_hour)}/hora
+                              </span>
+                              <Badge variant={session.status === 'active' ? 'default' : 'secondary'}>
+                                {session.status === 'active' ? 'Activa' : 'Pausada'}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedSessionForEdit(session)
+                            setShowEditDialog(true)
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Editar
+                        </Button>
+                        {session.status === 'active' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handlePauseSession(session.id)}
+                          >
+                            <Pause className="h-4 w-4 mr-1" />
+                            Pausar
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleActivateSession(session.id)}
+                          >
+                            <Play className="h-4 w-4 mr-1" />
+                            Activar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               ))
             ) : (
               <Card>
@@ -765,6 +865,19 @@ export default function MySessionsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit Session Dialog */}
+      {selectedSessionForEdit && (
+        <EditTutoringDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          session={selectedSessionForEdit}
+          onSuccess={() => {
+            refetchSessions()
+            setSelectedSessionForEdit(null)
+          }}
+        />
+      )}
     </AppLayout>
   )
 }

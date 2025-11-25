@@ -256,10 +256,11 @@ export function TutoringDetailsDialog({ session, open, onOpenChange }: TutoringD
           <div className="space-y-2">
             <h3 className="font-semibold">Materia</h3>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">{session.subject}</Badge>
               {session.category && (
-                <Badge variant="outline">{session.category.name}</Badge>
+                <Badge variant="secondary">{session.category.name}</Badge>
               )}
+              <Badge variant="outline">{session.subject}</Badge>
+              
             </div>
           </div>
 

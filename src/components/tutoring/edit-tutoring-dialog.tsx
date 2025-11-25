@@ -10,23 +10,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useAuth } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, X } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { getTutoringSubjects } from "@/services/tutoring-subjects.service"
-import { useCreateTutoringSession } from "@/hooks/useTutoringSessions"
-import { stringifyAvailableHours, toggleSlot } from "@/lib/availability-utils"
-import type { AvailableHours, DayOfWeek, SlotRange, SessionMode } from "@/types/tutoring.types"
+import { useUpdateTutoringSession } from "@/hooks/useTutoringSessions"
+import { parseAvailableHours, stringifyAvailableHours, toggleSlot } from "@/lib/availability-utils"
+import type { AvailableHours, DayOfWeek, SlotRange, SessionMode, TutoringSessionWithTutor } from "@/types/tutoring.types"
 import { ALL_DAYS, ALL_SLOTS, DAY_LABELS, SLOT_LABELS, MODE_LABELS } from "@/types/tutoring.types"
 import type { Database } from "@/types/database.types"
 
 type Category = Database['public']['Tables']['categories']['Row']
 
 // Form validation schema
-const createSessionSchema = z.object({
+const editSessionSchema = z.object({
   title: z.string().min(5, "El título debe tener al menos 5 caracteres").max(100),
   description: z.string().min(20, "La descripción debe tener al menos 20 caracteres").max(1000),
   subject: z.string().min(2, "La materia es requerida"),
@@ -39,18 +38,19 @@ const createSessionSchema = z.object({
   max_students: z.number().min(1).max(50).optional(),
 })
 
-type CreateSessionFormData = z.infer<typeof createSessionSchema>
+type EditSessionFormData = z.infer<typeof editSessionSchema>
 
-interface CreateTutoringDialogProps {
+interface EditTutoringDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  session: TutoringSessionWithTutor
   onSuccess?: () => void
 }
 
-export function CreateTutoringDialog({ open, onOpenChange, onSuccess }: CreateTutoringDialogProps) {
+export function EditTutoringDialog({ open, onOpenChange, session, onSuccess }: EditTutoringDialogProps) {
   const { user } = useAuth()
   const { toast } = useToast()
-  const createSession = useCreateTutoringSession()
+  const updateSession = useUpdateTutoringSession()
   const [availableSubjects, setAvailableSubjects] = useState<Category[]>([])
   const [availableHours, setAvailableHours] = useState<AvailableHours>({})
 
@@ -61,8 +61,8 @@ export function CreateTutoringDialog({ open, onOpenChange, onSuccess }: CreateTu
     setValue,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<CreateSessionFormData>({
-    resolver: zodResolver(createSessionSchema),
+  } = useForm<EditSessionFormData>({
+    resolver: zodResolver(editSessionSchema),
     defaultValues: {
       title: "",
       description: "",
@@ -79,19 +79,41 @@ export function CreateTutoringDialog({ open, onOpenChange, onSuccess }: CreateTu
 
   const selectedMode = watch("mode")
 
+  // Load categories
   useEffect(() => {
     getTutoringSubjects().then(setAvailableSubjects).catch(console.error)
   }, [])
+
+  // Pre-load form data when dialog opens or session changes
+  useEffect(() => {
+    if (open && session) {
+      reset({
+        title: session.title,
+        description: session.description,
+        subject: session.subject,
+        category_id: session.category_id || undefined,
+        price_per_hour: session.price_per_hour,
+        duration_minutes: session.duration_minutes,
+        mode: session.mode as SessionMode,
+        location: session.location || "",
+        meeting_url: session.meeting_url || "",
+        max_students: session.max_students || 1,
+      })
+
+      // Pre-load available hours
+      setAvailableHours(parseAvailableHours(session.available_hours))
+    }
+  }, [open, session, reset])
 
   const handleToggleSlot = (day: DayOfWeek, slot: SlotRange) => {
     setAvailableHours(prev => toggleSlot(prev, day, slot))
   }
 
-  const onSubmit = async (data: CreateSessionFormData) => {
+  const onSubmit = async (data: EditSessionFormData) => {
     if (!user?.id) {
       toast({
         title: "Error",
-        description: "Debes iniciar sesión para crear una sesión de tutoría",
+        description: "Debes iniciar sesión para editar una sesión de tutoría",
         variant: "destructive",
       })
       return
@@ -119,43 +141,40 @@ export function CreateTutoringDialog({ open, onOpenChange, onSuccess }: CreateTu
     }
 
     try {
-      await createSession.mutateAsync({
-        tutor_id: user.id,
-        title: data.title,
-        description: data.description,
-        subject: data.subject,
-        category_id: data.category_id || null,
-        price_per_hour: data.price_per_hour,
-        duration_minutes: data.duration_minutes,
-        mode: data.mode,
-        location: data.location || null,
-        meeting_url: data.meeting_url || null,
-        max_students: data.max_students || 1,
-        available_hours: stringifyAvailableHours(availableHours),
-        status: "active",
+      await updateSession.mutateAsync({
+        id: session.id,
+        data: {
+          title: data.title,
+          description: data.description,
+          subject: data.subject,
+          category_id: data.category_id || null,
+          price_per_hour: data.price_per_hour,
+          duration_minutes: data.duration_minutes,
+          mode: data.mode,
+          location: data.location || null,
+          meeting_url: data.meeting_url || null,
+          max_students: data.max_students || 1,
+          available_hours: stringifyAvailableHours(availableHours),
+        }
       })
 
       toast({
-        title: "Sesión creada",
-        description: "Tu sesión de tutoría ha sido publicada exitosamente",
+        title: "Sesión actualizada",
+        description: "Los cambios han sido guardados exitosamente",
       })
 
-      reset()
-      setAvailableHours({})
       onOpenChange(false)
       onSuccess?.()
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "No se pudo crear la sesión de tutoría",
+        description: error.message || "No se pudieron guardar los cambios",
         variant: "destructive",
       })
     }
   }
 
   const handleClose = () => {
-    reset()
-    setAvailableHours({})
     onOpenChange(false)
   }
 
@@ -163,9 +182,9 @@ export function CreateTutoringDialog({ open, onOpenChange, onSuccess }: CreateTu
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Crear Sesión de Tutoría</DialogTitle>
+          <DialogTitle>Editar Sesión de Tutoría</DialogTitle>
           <DialogDescription>
-            Publica tu sesión de tutoría para que otros estudiantes puedan reservarla
+            Modifica los detalles de tu sesión de tutoría
           </DialogDescription>
         </DialogHeader>
 
@@ -184,10 +203,21 @@ export function CreateTutoringDialog({ open, onOpenChange, onSuccess }: CreateTu
           </div>
 
           {/* Subject and Category */}
-          <div className="grid grid-cols-2 gap-4">           
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="subject">Materia *</Label>
+              <Input
+                id="subject"
+                placeholder="Ej: Cálculo Diferencial"
+                {...register("subject")}
+              />
+              {errors.subject && (
+                <p className="text-sm text-destructive">{errors.subject.message}</p>
+              )}
+            </div>
 
             <div className="space-y-2">
-              <Label>Materia *</Label>
+              <Label>Categoría</Label>
               <Select
                 value={watch("category_id") || ""}
                 onValueChange={(value) => setValue("category_id", value || undefined)}
@@ -203,17 +233,6 @@ export function CreateTutoringDialog({ open, onOpenChange, onSuccess }: CreateTu
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="subject">Contenido</Label>
-              <Input
-                id="subject"
-                placeholder="Ej: Cálculo Diferencial"
-                {...register("subject")}
-              />
-              {errors.subject && (
-                <p className="text-sm text-destructive">{errors.subject.message}</p>
-              )}
             </div>
           </div>
 
@@ -370,21 +389,21 @@ export function CreateTutoringDialog({ open, onOpenChange, onSuccess }: CreateTu
               type="button"
               variant="outline"
               onClick={handleClose}
-              disabled={isSubmitting || createSession.isPending}
+              disabled={isSubmitting || updateSession.isPending}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || createSession.isPending}
+              disabled={isSubmitting || updateSession.isPending}
             >
-              {(isSubmitting || createSession.isPending) ? (
+              {(isSubmitting || updateSession.isPending) ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creando...
+                  Guardando...
                 </>
               ) : (
-                "Publicar Sesión"
+                "Guardar Cambios"
               )}
             </Button>
           </div>
