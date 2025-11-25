@@ -10,10 +10,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/lib/auth"
-import { Loader2, AlertTriangle } from "lucide-react"
+import { Loader2, AlertTriangle, MapPin } from "lucide-react"
 import { useCreateReport } from "@/hooks/useCreateReport"
 import { useToast } from "@/hooks/use-toast"
 import type { FrontendReportType, FrontendPriority } from "@/utils/report-mappers"
+import { getCampusLocations } from "@/services/campus-locations.service"
+import type { Database } from "@/types/database.types"
+
+type CampusLocation = Database['public']['Tables']['campus_locations']['Row']
 
 interface CreateReportDialogProps {
   open: boolean
@@ -25,14 +29,34 @@ export function CreateReportDialog({ open, onOpenChange, onSuccess }: CreateRepo
   const { user } = useAuth()
   const { toast } = useToast()
   const { createNewReport, isCreating, error, success, reset } = useCreateReport()
+  const [campusLocations, setCampusLocations] = useState<CampusLocation[]>([])
+  const [loadingLocations, setLoadingLocations] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     type: "" as FrontendReportType | "",
     description: "",
-    location: "",
+    locationId: "",
     priority: "media" as FrontendPriority,
     anonymous: false,
   })
+
+  // Cargar ubicaciones del campus cuando se abre el diálogo
+  useEffect(() => {
+    if (open && campusLocations.length === 0) {
+      setLoadingLocations(true)
+      getCampusLocations()
+        .then((locations) => setCampusLocations(locations))
+        .catch((err) => {
+          console.error('Error cargando ubicaciones:', err)
+          toast({
+            title: "Error al cargar ubicaciones",
+            description: "No se pudieron cargar las ubicaciones del campus.",
+            variant: "destructive",
+          })
+        })
+        .finally(() => setLoadingLocations(false))
+    }
+  }, [open, campusLocations.length, toast])
 
   // Efecto para manejar el éxito de la creación
   useEffect(() => {
@@ -47,7 +71,7 @@ export function CreateReportDialog({ open, onOpenChange, onSuccess }: CreateRepo
         title: "",
         type: "",
         description: "",
-        location: "",
+        locationId: "",
         priority: "media",
         anonymous: false,
       })
@@ -87,12 +111,22 @@ export function CreateReportDialog({ open, onOpenChange, onSuccess }: CreateRepo
       return
     }
 
+    // Validar que la ubicación esté seleccionada
+    if (!formData.locationId) {
+      toast({
+        title: "Ubicación requerida",
+        description: "Por favor selecciona la ubicación del incidente.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       await createNewReport({
         title: formData.title,
         type: formData.type,
         description: formData.description,
-        location: formData.location,
+        locationId: formData.locationId,
         priority: formData.priority,
         anonymous: formData.anonymous,
       })
@@ -105,6 +139,19 @@ export function CreateReportDialog({ open, onOpenChange, onSuccess }: CreateRepo
   const handleChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
+
+  // Agrupar ubicaciones por tipo
+  const groupedLocations = campusLocations.reduce((acc, location) => {
+    const type = location.type || 'Otros'
+    if (!acc[type]) {
+      acc[type] = []
+    }
+    acc[type].push(location)
+    return acc
+  }, {} as Record<string, CampusLocation[]>)
+
+  // Obtener la ubicación seleccionada para mostrar su nombre
+  const selectedLocation = campusLocations.find(loc => loc.id === formData.locationId)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -145,14 +192,41 @@ export function CreateReportDialog({ open, onOpenChange, onSuccess }: CreateRepo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="location">Ubicación</Label>
-            <Input
-              id="location"
-              placeholder="Ej: Biblioteca Central, 2do piso"
-              value={formData.location}
-              onChange={(e) => handleChange("location", e.target.value)}
+            <Label htmlFor="locationId">Ubicación del Incidente</Label>
+            <Select
+              value={formData.locationId}
+              onValueChange={(value) => handleChange("locationId", value)}
               required
-            />
+              disabled={loadingLocations}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={loadingLocations ? "Cargando ubicaciones..." : "Selecciona la ubicación"}>
+                  {selectedLocation && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <span>{selectedLocation.name}</span>
+                    </div>
+                  )}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {Object.entries(groupedLocations).map(([type, locations]) => (
+                  <div key={type}>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                      {type}
+                    </div>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <span>{location.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </div>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

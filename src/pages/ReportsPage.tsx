@@ -3,12 +3,23 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Plus, Clock, MapPin, Eye, Phone, X, Maximize2, Loader2, AlertCircle } from 'lucide-react'
 import { useState, useRef } from "react"
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"
+import { getIconComponent } from "@/lib/icon-mapper"
 import { CreateReportDialog } from "@/components/reports/create-report-dialog"
 import { ReportDetailsDialog } from "@/components/reports/report-details-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useReports, type Report } from "@/hooks/useReports"
+import { getMapImageUrl } from "@/services/campus-settings.service"
+import { useEffect } from "react"
 
 export default function ReportsPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -18,108 +29,26 @@ export default function ReportsPage() {
   const [filterStatus, setFilterStatus] = useState<string | null>(null)
   const [filterPriority, setFilterPriority] = useState<string | null>(null)
   const [mapZoomOpen, setMapZoomOpen] = useState(false)
-  const [zoomLevel, setZoomLevel] = useState(1)
-  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 })
-  const mapContainerRef = useRef<HTMLDivElement>(null)
-  const isDraggingRef = useRef(false)
-  const dragStartRef = useRef({ x: 0, y: 0 })
-  const currentPanRef = useRef({ x: 0, y: 0 })
-  const mapImageRef = useRef<HTMLDivElement>(null)
+
+  // Estado para la URL del mapa del campus
+  const [mapImageUrl, setMapImageUrl] = useState("/university-campus-map-layout-with-buildings-and-pa.jpg")
 
   // Cargar reportes desde la BD
   const { reports, loading, error, refetch } = useReports()
 
-  const handleMapMouseDown = (e: React.MouseEvent) => {
-    if (zoomLevel > 1) {
-      isDraggingRef.current = true
-      dragStartRef.current = { x: e.clientX, y: e.clientY }
-    }
-  }
-
-  const handleMapMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current || !mapImageRef.current) return
-
-    const deltaX = e.clientX - dragStartRef.current.x
-    const deltaY = e.clientY - dragStartRef.current.y
-
-    const newX = currentPanRef.current.x + deltaX
-    const newY = currentPanRef.current.y + deltaY
-
-    mapImageRef.current.style.transform = `scale(${zoomLevel}) translate(${newX / zoomLevel}px, ${newY / zoomLevel}px)`
-  }
-
-  const handleMapMouseUp = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current) return
-
-    isDraggingRef.current = false
-
-    const deltaX = e.clientX - dragStartRef.current.x
-    const deltaY = e.clientY - dragStartRef.current.y
-
-    currentPanRef.current = {
-      x: currentPanRef.current.x + deltaX,
-      y: currentPanRef.current.y + deltaY,
-    }
-
-    setPanPosition(currentPanRef.current)
-  }
-
-  const handleMapTouchStart = (e: React.TouchEvent) => {
-    if (zoomLevel > 1 && e.touches.length === 1) {
-      isDraggingRef.current = true
-      dragStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-    }
-  }
-
-  const handleMapTouchMove = (e: React.TouchEvent) => {
-    if (!isDraggingRef.current || !mapImageRef.current || e.touches.length !== 1) return
-
-    const deltaX = e.touches[0].clientX - dragStartRef.current.x
-    const deltaY = e.touches[0].clientY - dragStartRef.current.y
-
-    const newX = currentPanRef.current.x + deltaX
-    const newY = currentPanRef.current.y + deltaY
-
-    mapImageRef.current.style.transform = `scale(${zoomLevel}) translate(${newX / zoomLevel}px, ${newY / zoomLevel}px)`
-  }
-
-  const handleMapTouchEnd = (e: React.TouchEvent) => {
-    if (!isDraggingRef.current) return
-
-    isDraggingRef.current = false
-
-    const touch = e.changedTouches[0]
-    const deltaX = touch.clientX - dragStartRef.current.x
-    const deltaY = touch.clientY - dragStartRef.current.y
-
-    currentPanRef.current = {
-      x: currentPanRef.current.x + deltaX,
-      y: currentPanRef.current.y + deltaY,
-    }
-
-    setPanPosition(currentPanRef.current)
-  }
-
-  const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev + 0.5, 3))
-  }
-
-  const handleZoomOut = () => {
-    setZoomLevel((prev) => {
-      const newZoom = Math.max(prev - 0.5, 1)
-      if (newZoom === 1) {
-        setPanPosition({ x: 0, y: 0 })
-        currentPanRef.current = { x: 0, y: 0 }
+  // Cargar imagen del mapa desde la configuración del sistema
+  useEffect(() => {
+    const loadMapImage = async () => {
+      try {
+        const imageUrl = await getMapImageUrl()
+        setMapImageUrl(imageUrl)
+      } catch (error) {
+        console.error('Error loading map image:', error)
+        // Mantiene la imagen por defecto si hay error
       }
-      return newZoom
-    })
-  }
-
-  const resetMap = () => {
-    setZoomLevel(1)
-    setPanPosition({ x: 0, y: 0 })
-    currentPanRef.current = { x: 0, y: 0 }
-  }
+    }
+    loadMapImage()
+  }, [])
 
   const filteredReports = reports.filter((report) => {
     if (filterType && report.type !== filterType) return false
@@ -170,88 +99,140 @@ export default function ReportsPage() {
   }
 
   const MapContent = ({ isZoomed = false }: { isZoomed?: boolean }) => (
-    <div
-      ref={isZoomed ? mapContainerRef : null}
-      className={`aspect-video ${isZoomed ? "w-full h-full overflow-hidden cursor-grab active:cursor-grabbing" : ""} bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative`}
-      style={isZoomed ? { cursor: zoomLevel > 1 ? "grab" : "default" } : undefined}
-      onMouseDown={handleMapMouseDown}
-      onMouseMove={handleMapMouseMove}
-      onMouseUp={handleMapMouseUp}
-      onMouseLeave={handleMapMouseUp}
-      onTouchStart={handleMapTouchStart}
-      onTouchMove={handleMapTouchMove}
-      onTouchEnd={handleMapTouchEnd}
-    >
-      <div
-        ref={isZoomed ? mapImageRef : null}
-        className={isZoomed ? "w-full h-full" : "w-full h-full"}
-        style={
-          isZoomed
-            ? {
-                transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
-                transformOrigin: "center center",
-                willChange: "transform",
-              }
-            : undefined
-        }
+    <div className="w-full h-full bg-gradient-to-br from-green-100 to-blue-100 rounded-lg relative overflow-visible">
+      <TransformWrapper
+        initialScale={1}
+        minScale={isZoomed ? 0.3 : 0.5}
+        maxScale={isZoomed ? 5 : 3}
+        centerOnInit
+        limitToBounds={true}
+        pinch={{ step: 0.05 }}
+        wheel={{ step: 0.05 }}
+        doubleClick={{ disabled: false, step: 0.7 }}
+        panning={{ disabled: false }}
       >
-        <img
-          src="/university-campus-map-layout-with-buildings-and-pa.jpg"
-          alt="Mapa del Campus Universitario"
-          className="w-full h-full object-cover"
-          draggable={false}
-        />
+        <TransformComponent
+          wrapperClass="w-full h-full !overflow-visible"
+          contentClass="w-full h-full flex items-center justify-center !overflow-visible"
+          wrapperStyle={{ overflow: 'visible' }}
+        >
+          <div>
+            <div className="relative inline-block max-h-full max-w-full !overflow-visible" style={{ overflow: 'visible' }}>
+              <img
+                src={mapImageUrl}
+                alt="Mapa del Campus Universitario"
+                className="h-full w-auto object-contain block"
+                draggable={false}
+                style={{ maxWidth: '100%', maxHeight: '100%' }}
+              />
 
-        {filteredReports
-          .filter((report) => report.coordinates !== null)
-          .map((report) => {
-            const isSelected = selectedReport?.id === report.id
-            return (
-              <div
-                key={report.id}
-                className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110"
-                style={{
-                  left: `${report.coordinates!.x}%`,
-                  top: `${report.coordinates!.y}%`,
-                }}
-                onClick={() => setSelectedReport(isSelected ? null : report)}
-              >
-              <div className={`relative ${isSelected ? "animate-bounce" : ""}`}>
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
-                    isSelected
-                      ? "bg-red-500 text-white scale-125"
-                      : "bg-white text-red-500 hover:bg-red-500 hover:text-white"
-                  }`}
-                  title={report.title}
-                >
-                  <span className="text-lg">{getTypeIcon(report.type)}</span>
-                </div>
+              {/* Agrupar reportes por ubicación */}
+              {(() => {
+                // Agrupar reportes por location_id
+                const reportsByLocation = filteredReports
+                  .filter((report) => report.coordinates !== null && report.locationData !== null)
+                  .reduce((acc, report) => {
+                    const locationId = report.locationData!.id
+                    if (!acc[locationId]) {
+                      acc[locationId] = []
+                    }
+                    acc[locationId].push(report)
+                    return acc
+                  }, {} as Record<string, typeof filteredReports>)
 
-                {isSelected && (
-                  <div className="absolute inset-0 rounded-full border-2 border-red-500 animate-ping opacity-75"></div>
-                )}
+                return Object.entries(reportsByLocation).map(([locationId, reportsInLocation]) => {
+                  const firstReport = reportsInLocation[0]
+                  const isSelected = reportsInLocation.some(r => r.id === selectedReport?.id)
+                  const reportCount = reportsInLocation.length
+                  const Icon = firstReport.locationData?.icon
+                    ? getIconComponent(firstReport.locationData.icon)
+                    : MapPin
 
-                {isSelected && (
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-56 bg-white rounded-lg shadow-xl border p-3 z-10">
-                    <div className="flex items-start space-x-2">
-                      <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-lg">{getTypeIcon(report.type)}</span>
+                  return (
+                    <div
+                      key={locationId}
+                      className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer transition-all duration-200 hover:scale-110 ${isSelected ? "z-50" : "z-20"}`}
+                      style={{
+                        left: `${firstReport.coordinates!.x}%`,
+                        top: `${firstReport.coordinates!.y}%`,
+                      }}
+                      onClick={() => setSelectedReport(isSelected ? null : firstReport)}
+                    >
+                      <div className={`relative flex flex-col items-center ${isSelected ? "animate-bounce" : ""}`}>
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
+                            isSelected
+                              ? "bg-red-500 text-white scale-125"
+                              : "bg-white text-red-500 hover:bg-red-500 hover:text-white"
+                          }`}
+                          title={`${reportCount} reporte(s) en ${firstReport.location}`}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+
+                        {/* Punta triangular del pin */}
+                        <svg
+                          width="10"
+                          height="8"
+                          className={`transition-transform ${isSelected ? "scale-125" : ""}`}
+                          style={{ marginTop: '-2px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
+                        >
+                          <polygon
+                            points="5,8 0,0 10,0"
+                            className={isSelected ? "fill-red-500" : "fill-white"}
+                          />
+                        </svg>
+
+                        {/* Badge con contador */}
+                        {reportCount > 1 && (
+                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white">
+                            {reportCount}
+                          </div>
+                        )}
+
+                        {isSelected && (
+                          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full border-2 border-red-500 animate-ping opacity-75"></div>
+                        )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm mb-1">{report.title}</h4>
-                        <p className="text-xs text-muted-foreground mb-2">{report.location}</p>
-                        <Badge className={`text-xs ${getStatusColor(report.status)}`}>{report.status}</Badge>
-                      </div>
+
+                      {/* Tooltip */}
+                      {isSelected && (
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 max-h-96 overflow-y-auto bg-white rounded-lg shadow-xl border p-3 z-[9999] pointer-events-none">
+                          <div className="font-semibold text-sm mb-2">{firstReport.location}</div>
+                          <div className="text-xs text-muted-foreground mb-3">{reportCount} reporte(s) en esta ubicación</div>
+
+                          {/* Lista de reportes en esta ubicación */}
+                          <div className="space-y-2">
+                            {reportsInLocation.map((report) => (
+                              <div key={report.id} className="border-t pt-2 first:border-t-0 first:pt-0">
+                                <div className="flex items-start space-x-2">
+                                  <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center flex-shrink-0">
+                                    <span className="text-sm">{getTypeIcon(report.type)}</span>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-xs mb-1">{report.title}</h4>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Badge className={`text-xs ${getStatusColor(report.status)}`}>{report.status}</Badge>
+                                      <span className="text-xs text-muted-foreground">{report.type}</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{report.date} {report.time}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
+                        </div>
+                      )}
                     </div>
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
-                  </div>
-                )}
-              </div>
+                  )
+                })
+              })()}
             </div>
-          )
-        })}
-      </div>
+          </div>
+        </TransformComponent>
+      </TransformWrapper>
     </div>
   )
 
@@ -356,7 +337,7 @@ export default function ReportsPage() {
 
         {/* Tabs for different views */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-1 md:grid-cols-2">
+          <TabsList className="w-full">
             <TabsTrigger value="lista">Lista de Reportes</TabsTrigger>
             <TabsTrigger value="mapa">Ver en Mapa</TabsTrigger>
           </TabsList>
@@ -369,47 +350,59 @@ export default function ReportsPage() {
                   {/* Filter by Type */}
                   <div className="space-y-2">
                     <label className="text-xs font-medium">Tipo de Incidente</label>
-                    <select
-                      value={filterType || ""}
-                      onChange={(e) => setFilterType(e.target.value || null)}
-                      className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                    <Select
+                      value={filterType || "all"}
+                      onValueChange={(value) => setFilterType(value === "all" ? null : value)}
                     >
-                      <option value="">Todos</option>
-                      <option value="robo">Robo</option>
-                      <option value="vandalismo">Vandalismo</option>
-                      <option value="sospechoso">Sospechoso</option>
-                      <option value="emergencia">Emergencia</option>
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Todos los tipos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="robo">Robo</SelectItem>
+                        <SelectItem value="vandalismo">Vandalismo</SelectItem>
+                        <SelectItem value="sospechoso">Sospechoso</SelectItem>
+                        <SelectItem value="emergencia">Emergencia</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Filter by Status */}
                   <div className="space-y-2">
                     <label className="text-xs font-medium">Estado</label>
-                    <select
-                      value={filterStatus || ""}
-                      onChange={(e) => setFilterStatus(e.target.value || null)}
-                      className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                    <Select
+                      value={filterStatus || "all"}
+                      onValueChange={(value) => setFilterStatus(value === "all" ? null : value)}
                     >
-                      <option value="">Todos</option>
-                      <option value="activo">Activo</option>
-                      <option value="investigando">Investigando</option>
-                      <option value="resuelto">Resuelto</option>
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Todos los estados" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="activo">Activo</SelectItem>
+                        <SelectItem value="investigando">Investigando</SelectItem>
+                        <SelectItem value="resuelto">Resuelto</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Filter by Priority */}
                   <div className="space-y-2">
                     <label className="text-xs font-medium">Prioridad</label>
-                    <select
-                      value={filterPriority || ""}
-                      onChange={(e) => setFilterPriority(e.target.value || null)}
-                      className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                    <Select
+                      value={filterPriority || "all"}
+                      onValueChange={(value) => setFilterPriority(value === "all" ? null : value)}
                     >
-                      <option value="">Todos</option>
-                      <option value="alta">Alta</option>
-                      <option value="media">Media</option>
-                      <option value="baja">Baja</option>
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Todas las prioridades" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="media">Media</SelectItem>
+                        <SelectItem value="baja">Baja</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -508,47 +501,59 @@ export default function ReportsPage() {
                   {/* Filter by Type */}
                   <div className="space-y-2">
                     <label className="text-xs font-medium">Tipo de Incidente</label>
-                    <select
-                      value={filterType || ""}
-                      onChange={(e) => setFilterType(e.target.value || null)}
-                      className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                    <Select
+                      value={filterType || "all"}
+                      onValueChange={(value) => setFilterType(value === "all" ? null : value)}
                     >
-                      <option value="">Todos</option>
-                      <option value="robo">Robo</option>
-                      <option value="vandalismo">Vandalismo</option>
-                      <option value="sospechoso">Sospechoso</option>
-                      <option value="emergencia">Emergencia</option>
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Todos los tipos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="robo">Robo</SelectItem>
+                        <SelectItem value="vandalismo">Vandalismo</SelectItem>
+                        <SelectItem value="sospechoso">Sospechoso</SelectItem>
+                        <SelectItem value="emergencia">Emergencia</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Filter by Status */}
                   <div className="space-y-2">
                     <label className="text-xs font-medium">Estado</label>
-                    <select
-                      value={filterStatus || ""}
-                      onChange={(e) => setFilterStatus(e.target.value || null)}
-                      className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                    <Select
+                      value={filterStatus || "all"}
+                      onValueChange={(value) => setFilterStatus(value === "all" ? null : value)}
                     >
-                      <option value="">Todos</option>
-                      <option value="activo">Activo</option>
-                      <option value="investigando">Investigando</option>
-                      <option value="resuelto">Resuelto</option>
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Todos los estados" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="activo">Activo</SelectItem>
+                        <SelectItem value="investigando">Investigando</SelectItem>
+                        <SelectItem value="resuelto">Resuelto</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Filter by Priority */}
                   <div className="space-y-2">
                     <label className="text-xs font-medium">Prioridad</label>
-                    <select
-                      value={filterPriority || ""}
-                      onChange={(e) => setFilterPriority(e.target.value || null)}
-                      className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                    <Select
+                      value={filterPriority || "all"}
+                      onValueChange={(value) => setFilterPriority(value === "all" ? null : value)}
                     >
-                      <option value="">Todos</option>
-                      <option value="alta">Alta</option>
-                      <option value="media">Media</option>
-                      <option value="baja">Baja</option>
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Todas las prioridades" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="media">Media</SelectItem>
+                        <SelectItem value="baja">Baja</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -603,63 +608,159 @@ export default function ReportsPage() {
                         <Maximize2 className="h-4 w-4" />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="w-screen h-screen max-w-none max-h-none p-0 sm:rounded-none flex flex-col">
-                      <div className="relative flex-1 overflow-hidden">
-                        <DialogHeader className="absolute top-0 left-0 right-0 z-20 bg-background/80 backdrop-blur px-4 py-2 border-b">
-                          <DialogTitle>Mapa Interactivo de Reportes</DialogTitle>
-                        </DialogHeader>
+                    <DialogContent className="w-[95vw] md:w-[80vw] h-[80vh] p-0 rounded-lg flex flex-col overflow-hidden">
+                      <DialogHeader className="flex-shrink-0 z-20 bg-background/95 backdrop-blur px-4 py-3 border-b rounded-t-lg">
+                        <DialogTitle>Mapa Interactivo de Reportes</DialogTitle>
+                      </DialogHeader>
 
-                        <div className="w-full h-full pt-16">
-                          <MapContent isZoomed={true} />
-                        </div>
+                      <div className="relative flex-1 overflow-hidden rounded-b-lg flex flex-col">
+                        <div className="w-full flex-1 bg-gradient-to-br from-green-100 to-blue-100 relative overflow-hidden" style={{ display: 'flex', flexDirection: 'column' }}>
+                          <TransformWrapper
+                            initialScale={1}
+                            minScale={0.3}
+                            maxScale={5}
+                            centerOnInit
+                            limitToBounds={true}
+                            pinch={{ step: 0.05 }}
+                            wheel={{ step: 0.05 }}
+                            doubleClick={{ disabled: false, step: 0.7 }}
+                            panning={{ disabled: false }}
+                          >
+                            {({ zoomIn, zoomOut, resetTransform, ...instance }) => (
+                              <>
+                                <TransformComponent
+                                  wrapperClass="!w-full !h-full !overflow-visible"
+                                  contentClass="!w-full !h-full !flex !items-center !justify-center !overflow-visible"
+                                  wrapperStyle={{ width: '100%', height: '100%', overflow: 'visible' }}
+                                  contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}
+                                >
+                                  <div>
+                                    <div className="relative inline-block max-h-full max-w-full !overflow-visible" style={{ overflow: 'visible' }}>
+                                      <img
+                                        src={mapImageUrl}
+                                        alt="Mapa del Campus Universitario"
+                                        className="h-full w-auto object-contain block"
+                                        draggable={false}
+                                        style={{ maxHeight: '100%', maxWidth: '100%' }}
+                                      />
 
-                        <div className="absolute bottom-6 left-6 right-6 z-20 flex gap-2 items-center justify-center md:left-auto md:right-6">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-background/80 backdrop-blur"
-                            onClick={handleZoomOut}
-                            disabled={zoomLevel <= 1}
-                          >
-                            −
-                          </Button>
-                          <span className="text-sm font-medium min-w-[60px] text-center bg-background/80 backdrop-blur px-3 py-1 rounded">
-                            {Math.round(zoomLevel * 100)}%
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-background/80 backdrop-blur"
-                            onClick={handleZoomIn}
-                            disabled={zoomLevel >= 3}
-                          >
-                            +
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-background/80 backdrop-blur"
-                            onClick={resetMap}
-                            disabled={zoomLevel === 1 && panPosition.x === 0 && panPosition.y === 0}
-                          >
-                            Reset
-                          </Button>
+                                      {/* Iconos de reportes - igual que en el mapa principal */}
+                                      {(() => {
+                                        const reportsByLocation = filteredReports
+                                          .filter((report) => report.coordinates !== null && report.locationData !== null)
+                                          .reduce((acc, report) => {
+                                            const locationId = report.locationData!.id
+                                            if (!acc[locationId]) {
+                                              acc[locationId] = []
+                                            }
+                                            acc[locationId].push(report)
+                                            return acc
+                                          }, {} as Record<string, typeof filteredReports>)
+
+                                        return Object.entries(reportsByLocation).map(([locationId, reportsInLocation]) => {
+                                          const firstReport = reportsInLocation[0]
+                                          const isSelected = reportsInLocation.some(r => r.id === selectedReport?.id)
+                                          const reportCount = reportsInLocation.length
+                                          const Icon = firstReport.locationData?.icon
+                                            ? getIconComponent(firstReport.locationData.icon)
+                                            : MapPin
+
+                                          return (
+                                            <div
+                                              key={locationId}
+                                              className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer transition-all duration-200 hover:scale-110 ${isSelected ? "z-50" : "z-20"}`}
+                                              style={{
+                                                left: `${firstReport.coordinates!.x}%`,
+                                                top: `${firstReport.coordinates!.y}%`,
+                                              }}
+                                              onClick={() => setSelectedReport(isSelected ? null : firstReport)}
+                                            >
+                                              <div className={`relative flex flex-col items-center ${isSelected ? "animate-bounce" : ""}`}>
+                                                <div
+                                                  className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-colors ${
+                                                    isSelected
+                                                      ? "bg-red-500 text-white scale-125"
+                                                      : "bg-white text-red-500 hover:bg-red-500 hover:text-white"
+                                                  }`}
+                                                >
+                                                  <Icon className="h-4 w-4" />
+                                                </div>
+
+                                                <svg width="10" height="8" className={`transition-transform ${isSelected ? "scale-125" : ""}`} style={{ marginTop: '-2px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>
+                                                  <polygon points="5,8 0,0 10,0" className={isSelected ? "fill-red-500" : "fill-white"} />
+                                                </svg>
+
+                                                {reportCount > 1 && (
+                                                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white">
+                                                    {reportCount}
+                                                  </div>
+                                                )}
+
+                                                {isSelected && (
+                                                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full border-2 border-red-500 animate-ping opacity-75"></div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          )
+                                        })
+                                      })()}
+                                    </div>
+                                  </div>
+                                </TransformComponent>
+
+                                {/* Controles de zoom */}
+                                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-30 flex gap-2 items-center justify-center bg-background/95 backdrop-blur-md px-4 py-2 rounded-full shadow-lg border">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => zoomOut(0.5)}
+                                    disabled={instance.instance.transformState.scale <= 0.3}
+                                  >
+                                    −
+                                  </Button>
+                                  <span className="text-sm font-medium min-w-[50px] text-center">
+                                    {Math.round(instance.instance.transformState.scale * 100)}%
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => zoomIn(0.5)}
+                                    disabled={instance.instance.transformState.scale >= 5}
+                                  >
+                                    +
+                                  </Button>
+                                  <div className="w-px h-4 bg-border mx-1"></div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 px-2"
+                                    onClick={() => resetTransform()}
+                                    title="Restablecer vista"
+                                  >
+                                    Reset
+                                  </Button>
+                                </div>
+
+                                {instance.instance.transformState.scale > 1 && (
+                                  <div className="absolute top-16 left-4 right-4 z-25 bg-background/90 backdrop-blur-sm px-4 py-2 rounded-lg text-xs text-muted-foreground text-center shadow-md border">
+                                    Arrastra para mover • Pellizca para zoom • Doble tap para acercar
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </TransformWrapper>
                         </div>
 
                         <Button
                           size="icon"
                           variant="outline"
-                          className="absolute top-4 right-4 z-20 bg-background/80 backdrop-blur"
+                          className="absolute top-2 right-2 z-30 bg-background hover:bg-background/90 shadow-lg border-2"
                           onClick={() => setMapZoomOpen(false)}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-5 w-5" />
                         </Button>
-
-                        {zoomLevel > 1 && (
-                          <div className="absolute top-20 left-4 right-4 z-15 bg-background/80 backdrop-blur px-3 py-2 rounded text-sm text-muted-foreground">
-                            Arrastra para mover • Usa los botones para zoom
-                          </div>
-                        )}
                       </div>
                     </DialogContent>
                   </Dialog>

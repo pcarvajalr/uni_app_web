@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { MapPin, AlertTriangle, ShoppingBag, GraduationCap, Home, Ticket } from 'lucide-react'
 
-const mainNavItems = [  
+const mainNavItems = [
   {
     href: "/maps",
     label: "Mapas",
@@ -14,14 +14,14 @@ const mainNavItems = [
     icon: Ticket,
   },
   {
-    href: "/reports",
-    label: "Reportes",
-    icon: AlertTriangle,
-  },
-  {
     href: "/marketplace",
     label: "Tienda",
     icon: ShoppingBag,
+  },
+  {
+    href: "/reports",
+    label: "Reportes",
+    icon: AlertTriangle,
   },
   {
     href: "/tutoring",
@@ -50,7 +50,10 @@ export function MobileNav() {
                 isActive ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted",
               )}
             >
-              <Icon className="h-5 w-5 mb-1" />
+              <Icon className={cn(
+                "mb-1",
+                item.href === "/marketplace" ? "h-6 w-6 text-primary" : "h-5 w-5"
+              )} />
               <span className="text-xs font-medium truncate w-full text-center">{item.label}</span>
             </Link>
           )

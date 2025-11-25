@@ -3,12 +3,22 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Plus, Search, Filter, Heart, Star, X, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { CreateProductDialog } from "@/components/marketplace/create-product-dialog"
 import { ProductDetailsDialog } from "@/components/marketplace/product-details-dialog"
-import { getProducts, getProductCategories, type ProductWithSeller } from "@/services/products.service"
+import { getProducts, getProductCategories, getUserFavoriteProducts, type ProductWithSeller } from "@/services/products.service"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth"
+import { ProductFavoriteButton } from "@/components/marketplace/product-favorite-button"
+import { Switch } from "@/components/ui/switch"
 import type { Database } from "@/types/database.types"
 
 type Product = ProductWithSeller
@@ -16,6 +26,7 @@ type Category = Database['public']['Tables']['categories']['Row']
 
 export default function MarketplacePage() {
   const { toast } = useToast()
+  const { user, isAuthenticated } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -30,6 +41,10 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Estados para favoritos
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
+  const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>([])
+
   const conditions = [
     { value: "new", label: "Nuevo" },
     { value: "like_new", label: "Como Nuevo" },
@@ -42,6 +57,26 @@ export default function MarketplacePage() {
   useEffect(() => {
     loadData()
   }, [])
+
+  // Cargar favoritos del usuario
+  useEffect(() => {
+    async function loadFavorites() {
+      if (!user) {
+        setFavoriteProductIds([])
+        return
+      }
+
+      try {
+        const favorites = await getUserFavoriteProducts(user.id)
+        const ids = favorites.map(f => f.product_id).filter((id): id is string => id !== null)
+        setFavoriteProductIds(ids)
+      } catch (error) {
+        console.error('Error loading favorites:', error)
+      }
+    }
+
+    loadFavorites()
+  }, [user])
 
   async function loadData() {
     setLoading(true)
@@ -82,7 +117,8 @@ export default function MarketplacePage() {
     const matchesPrice = product.price >= minPrice && product.price <= maxPrice
     const matchesCondition = !selectedCondition || product.condition === selectedCondition
     const matchesStatus = product.status === 'available' // Solo mostrar productos disponibles
-    return matchesSearch && matchesCategory && matchesPrice && matchesCondition && matchesStatus
+    const matchesFavorites = !showFavoritesOnly || favoriteProductIds.includes(product.id)
+    return matchesSearch && matchesCategory && matchesPrice && matchesCondition && matchesStatus && matchesFavorites
   })
 
   const getConditionColor = (condition: string | null) => {
@@ -155,39 +191,64 @@ export default function MarketplacePage() {
               {/* Category Filter */}
               <div className="space-y-2">
                 <label className="text-xs font-medium">Categoría</label>
-                <select
-                  value={selectedCategory || ""}
-                  onChange={(e) => setSelectedCategory(e.target.value || null)}
-                  className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                <Select
+                  value={selectedCategory || "all"}
+                  onValueChange={(value) => setSelectedCategory(value === "all" ? null : value)}
                   disabled={loading}
                 >
-                  <option value="">Todas las Categorías</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Todas las Categorías" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las Categorías</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Condition Filter */}
               <div className="space-y-2">
                 <label className="text-xs font-medium">Estado del Producto</label>
-                <select
-                  value={selectedCondition || ""}
-                  onChange={(e) => setSelectedCondition(e.target.value || null)}
-                  className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                <Select
+                  value={selectedCondition || "all"}
+                  onValueChange={(value) => setSelectedCondition(value === "all" ? null : value)}
                 >
-                  <option value="">Todas las Condiciones</option>
-                  {conditions.map((condition) => (
-                    <option key={condition.value} value={condition.value}>
-                      {condition.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Todas las Condiciones" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las Condiciones</SelectItem>
+                    {conditions.map((condition) => (
+                      <SelectItem key={condition.value} value={condition.value}>
+                        {condition.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Price Range Filter */}
+              {/* Favorites Filter */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium">Solo Favoritos</label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={showFavoritesOnly}
+                    onCheckedChange={setShowFavoritesOnly}
+                    disabled={!isAuthenticated}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {favoriteProductIds.length} productos
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Price Range - Segunda fila */}
+            <div className="mt-3">
               <div className="space-y-2">
                 <label className="text-xs font-medium">Rango de Precio</label>
                 <div className="flex items-center space-x-2">
@@ -211,18 +272,24 @@ export default function MarketplacePage() {
             </div>
 
             {/* Active Filters Display */}
-            {(selectedCategory || selectedCondition || minPrice > 0 || maxPrice < 5000000) && (
+            {(selectedCategory || selectedCondition || minPrice > 0 || maxPrice < 5000000 || showFavoritesOnly) && (
               <div className="mt-3 flex flex-wrap gap-2 items-center">
                 {selectedCategory && (
                   <Badge variant="secondary" className="flex items-center gap-1">
-                    {selectedCategory}
+                    {categories.find(c => c.id === selectedCategory)?.name || selectedCategory}
                     <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedCategory(null)} />
                   </Badge>
                 )}
                 {selectedCondition && (
                   <Badge variant="secondary" className="flex items-center gap-1">
-                    {selectedCondition}
+                    {getConditionLabel(selectedCondition)}
                     <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedCondition(null)} />
+                  </Badge>
+                )}
+                {showFavoritesOnly && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    Solo Favoritos
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => setShowFavoritesOnly(false)} />
                   </Badge>
                 )}
                 <Button
@@ -233,6 +300,7 @@ export default function MarketplacePage() {
                     setSelectedCondition(null)
                     setMinPrice(0)
                     setMaxPrice(5000000)
+                    setShowFavoritesOnly(false)
                   }}
                 >
                   Limpiar filtros
@@ -287,17 +355,20 @@ export default function MarketplacePage() {
                   <div className="space-y-2">
                     <div className="flex items-start justify-between">
                       <h3 className="font-medium line-clamp-2 text-sm">{product.title}</h3>
-                      <Button
+                      <ProductFavoriteButton
+                        productId={product.id}
+                        initialIsFavorite={favoriteProductIds.includes(product.id)}
+                        initialFavoritesCount={product.favorites_count || 0}
                         variant="ghost"
                         size="sm"
-                        className="p-1 text-gray-400"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          // TODO: Implementar funcionalidad de favoritos
+                        onFavoriteChange={(isFavorite) => {
+                          setFavoriteProductIds(prev =>
+                            isFavorite
+                              ? [...prev, product.id]
+                              : prev.filter(id => id !== product.id)
+                          )
                         }}
-                      >
-                        <Heart className="h-4 w-4" />
-                      </Button>
+                      />
                     </div>
 
                     <p className="text-lg font-bold text-primary">{formatPrice(product.price)}</p>

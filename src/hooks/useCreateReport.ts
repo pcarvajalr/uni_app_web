@@ -7,7 +7,7 @@ export interface CreateReportData {
   title: string
   type: FrontendReportType
   description: string
-  location: string
+  locationId: string
   priority: FrontendPriority
   anonymous: boolean
 }
@@ -41,7 +41,8 @@ export function useCreateReport(): UseCreateReportReturn {
         title: data.title,
         type: mapTypeToDb(data.type),
         description: data.description,
-        location: data.location,
+        location: '', // Se mantiene por compatibilidad, el nombre real viene de location_id
+        location_id: data.locationId,
         priority: mapPriorityToDb(data.priority),
         is_anonymous: data.anonymous,
         // Si es anónimo o no hay usuario, reporter_id será null

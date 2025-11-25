@@ -15,26 +15,34 @@ import { Switch } from "@/components/ui/switch"
 import { useAuth } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Upload, X } from "lucide-react"
-import { createProduct } from "@/services/products.service"
-import { uploadProductImage } from "@/services/storage.service"
+import { updateProduct, type ProductWithSeller } from "@/services/products.service"
+import { uploadProductImage, deleteProductImage } from "@/services/storage.service"
 import { createProductSchema, validateImageFiles, type CreateProductFormData } from "@/lib/product-validation"
 import type { Database } from "@/types/database.types"
 
-interface CreateProductDialogProps {
+interface EditProductDialogProps {
+  product: ProductWithSeller
   open: boolean
   onOpenChange: (open: boolean) => void
-  onProductCreated?: () => void
+  onProductUpdated?: () => void
 }
 
 type Category = Database['public']['Tables']['categories']['Row']
 
-export function CreateProductDialog({ open, onOpenChange, onProductCreated }: CreateProductDialogProps) {
+export function EditProductDialog({ product, open, onOpenChange, onProductUpdated }: EditProductDialogProps) {
   const { user } = useAuth()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
-  const [imageFiles, setImageFiles] = useState<File[]>([])
-  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+
+  // Imágenes existentes del producto
+  const [existingImages, setExistingImages] = useState<string[]>([])
+  const [deletedImages, setDeletedImages] = useState<string[]>([])
+
+  // Nuevas imágenes a subir
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([])
+  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([])
+
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingCategories, setLoadingCategories] = useState(true)
 
@@ -83,14 +91,36 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
     loadCategories()
   }, [toast])
 
-  // Resetear formulario cuando el dialog se cierra
+  // Prellenar formulario con datos del producto
+  useEffect(() => {
+    if (open && product) {
+      reset({
+        title: product.title,
+        description: product.description,
+        location: product.location || '',
+        category_id: product.category_id || '',
+        condition: product.condition as any,
+        price: product.price,
+        is_negotiable: product.is_negotiable ?? true,
+        tags: product.tags || undefined,
+      })
+
+      // Cargar imágenes existentes
+      setExistingImages(product.images || [])
+      setDeletedImages([])
+      setNewImageFiles([])
+      setNewImagePreviews([])
+    }
+  }, [open, product, reset])
+
+  // Resetear al cerrar
   useEffect(() => {
     if (!open) {
-      reset()
-      setImageFiles([])
-      setImagePreviews([])
+      setDeletedImages([])
+      setNewImageFiles([])
+      setNewImagePreviews([])
     }
-  }, [open, reset])
+  }, [open])
 
   const conditions = [
     { value: "new", label: "Nuevo" },
@@ -100,15 +130,30 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
     { value: "poor", label: "Malo" },
   ] as const
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Total de imágenes (existentes no eliminadas + nuevas)
+  const totalImages = existingImages.filter(img => !deletedImages.includes(img)).length + newImageFiles.length
+
+  const handleNewImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
 
     const newFiles = Array.from(files)
-    const allFiles = [...imageFiles, ...newFiles].slice(0, 5)
+    const allFiles = [...newImageFiles, ...newFiles]
+
+    // Validar que no exceda el límite de 5 imágenes totales
+    if (totalImages + newFiles.length > 5) {
+      toast({
+        title: 'Límite de imágenes',
+        description: `Solo puedes tener un máximo de 5 imágenes. Actualmente tienes ${totalImages}`,
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const filesToAdd = allFiles.slice(0, 5 - (totalImages - newImageFiles.length))
 
     // Validar archivos
-    const validation = validateImageFiles(allFiles)
+    const validation = validateImageFiles(filesToAdd)
     if (!validation.valid) {
       toast({
         title: 'Error en las imágenes',
@@ -119,30 +164,38 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
     }
 
     // Crear previews
-    const newPreviews = allFiles.map(file => URL.createObjectURL(file))
+    const newPreviews = filesToAdd.map(file => URL.createObjectURL(file))
 
-    setImageFiles(allFiles)
-    setImagePreviews(newPreviews)
+    setNewImageFiles(filesToAdd)
+    setNewImagePreviews(newPreviews)
   }
 
-  const removeImage = (index: number) => {
+  const removeExistingImage = (imageUrl: string) => {
+    setDeletedImages(prev => [...prev, imageUrl])
+  }
+
+  const restoreExistingImage = (imageUrl: string) => {
+    setDeletedImages(prev => prev.filter(img => img !== imageUrl))
+  }
+
+  const removeNewImage = (index: number) => {
     // Limpiar URL del preview
-    URL.revokeObjectURL(imagePreviews[index])
+    URL.revokeObjectURL(newImagePreviews[index])
 
-    setImageFiles(prev => prev.filter((_, i) => i !== index))
-    setImagePreviews(prev => prev.filter((_, i) => i !== index))
+    setNewImageFiles(prev => prev.filter((_, i) => i !== index))
+    setNewImagePreviews(prev => prev.filter((_, i) => i !== index))
   }
 
-  const uploadImages = async (): Promise<string[]> => {
-    if (imageFiles.length === 0) {
-      throw new Error('Debes subir al menos 1 imagen')
+  const uploadNewImages = async (): Promise<string[]> => {
+    if (newImageFiles.length === 0) {
+      return []
     }
 
     const uploadedUrls: string[] = []
 
-    for (let i = 0; i < imageFiles.length; i++) {
-      const file = imageFiles[i]
-      const progress = ((i + 1) / imageFiles.length) * 100
+    for (let i = 0; i < newImageFiles.length; i++) {
+      const file = newImageFiles[i]
+      const progress = ((i + 1) / newImageFiles.length) * 50 // 50% del progreso total
       setUploadProgress(progress)
 
       try {
@@ -160,6 +213,20 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
     return uploadedUrls
   }
 
+  const deleteRemovedImages = async () => {
+    if (deletedImages.length === 0) return
+
+    setUploadProgress(75)
+
+    const deletePromises = deletedImages.map(imageUrl => deleteProductImage(imageUrl))
+    const results = await Promise.all(deletePromises)
+
+    const failedDeletes = results.filter(result => !result).length
+    if (failedDeletes > 0) {
+      console.warn(`${failedDeletes} imágenes no pudieron ser eliminadas del storage`)
+    }
+  }
+
   const onSubmit = async (data: CreateProductFormData) => {
     // Limpiar espacios en blanco de los campos de texto
     const cleanedData = {
@@ -172,16 +239,18 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
     if (!user) {
       toast({
         title: 'Error',
-        description: 'Debes iniciar sesión para publicar productos',
+        description: 'Debes iniciar sesión para editar productos',
         variant: 'destructive',
       })
       return
     }
 
-    if (imageFiles.length === 0) {
+    // Validar que haya al menos 1 imagen después de eliminar
+    const remainingExistingImages = existingImages.filter(img => !deletedImages.includes(img))
+    if (remainingExistingImages.length + newImageFiles.length === 0) {
       toast({
         title: 'Error',
-        description: 'Debes subir al menos 1 imagen',
+        description: 'Debes tener al menos 1 imagen en el producto',
         variant: 'destructive',
       })
       return
@@ -191,12 +260,16 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
     setUploadProgress(0)
 
     try {
-      // 1. Subir imágenes a Supabase Storage
-      const imageUrls = await uploadImages()
+      // 1. Subir nuevas imágenes a Supabase Storage
+      const newImageUrls = await uploadNewImages()
 
-      // 2. Crear el producto en la base de datos
-      await createProduct({
-        seller_id: user.id,
+      // 2. Construir array final de imágenes (existentes no eliminadas + nuevas)
+      const finalImages = [...remainingExistingImages, ...newImageUrls]
+
+      setUploadProgress(60)
+
+      // 3. Actualizar el producto en la base de datos
+      await updateProduct(product.id, {
         title: cleanedData.title,
         description: cleanedData.description,
         price: cleanedData.price,
@@ -204,28 +277,33 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
         condition: cleanedData.condition,
         location: cleanedData.location,
         is_negotiable: cleanedData.is_negotiable,
-        images: imageUrls,
+        images: finalImages,
         tags: cleanedData.tags,
       })
 
-      // 3. Mostrar mensaje de éxito
+      setUploadProgress(70)
+
+      // 4. Eliminar imágenes marcadas para eliminación del storage
+      await deleteRemovedImages()
+
+      setUploadProgress(100)
+
+      // 5. Mostrar mensaje de éxito
       toast({
-        title: 'Producto publicado',
-        description: 'Tu producto ha sido publicado exitosamente',
+        title: 'Producto actualizado',
+        description: 'Los cambios han sido guardados exitosamente',
       })
 
-      setUploadProgress(0)
-
       // Notificar al componente padre
-      onProductCreated?.()
+      onProductUpdated?.()
 
-      // Cerrar diálogo (el useEffect se encargará de limpiar el formulario)
+      // Cerrar diálogo
       onOpenChange(false)
     } catch (error) {
-      console.error('Error creating product:', error)
+      console.error('Error updating product:', error)
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'No se pudo publicar el producto',
+        description: error instanceof Error ? error.message : 'No se pudo actualizar el producto',
         variant: 'destructive',
       })
     } finally {
@@ -237,16 +315,19 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
   // Limpiar previews al desmontar
   useEffect(() => {
     return () => {
-      imagePreviews.forEach(url => URL.revokeObjectURL(url))
+      newImagePreviews.forEach(url => URL.revokeObjectURL(url))
     }
-  }, [imagePreviews])
+  }, [newImagePreviews])
+
+  // Calcular imágenes activas para mostrar
+  const activeExistingImages = existingImages.filter(img => !deletedImages.includes(img))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Publicar Producto</DialogTitle>
-          <DialogDescription>Crea una nueva publicación para vender tu producto</DialogDescription>
+          <DialogTitle>Editar Producto</DialogTitle>
+          <DialogDescription>Actualiza la información de tu producto</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-4">
@@ -381,30 +462,117 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
             </Label>
           </div>
 
-          {/* Image Upload */}
+          {/* Image Management */}
           <div className="space-y-2">
-            <Label>Imágenes * (máximo 5)</Label>
+            <Label>Imágenes * (máximo 5, actual: {totalImages})</Label>
+
+            {/* Imágenes existentes */}
+            {activeExistingImages.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Imágenes actuales:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {activeExistingImages.map((imageUrl, index) => (
+                    <div key={`existing-${index}`} className="relative">
+                      <img
+                        src={imageUrl}
+                        alt={`Existente ${index + 1}`}
+                        className="w-full h-20 object-cover rounded"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                        onClick={() => removeExistingImage(imageUrl)}
+                        disabled={isSubmitting}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Imágenes eliminadas (con opción de restaurar) */}
+            {deletedImages.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Imágenes a eliminar:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {deletedImages.map((imageUrl, index) => (
+                    <div key={`deleted-${index}`} className="relative opacity-50">
+                      <img
+                        src={imageUrl}
+                        alt={`Eliminada ${index + 1}`}
+                        className="w-full h-20 object-cover rounded grayscale"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 text-xs"
+                        onClick={() => restoreExistingImage(imageUrl)}
+                        disabled={isSubmitting}
+                        title="Restaurar"
+                      >
+                        ↶
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Nuevas imágenes */}
+            {newImagePreviews.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Nuevas imágenes:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {newImagePreviews.map((preview, index) => (
+                    <div key={`new-${index}`} className="relative">
+                      <img
+                        src={preview}
+                        alt={`Nueva ${index + 1}`}
+                        className="w-full h-20 object-cover rounded border-2 border-green-500"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                        onClick={() => removeNewImage(index)}
+                        disabled={isSubmitting}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Upload de nuevas imágenes */}
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
               <input
                 type="file"
                 multiple
                 accept="image/jpeg,image/jpg,image/png,image/webp"
-                onChange={handleImageUpload}
+                onChange={handleNewImageUpload}
                 className="hidden"
-                id="image-upload"
-                disabled={imageFiles.length >= 5 || isSubmitting}
+                id="new-image-upload"
+                disabled={totalImages >= 5 || isSubmitting}
               />
               <label
-                htmlFor="image-upload"
+                htmlFor="new-image-upload"
                 className={`flex flex-col items-center justify-center cursor-pointer ${
-                  imageFiles.length >= 5 || isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                  totalImages >= 5 || isSubmitting ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
                 <Upload className="h-8 w-8 text-gray-400 mb-2" />
                 <span className="text-sm text-gray-600">
-                  {imageFiles.length >= 5
-                    ? "Máximo 5 imágenes"
-                    : `Haz clic para subir imágenes (${imageFiles.length}/5)`}
+                  {totalImages >= 5
+                    ? "Máximo 5 imágenes alcanzado"
+                    : `Agregar más imágenes (${totalImages}/5)`}
                 </span>
                 <span className="text-xs text-gray-500 mt-1">
                   Formatos: JPG, PNG, WebP (máx. 5MB cada una)
@@ -412,36 +580,11 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
               </label>
             </div>
 
-            {/* Image Preview */}
-            {imagePreviews.length > 0 && (
-              <div className="grid grid-cols-3 gap-2 mt-2">
-                {imagePreviews.map((preview, index) => (
-                  <div key={index} className="relative">
-                    <img
-                      src={preview}
-                      alt={`Preview ${index + 1}`}
-                      className="w-full h-20 object-cover rounded"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
-                      onClick={() => removeImage(index)}
-                      disabled={isSubmitting}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* Upload Progress */}
             {isSubmitting && uploadProgress > 0 && (
               <div className="space-y-1">
                 <div className="flex justify-between text-sm text-gray-600">
-                  <span>Subiendo imágenes...</span>
+                  <span>Guardando cambios...</span>
                   <span>{Math.round(uploadProgress)}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
@@ -462,10 +605,10 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Publicando...
+                  Guardando...
                 </>
               ) : (
-                "Publicar Producto"
+                "Guardar Cambios"
               )}
             </Button>
           </div>

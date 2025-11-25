@@ -15,31 +15,33 @@ export type FrontendPriority = 'alta' | 'media' | 'baja'
 export type FrontendStatus = 'activo' | 'investigando' | 'resuelto'
 
 /**
- * Mapea el tipo de reporte del frontend al formato de la base de datos
+ * Retorna el tipo de reporte directamente (ya no se mapea a inglés)
  */
 export function mapTypeToDb(frontendType: FrontendReportType): DbReportType {
-  const typeMap: Record<FrontendReportType, DbReportType> = {
-    'robo': 'security',
-    'vandalismo': 'security',
-    'sospechoso': 'security',
-    'emergencia': 'emergency'
-  }
-  return typeMap[frontendType]
+  // Los tipos ahora se guardan en español directamente en la BD
+  return frontendType as DbReportType
 }
 
 /**
- * Mapea el tipo de reporte de la BD al formato del frontend
- * Para reportes de seguridad, retorna 'sospechoso' por defecto
+ * Retorna el tipo de reporte directamente
+ * Maneja compatibilidad con tipos antiguos en inglés
  */
 export function mapTypeFromDb(dbType: DbReportType): FrontendReportType {
-  const reverseMap: Record<DbReportType, FrontendReportType> = {
+  // Si el tipo ya está en español (nuevos reportes), retornarlo directamente
+  if (dbType === 'robo' || dbType === 'vandalismo' || dbType === 'sospechoso' || dbType === 'emergencia') {
+    return dbType as FrontendReportType
+  }
+
+  // Compatibilidad con tipos antiguos en inglés
+  const legacyMap: Record<string, FrontendReportType> = {
     'security': 'sospechoso',
     'emergency': 'emergencia',
-    'maintenance': 'sospechoso',  // Fallback a sospechoso
-    'lost_found': 'sospechoso',    // Fallback a sospechoso
-    'other': 'sospechoso'          // Fallback a sospechoso
+    'maintenance': 'sospechoso',
+    'lost_found': 'sospechoso',
+    'other': 'sospechoso'
   }
-  return reverseMap[dbType]
+
+  return legacyMap[dbType] || 'sospechoso'
 }
 
 /**
