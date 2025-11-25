@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, Search, Filter, Star, Clock, MapPin, BookOpen, Users, X } from "lucide-react"
 import { useState } from "react"
@@ -190,34 +191,36 @@ export default function TutoringPage() {
             <h3 className="font-medium mb-3 text-sm">Filtros</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Subject Filter */}
-              <div className="space-y-2">                
-                <select
-                  value={selectedSubject || ""}
-                  onChange={(e) => setSelectedSubject(e.target.value || null)}
-                  className="w-full px-3 py-2 border rounded-md text-sm bg-background"
-                >
-                  <option value="">Todas las Materias</option>
-                  <option value="matematicas">Matemáticas</option>
-                  <option value="fisica">Física</option>
-                  <option value="quimica">Química</option>
-                  <option value="programacion">Programación</option>
-                  <option value="ingles">Inglés</option>
-                  <option value="economia">Economía</option>
-                </select>
+              <div className="space-y-2">
+                <Select value={selectedSubject || "all"} onValueChange={(value) => setSelectedSubject(value === "all" ? null : value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Todas las Materias" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las Materias</SelectItem>
+                    <SelectItem value="matematicas">Matemáticas</SelectItem>
+                    <SelectItem value="fisica">Física</SelectItem>
+                    <SelectItem value="quimica">Química</SelectItem>
+                    <SelectItem value="programacion">Programación</SelectItem>
+                    <SelectItem value="ingles">Inglés</SelectItem>
+                    <SelectItem value="economia">Economía</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Rating Filter */}
               <div className="space-y-2">
-                <select
-                  value={selectedRating || ""}
-                  onChange={(e) => setSelectedRating(e.target.value || null)}
-                  className="w-full px-3 py-2 border rounded-md text-sm bg-background"
-                >
-                  <option value="">Puntaje del tutor</option>
-                  <option value="4.5">4.5+ Estrellas</option>
-                  <option value="4.0">4.0+ Estrellas</option>
-                  <option value="3.5">3.5+ Estrellas</option>
-                </select>
+                <Select value={selectedRating || "all"} onValueChange={(value) => setSelectedRating(value === "all" ? null : value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Puntaje del tutor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Puntaje del tutor</SelectItem>
+                    <SelectItem value="4.5">4.5+ Estrellas</SelectItem>
+                    <SelectItem value="4.0">4.0+ Estrellas</SelectItem>
+                    <SelectItem value="3.5">3.5+ Estrellas</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Price Range Filter */}
