@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch"
 import { useAuth } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Upload, X } from "lucide-react"
-import { updateProduct, type ProductWithSeller } from "@/services/products.service"
+import { updateProduct, getProductCategories, type ProductWithSeller } from "@/services/products.service"
 import { uploadProductImage, deleteProductImage } from "@/services/storage.service"
 import { createProductSchema, validateImageFiles, type CreateProductFormData } from "@/lib/product-validation"
 import type { Database } from "@/types/database.types"
@@ -74,7 +74,6 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
   useEffect(() => {
     async function loadCategories() {
       try {
-        const { getProductCategories } = await import('@/services/products.service')
         const data = await getProductCategories()
         setCategories(data)
       } catch (error) {
