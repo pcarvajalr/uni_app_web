@@ -2,15 +2,20 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/lib/auth"
-import { Loader2, Plus, X } from "lucide-react"
+import { Loader2, X } from "lucide-react"
+import { getTutoringSubjects } from "@/services/tutoring-subjects.service"
+import type { Database } from "@/types/database.types"
+
+type Category = Database['public']['Tables']['categories']['Row']
 
 interface CreateTutoringDialogProps {
   open: boolean
@@ -20,9 +25,9 @@ interface CreateTutoringDialogProps {
 export function CreateTutoringDialog({ open, onOpenChange }: CreateTutoringDialogProps) {
   const { user } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [availableSubjects, setAvailableSubjects] = useState<Category[]>([])
   const [formData, setFormData] = useState({
     subjects: [] as string[],
-    newSubject: "",
     hourlyRate: "",
     location: "",
     description: "",
@@ -30,6 +35,10 @@ export function CreateTutoringDialog({ open, onOpenChange }: CreateTutoringDialo
     availability: [] as string[],
     languages: [] as string[],
   })
+
+  useEffect(() => {
+    getTutoringSubjects().then(setAvailableSubjects).catch(console.error)
+  }, [])
 
   const availabilityOptions = [
     "Lunes 8 AM-12 PM",
@@ -64,7 +73,6 @@ export function CreateTutoringDialog({ open, onOpenChange }: CreateTutoringDialo
     // Reset form and close dialog
     setFormData({
       subjects: [],
-      newSubject: "",
       hourlyRate: "",
       location: "",
       description: "",
@@ -80,12 +88,11 @@ export function CreateTutoringDialog({ open, onOpenChange }: CreateTutoringDialo
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const addSubject = () => {
-    if (formData.newSubject.trim() && !formData.subjects.includes(formData.newSubject.trim())) {
+  const addSubject = (subjectName: string) => {
+    if (subjectName && !formData.subjects.includes(subjectName)) {
       setFormData((prev) => ({
         ...prev,
-        subjects: [...prev.subjects, prev.newSubject.trim()],
-        newSubject: "",
+        subjects: [...prev.subjects, subjectName],
       }))
     }
   }
@@ -127,17 +134,25 @@ export function CreateTutoringDialog({ open, onOpenChange }: CreateTutoringDialo
           {/* Subjects */}
           <div className="space-y-2">
             <Label>Materias que puedes enseñar</Label>
-            <div className="flex space-x-2">
-              <Input
-                placeholder="Ej: Cálculo Diferencial"
-                value={formData.newSubject}
-                onChange={(e) => handleChange("newSubject", e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addSubject())}
-              />
-              <Button type="button" onClick={addSubject} disabled={!formData.newSubject.trim()}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
+            <Select onValueChange={addSubject} value="">
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona una materia" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableSubjects
+                  .filter((s) => !formData.subjects.includes(s.name))
+                  .map((subject) => (
+                    <SelectItem key={subject.id} value={subject.name}>
+                      {subject.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            {availableSubjects.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay materias disponibles. Contacta al administrador.
+              </p>
+            )}
             {formData.subjects.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {formData.subjects.map((subject, index) => (

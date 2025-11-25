@@ -6,8 +6,12 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, Search, Filter, Star, Clock, MapPin, BookOpen, Users, X } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { CreateTutoringDialog } from "@/components/tutoring/create-tutoring-dialog"
+import { getTutoringSubjects } from "@/services/tutoring-subjects.service"
+import type { Database } from "@/types/database.types"
+
+type Category = Database['public']['Tables']['categories']['Row']
 import { TutoringDetailsDialog } from "@/components/tutoring/tutoring-details-dialog"
 
 interface Tutor {
@@ -34,6 +38,11 @@ export default function TutoringPage() {
   const [minPrice, setMinPrice] = useState<number>(0)
   const [maxPrice, setMaxPrice] = useState<number>(100000)
   const [selectedRating, setSelectedRating] = useState<string | null>(null)
+  const [subjects, setSubjects] = useState<Category[]>([])
+
+  useEffect(() => {
+    getTutoringSubjects().then(setSubjects).catch(console.error)
+  }, [])
 
   const mockTutors: Tutor[] = [
     {
@@ -153,19 +162,7 @@ export default function TutoringPage() {
               <div className="text-2xl font-bold text-green-600">156</div>
               <p className="text-sm text-muted-foreground">Sesiones Completadas</p>
             </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">4.8</div>
-              <p className="text-sm text-muted-foreground">Rating Promedio</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-purple-600">12</div>
-              <p className="text-sm text-muted-foreground">Materias Disponibles</p>
-            </CardContent>
-          </Card>
+          </Card>          
         </div>
 
         {/* Search and Filter */}
@@ -198,12 +195,11 @@ export default function TutoringPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas las Materias</SelectItem>
-                    <SelectItem value="matematicas">Matemáticas</SelectItem>
-                    <SelectItem value="fisica">Física</SelectItem>
-                    <SelectItem value="quimica">Química</SelectItem>
-                    <SelectItem value="programacion">Programación</SelectItem>
-                    <SelectItem value="ingles">Inglés</SelectItem>
-                    <SelectItem value="economia">Economía</SelectItem>
+                    {subjects.map((subject) => (
+                      <SelectItem key={subject.id} value={subject.name.toLowerCase()}>
+                        {subject.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
