@@ -21,16 +21,14 @@ export const createProductSchema = z.object({
       required_error: 'El título es requerido',
     })
     .min(5, 'El título debe tener al menos 5 caracteres')
-    .max(100, 'El título no puede exceder 100 caracteres')
-    .trim(),
+    .max(100, 'El título no puede exceder 100 caracteres'),
 
   description: z
     .string({
       required_error: 'La descripción es requerida',
     })
     .min(10, 'La descripción debe tener al menos 10 caracteres')
-    .max(1000, 'La descripción no puede exceder 1000 caracteres')
-    .trim(),
+    .max(1000, 'La descripción no puede exceder 1000 caracteres'),
 
   price: z
     .number({
@@ -57,8 +55,7 @@ export const createProductSchema = z.object({
       required_error: 'La ubicación es requerida',
     })
     .min(3, 'La ubicación debe tener al menos 3 caracteres')
-    .max(100, 'La ubicación no puede exceder 100 caracteres')
-    .trim(),
+    .max(100, 'La ubicación no puede exceder 100 caracteres'),
 
   is_negotiable: z.boolean().default(true),
 

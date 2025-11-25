@@ -19,8 +19,8 @@ export type Database = {
           address: string | null
           amenities: string[] | null
           building: string | null
-          coordinate_x: number | null
-          coordinate_y: number | null
+          coordinate_x: number
+          coordinate_y: number
           created_at: string | null
           description: string | null
           email: string | null
@@ -59,8 +59,8 @@ export type Database = {
           address?: string | null
           amenities?: string[] | null
           building?: string | null
-          coordinate_x?: number | null
-          coordinate_y?: number | null
+          coordinate_x?: number
+          coordinate_y?: number
           created_at?: string | null
           description?: string | null
           email?: string | null
@@ -105,7 +105,15 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campus_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       categories: {
         Row: {
@@ -457,6 +465,7 @@ export type Database = {
           is_anonymous: boolean | null
           location: string
           location_coordinates: unknown
+          location_id: string | null
           priority: string | null
           reporter_id: string | null
           resolution_notes: string | null
@@ -476,6 +485,7 @@ export type Database = {
           is_anonymous?: boolean | null
           location: string
           location_coordinates?: unknown
+          location_id?: string | null
           priority?: string | null
           reporter_id?: string | null
           resolution_notes?: string | null
@@ -495,6 +505,7 @@ export type Database = {
           is_anonymous?: boolean | null
           location?: string
           location_coordinates?: unknown
+          location_id?: string | null
           priority?: string | null
           reporter_id?: string | null
           resolution_notes?: string | null
@@ -505,6 +516,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reports_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "campus_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reports_reporter_id_fkey"
             columns: ["reporter_id"]

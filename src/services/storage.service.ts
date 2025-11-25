@@ -129,6 +129,49 @@ export const uploadLocationImage = async (
 }
 
 /**
+ * Sube una imagen de producto al bucket 'products'
+ * Las imágenes se organizan en carpetas por usuario para cumplir con las políticas RLS
+ * @param file - Archivo de imagen
+ * @param userId - ID del usuario propietario del producto
+ * @returns Resultado con URL pública de la imagen
+ */
+export const uploadProductImage = async (
+  file: File | Blob,
+  userId: string
+): Promise<UploadResult> => {
+  try {
+    // Generar nombre único
+    const timestamp = Date.now()
+    const randomStr = Math.random().toString(36).substring(7)
+
+    // Determinar extensión del archivo
+    let extension = ''
+    if (file instanceof File) {
+      const parts = file.name.split('.')
+      extension = parts.length > 1 ? `.${parts[parts.length - 1]}` : ''
+    } else {
+      // Para Blobs, intentar obtener extensión del tipo MIME
+      const mimeType = file.type
+      if (mimeType.includes('jpeg') || mimeType.includes('jpg')) extension = '.jpg'
+      else if (mimeType.includes('png')) extension = '.png'
+      else if (mimeType.includes('webp')) extension = '.webp'
+    }
+
+    const fileName = `product-${timestamp}-${randomStr}${extension}`
+    // Estructura de carpetas requerida por las políticas RLS: {userId}/{filename}
+    const filePath = `${userId}/${fileName}`
+
+    return await uploadFile('products', file, filePath)
+  } catch (error) {
+    console.error('Error subiendo imagen de producto:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido'
+    }
+  }
+}
+
+/**
  * Elimina un archivo de un bucket
  * @param bucket - Nombre del bucket
  * @param path - Ruta del archivo en el bucket

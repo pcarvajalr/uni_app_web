@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getReports, type ReportFilters } from '@/services/reports.service'
+import { getReports, type ReportFilters, type ReportWithReporter } from '@/services/reports.service'
 import type { Database } from '@/types/database.types'
 import { mapTypeFromDb, mapPriorityFromDb, mapStatusFromDb, type FrontendReportType, type FrontendPriority, type FrontendStatus } from '@/utils/report-mappers'
 
@@ -10,6 +10,16 @@ export interface Report {
   type: FrontendReportType
   description: string
   location: string
+  locationData: {
+    id: string
+    name: string
+    type: string
+    coordinate_x: number | null
+    coordinate_y: number | null
+    description: string | null
+    floor: string | null
+    icon: string | null
+  } | null
   coordinates: { x: number; y: number } | null
   date: string
   time: string
@@ -21,21 +31,25 @@ export interface Report {
   reporterId: string | null
 }
 
-type DbReport = Database['public']['Tables']['reports']['Row']
-
 /**
  * Convierte un reporte de la BD al formato del frontend
  */
-function mapDbReportToFrontend(dbReport: DbReport): Report {
+function mapDbReportToFrontend(dbReport: ReportWithReporter): Report {
   const createdAt = new Date(dbReport.created_at || '')
+
+  // Extraer coordenadas de campus_location si existe
+  const coordinates = dbReport.campus_location?.coordinate_x != null && dbReport.campus_location?.coordinate_y != null
+    ? { x: dbReport.campus_location.coordinate_x, y: dbReport.campus_location.coordinate_y }
+    : null
 
   return {
     id: dbReport.id,
     title: dbReport.title,
     type: mapTypeFromDb(dbReport.type),
     description: dbReport.description,
-    location: dbReport.location,
-    coordinates: null, // Las coordenadas visuales no se almacenan en BD por ahora
+    location: dbReport.campus_location?.name || 'Ubicación no especificada',
+    locationData: dbReport.campus_location || null,
+    coordinates,
     date: createdAt.toISOString().split('T')[0],
     time: createdAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
     status: mapStatusFromDb(dbReport.status),

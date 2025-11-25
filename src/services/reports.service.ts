@@ -12,6 +12,16 @@ export interface ReportWithReporter extends Report {
     avatar_url: string | null;
     student_id: string | null;
   } | null;
+  campus_location: {
+    id: string;
+    name: string;
+    type: string;
+    coordinate_x: number | null;
+    coordinate_y: number | null;
+    description: string | null;
+    floor: string | null;
+    icon: string | null;
+  } | null;
 }
 
 export interface ReportFilters {
@@ -34,6 +44,16 @@ export const getReports = async (filters?: ReportFilters) => {
           full_name,
           avatar_url,
           student_id
+        ),
+        campus_location:campus_locations!reports_location_id_fkey(
+          id,
+          name,
+          type,
+          coordinate_x,
+          coordinate_y,
+          description,
+          floor,
+          icon
         )
       `
       )
@@ -79,6 +99,16 @@ export const getReportById = async (id: string) => {
           avatar_url,
           student_id,
           phone
+        ),
+        campus_location:campus_locations!reports_location_id_fkey(
+          id,
+          name,
+          type,
+          coordinate_x,
+          coordinate_y,
+          description,
+          floor,
+          icon
         )
       `
       )
@@ -215,6 +245,16 @@ export const getNearbyReports = async (latitude: number, longitude: number, radi
           id,
           full_name,
           avatar_url
+        ),
+        campus_location:campus_locations!reports_location_id_fkey(
+          id,
+          name,
+          type,
+          coordinate_x,
+          coordinate_y,
+          description,
+          floor,
+          icon
         )
       `
       )

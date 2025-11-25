@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -17,9 +18,25 @@ import {
   Smartphone,
   FileText,
 } from "lucide-react"
+import { getMapImageUrl } from "@/services/campus-settings.service"
 // Image removed
 
 export default function HelpPage() {
+  const [mapImageUrl, setMapImageUrl] = useState("/university-campus-map-layout-with-buildings-and-pa.jpg")
+
+  const loadMapImageUrl = async () => {
+    try {
+      const url = await getMapImageUrl()
+      setMapImageUrl(url)
+    } catch (error) {
+      console.error('Error cargando URL de la imagen del mapa:', error)
+    }
+  }
+
+  useEffect(() => {
+    loadMapImageUrl()
+  }, [])
+
   const downloadWord = () => {
     // Dynamic import to avoid SSR issues
     import("docx")
@@ -818,12 +835,12 @@ export default function HelpPage() {
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-balance">Centro de Ayuda</h1>
           <p className="text-muted-foreground text-lg">Descubre todas las funcionalidades de UniApp</p>
-          <div className="pt-4">
+          {/* <div className="pt-4">
             <Button onClick={downloadWord} className="gap-2">
               <FileText className="h-4 w-4" />
               Descargar Guía Word
             </Button>
-          </div>
+          </div> */}
         </div>
 
         {/* Quick Tips */}
@@ -869,7 +886,7 @@ export default function HelpPage() {
               </p>
               <div className="relative w-full h-64 bg-muted rounded-lg overflow-hidden">
                 <img
-                  src="/university-campus-map-layout-with-buildings-and-pa.jpg"
+                  src={mapImageUrl}
                   alt="Mapa interactivo del campus universitario"
                   className="object-cover"
                 />
@@ -979,10 +996,10 @@ export default function HelpPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <Badge variant="outline" className="w-fit">
-                Email: soporte@uniapp.edu
+                Email: 
               </Badge>
               <Badge variant="outline" className="w-fit">
-                WhatsApp: +57 300 123 4567
+                WhatsApp: 
               </Badge>
             </div>
           </CardContent>

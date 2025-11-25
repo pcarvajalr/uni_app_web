@@ -87,11 +87,30 @@ export function ReportDetailsDialog({ report, open, onOpenChange }: ReportDetail
 
           {/* Details */}
           <div className="grid grid-cols-1 gap-4">
-            <div className="flex items-center space-x-3">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <div>
+            <div className="flex items-start space-x-3">
+              <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <div className="flex-1">
                 <span className="text-sm font-medium">Ubicación</span>
                 <p className="text-sm text-muted-foreground">{report.location}</p>
+                {report.locationData && (
+                  <div className="mt-1 space-y-0.5">
+                    {report.locationData.type && (
+                      <p className="text-xs text-muted-foreground">
+                        Tipo: <span className="font-medium">{report.locationData.type}</span>
+                      </p>
+                    )}
+                    {report.locationData.floor && (
+                      <p className="text-xs text-muted-foreground">
+                        Piso: <span className="font-medium">{report.locationData.floor}</span>
+                      </p>
+                    )}
+                    {report.locationData.description && (
+                      <p className="text-xs text-muted-foreground italic">
+                        {report.locationData.description}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

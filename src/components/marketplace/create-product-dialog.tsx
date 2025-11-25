@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,7 +16,7 @@ import { useAuth } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Upload, X } from "lucide-react"
 import { createProduct } from "@/services/products.service"
-import { uploadFile } from "@/services/storage.service"
+import { uploadProductImage } from "@/services/storage.service"
 import { createProductSchema, validateImageFiles, type CreateProductFormData } from "@/lib/product-validation"
 import type { Database } from "@/types/database.types"
 
@@ -43,21 +43,24 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
     handleSubmit: handleFormSubmit,
     formState: { errors },
     reset,
-    setValue,
+    control,
     watch,
   } = useForm<CreateProductFormData>({
     resolver: zodResolver(createProductSchema),
     mode: 'onSubmit',
+    reValidateMode: 'onChange',
     defaultValues: {
       title: '',
       description: '',
       location: '',
+      category_id: '',
+      condition: undefined,
+      price: undefined,
       is_negotiable: true,
     },
   })
 
   const isNegotiable = watch('is_negotiable')
-  const selectedCondition = watch('condition')
 
   // Cargar categorías de productos
   useEffect(() => {
@@ -79,6 +82,15 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
     }
     loadCategories()
   }, [toast])
+
+  // Resetear formulario cuando el dialog se cierra
+  useEffect(() => {
+    if (!open) {
+      reset()
+      setImageFiles([])
+      setImagePreviews([])
+    }
+  }, [open, reset])
 
   const conditions = [
     { value: "new", label: "Nuevo" },
@@ -134,7 +146,7 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
       setUploadProgress(progress)
 
       try {
-        const result = await uploadFile('products', file, user!.id)
+        const result = await uploadProductImage(file, user!.id)
         if (!result.success || !result.url) {
           throw new Error(result.error || 'Error al subir imagen')
         }
@@ -149,6 +161,14 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
   }
 
   const onSubmit = async (data: CreateProductFormData) => {
+    // Limpiar espacios en blanco de los campos de texto
+    const cleanedData = {
+      ...data,
+      title: data.title.trim(),
+      description: data.description.trim(),
+      location: data.location.trim(),
+    }
+
     if (!user) {
       toast({
         title: 'Error',
@@ -177,15 +197,15 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
       // 2. Crear el producto en la base de datos
       await createProduct({
         seller_id: user.id,
-        title: data.title,
-        description: data.description,
-        price: data.price,
-        category_id: data.category_id,
-        condition: data.condition,
-        location: data.location,
-        is_negotiable: data.is_negotiable,
+        title: cleanedData.title,
+        description: cleanedData.description,
+        price: cleanedData.price,
+        category_id: cleanedData.category_id,
+        condition: cleanedData.condition,
+        location: cleanedData.location,
+        is_negotiable: cleanedData.is_negotiable,
         images: imageUrls,
-        tags: data.tags,
+        tags: cleanedData.tags,
       })
 
       // 3. Mostrar mensaje de éxito
@@ -194,16 +214,12 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
         description: 'Tu producto ha sido publicado exitosamente',
       })
 
-      // 4. Limpiar formulario
-      reset()
-      setImageFiles([])
-      setImagePreviews([])
       setUploadProgress(0)
 
-      // 5. Notificar al componente padre
+      // Notificar al componente padre
       onProductCreated?.()
 
-      // 6. Cerrar diálogo
+      // Cerrar diálogo (el useEffect se encargará de limpiar el formulario)
       onOpenChange(false)
     } catch (error) {
       console.error('Error creating product:', error)
@@ -249,22 +265,28 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="category_id">Categoría *</Label>
-              <Select
-                value={watch('category_id')}
-                onValueChange={(value) => setValue('category_id', value)}
-                disabled={loadingCategories}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingCategories ? "Cargando..." : "Selecciona categoría"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="category_id"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={loadingCategories}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={loadingCategories ? "Cargando..." : "Selecciona categoría"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.category_id && (
                 <p className="text-sm text-red-500">{errors.category_id.message}</p>
               )}
@@ -272,21 +294,27 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
 
             <div className="space-y-2">
               <Label htmlFor="condition">Condición *</Label>
-              <Select
-                value={selectedCondition}
-                onValueChange={(value) => setValue('condition', value as any)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Estado del producto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {conditions.map((condition) => (
-                    <SelectItem key={condition.value} value={condition.value}>
-                      {condition.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="condition"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Estado del producto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {conditions.map((condition) => (
+                        <SelectItem key={condition.value} value={condition.value}>
+                          {condition.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.condition && (
                 <p className="text-sm text-red-500">{errors.condition.message}</p>
               )}
@@ -301,7 +329,9 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
                 type="number"
                 step="0.01"
                 placeholder="50000"
-                {...register('price', { valueAsNumber: true })}
+                {...register('price', {
+                  setValueAs: (v) => v === '' ? undefined : parseFloat(v)
+                })}
               />
               {errors.price && (
                 <p className="text-sm text-red-500">{errors.price.message}</p>
@@ -335,10 +365,16 @@ export function CreateProductDialog({ open, onOpenChange, onProductCreated }: Cr
           </div>
 
           <div className="flex items-center space-x-2">
-            <Switch
-              id="is_negotiable"
-              checked={isNegotiable}
-              onCheckedChange={(checked) => setValue('is_negotiable', checked)}
+            <Controller
+              name="is_negotiable"
+              control={control}
+              render={({ field }) => (
+                <Switch
+                  id="is_negotiable"
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              )}
             />
             <Label htmlFor="is_negotiable" className="cursor-pointer">
               Precio negociable
