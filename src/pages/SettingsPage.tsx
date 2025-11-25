@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth"
-import { Bell, MapPin, Shield, Palette, Download, Trash2, Save, Plus, X, Map, Ticket, Upload, ImageIcon, Settings, Edit2, Loader2, Info } from 'lucide-react'
+import { Bell, MapPin, Shield, Palette, Download, Trash2, Save, Plus, X, Map, Ticket, Upload, ImageIcon, Settings, Edit2, Loader2, Info, BookOpen } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 import {
   getLocationCategories,
@@ -19,6 +19,12 @@ import {
   updateLocationCategory,
   deleteLocationCategory,
 } from "@/services/location-categories.service"
+import {
+  getTutoringSubjects,
+  createTutoringSubject,
+  updateTutoringSubject,
+  deleteTutoringSubject,
+} from "@/services/tutoring-subjects.service"
 import {
   getCampusLocations,
   createCampusLocation,
@@ -142,6 +148,17 @@ export default function SettingsPage() {
     description: "",
   })
 
+  // Tutoring subjects state
+  const [tutoringSubjects, setTutoringSubjects] = useState<Category[]>([])
+  const [isTutoringSubjectsDialogOpen, setIsTutoringSubjectsDialogOpen] = useState(false)
+  const [isLoadingSubjects, setIsLoadingSubjects] = useState(false)
+  const [isSavingSubject, setIsSavingSubject] = useState(false)
+  const [editingSubject, setEditingSubject] = useState<Category | null>(null)
+  const [subjectFormData, setSubjectFormData] = useState({
+    name: "",
+    description: "",
+  })
+
   // Load coupons on component mount
   // Cargar cupones desde Supabase
   useEffect(() => {
@@ -173,6 +190,24 @@ export default function SettingsPage() {
       })
     } finally {
       setIsLoadingCategories(false)
+    }
+  }
+
+  // Load tutoring subjects
+  const loadTutoringSubjects = async () => {
+    setIsLoadingSubjects(true)
+    try {
+      const subjects = await getTutoringSubjects()
+      setTutoringSubjects(subjects)
+    } catch (error) {
+      console.error('Error cargando materias de tutoría:', error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las materias de tutoría",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingSubjects(false)
     }
   }
 
@@ -221,6 +256,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadLocationCategories()
+    loadTutoringSubjects()
     loadCampusLocations()
     loadMapImageUrl()
     loadFavoriteLocations()
@@ -687,6 +723,93 @@ export default function SettingsPage() {
       toast({
         title: "Error",
         description: error.message || "No se pudo eliminar la categoría",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Tutoring Subjects Handlers
+  const handleOpenSubjectDialog = (subject?: Category) => {
+    if (subject) {
+      setEditingSubject(subject)
+      setSubjectFormData({
+        name: subject.name,
+        description: subject.description || "",
+      })
+    } else {
+      setEditingSubject(null)
+      setSubjectFormData({
+        name: "",
+        description: "",
+      })
+    }
+    setIsTutoringSubjectsDialogOpen(true)
+  }
+
+  const handleSaveSubject = async () => {
+    if (!subjectFormData.name.trim()) {
+      toast({
+        title: "Campo requerido",
+        description: "El nombre de la materia es obligatorio",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSavingSubject(true)
+    try {
+      if (editingSubject) {
+        await updateTutoringSubject(editingSubject.id, {
+          name: subjectFormData.name.trim(),
+          description: subjectFormData.description.trim() || null,
+        })
+        toast({
+          title: "Materia actualizada",
+          description: "La materia se ha actualizado correctamente",
+        })
+      } else {
+        await createTutoringSubject({
+          name: subjectFormData.name.trim(),
+          description: subjectFormData.description.trim() || null,
+        })
+        toast({
+          title: "Materia creada",
+          description: "La nueva materia se ha creado correctamente",
+        })
+      }
+
+      await loadTutoringSubjects()
+      setIsTutoringSubjectsDialogOpen(false)
+      setSubjectFormData({ name: "", description: "" })
+      setEditingSubject(null)
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo guardar la materia",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingSubject(false)
+    }
+  }
+
+  const handleDeleteSubject = async (subjectId: string) => {
+    try {
+      await deleteTutoringSubject(subjectId)
+      toast({
+        title: "Materia eliminada",
+        description: "La materia se ha eliminado correctamente",
+      })
+      // Si se está editando la materia eliminada, resetear el formulario
+      if (editingSubject?.id === subjectId) {
+        setEditingSubject(null)
+        setSubjectFormData({ name: "", description: "" })
+      }
+      await loadTutoringSubjects()
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar la materia",
         variant: "destructive",
       })
     }
@@ -1565,7 +1688,203 @@ export default function SettingsPage() {
         </Card>
         )}
 
-        {/* ... existing cards ... */}
+        {/* Tutoring Subjects Settings */}
+        {user?.role === 'admin' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Materias de Tutorías
+              </CardTitle>
+              <CardDescription>Gestiona las materias disponibles para el sistema de tutorías</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={() => handleOpenSubjectDialog()}
+                className="w-full"
+                disabled={isLoadingSubjects}
+              >
+                {isLoadingSubjects ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Cargando...
+                  </>
+                ) : (
+                  <>
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    Configurar materias de tutorías
+                  </>
+                )}
+              </Button>
+
+              {/* Tutoring Subjects Dialog */}
+              <Dialog open={isTutoringSubjectsDialogOpen} onOpenChange={setIsTutoringSubjectsDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingSubject ? "Editar Materia" : "Gestionar Materias de Tutorías"}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {editingSubject
+                        ? "Modifica la información de la materia"
+                        : "Crea y administra las materias disponibles para tutorías"}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-6">
+                    {/* Formulario de creación/edición */}
+                    <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                      <h3 className="font-medium text-sm">
+                        {editingSubject ? "Editar materia" : "Crear nueva materia"}
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="subject-name">Nombre *</Label>
+                          <Input
+                            id="subject-name"
+                            placeholder="Ej: Cálculo Diferencial, Programación, Física..."
+                            value={subjectFormData.name}
+                            onChange={(e) => setSubjectFormData({ ...subjectFormData, name: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="subject-description">Descripción</Label>
+                          <Textarea
+                            id="subject-description"
+                            placeholder="Describe esta materia..."
+                            value={subjectFormData.description}
+                            onChange={(e) => setSubjectFormData({ ...subjectFormData, description: e.target.value })}
+                            rows={2}
+                          />
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                          {editingSubject && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingSubject(null)
+                                setSubjectFormData({ name: "", description: "" })
+                              }}
+                              disabled={isSavingSubject}
+                            >
+                              Cancelar edición
+                            </Button>
+                          )}
+                          <Button
+                            onClick={handleSaveSubject}
+                            disabled={isSavingSubject || !subjectFormData.name.trim()}
+                          >
+                            {isSavingSubject ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Guardando...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="h-4 w-4 mr-2" />
+                                {editingSubject ? "Actualizar" : "Crear"}
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Lista de materias existentes */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-medium">
+                          Materias existentes ({tutoringSubjects.length})
+                        </Label>
+                        {editingSubject && tutoringSubjects.length > 0 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenSubjectDialog()}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Nueva
+                          </Button>
+                        )}
+                      </div>
+
+                      {isLoadingSubjects ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : tutoringSubjects.length > 0 ? (
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {tutoringSubjects.map((subject) => (
+                            <div
+                              key={subject.id}
+                              className={`flex items-start gap-3 p-3 rounded-lg border ${editingSubject?.id === subject.id
+                                  ? "bg-primary/10 border-primary"
+                                  : "bg-background border-border"
+                                }`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm">{subject.name}</p>
+                                {subject.description && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {subject.description}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleOpenSubjectDialog(subject)}
+                                  className="h-8 w-8 p-0"
+                                  title="Editar"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteSubject(subject.id)}
+                                  className="h-8 w-8 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                                  title="Eliminar"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-sm text-muted-foreground">
+                          <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>No hay materias configuradas</p>
+                          <p className="text-xs mt-1">Crea tu primera materia arriba</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsTutoringSubjectsDialogOpen(false)
+                        setEditingSubject(null)
+                        setSubjectFormData({ name: "", description: "" })
+                      }}
+                    >
+                      Cerrar
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Notification Settings */}
         <Card>

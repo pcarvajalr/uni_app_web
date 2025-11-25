@@ -23,7 +23,8 @@ import { useEffect } from "react"
 
 export default function ReportsPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null)
+  const [selectedReports, setSelectedReports] = useState<Report[]>([])
+  const [selectedReportIndex, setSelectedReportIndex] = useState(0)
   const [selectedTab, setSelectedTab] = useState("lista")
   const [filterType, setFilterType] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<string | null>(null)
@@ -142,7 +143,7 @@ export default function ReportsPage() {
 
                 return Object.entries(reportsByLocation).map(([locationId, reportsInLocation]) => {
                   const firstReport = reportsInLocation[0]
-                  const isSelected = reportsInLocation.some(r => r.id === selectedReport?.id)
+                  const isSelected = selectedReports.length > 0 && selectedReports[0].locationData?.id === locationId
                   const reportCount = reportsInLocation.length
                   const Icon = firstReport.locationData?.icon
                     ? getIconComponent(firstReport.locationData.icon)
@@ -156,7 +157,14 @@ export default function ReportsPage() {
                         left: `${firstReport.coordinates!.x}%`,
                         top: `${firstReport.coordinates!.y}%`,
                       }}
-                      onClick={() => setSelectedReport(isSelected ? null : firstReport)}
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedReports([])
+                        } else {
+                          setSelectedReports(reportsInLocation)
+                          setSelectedReportIndex(0)
+                        }
+                      }}
                     >
                       <div className={`relative flex flex-col items-center ${isSelected ? "animate-bounce" : ""}`}>
                         <div
@@ -449,9 +457,12 @@ export default function ReportsPage() {
                   <Card
                     key={report.id}
                     className={`cursor-pointer hover:shadow-md transition-all ${
-                      selectedReport?.id === report.id ? "ring-2 ring-primary" : ""
+                      selectedReports.length > 0 && selectedReports[0].id === report.id ? "ring-2 ring-primary" : ""
                     }`}
-                    onClick={() => setSelectedReport(report)}
+                    onClick={() => {
+                      setSelectedReports([report])
+                      setSelectedReportIndex(0)
+                    }}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start space-x-3">
@@ -659,7 +670,7 @@ export default function ReportsPage() {
 
                                         return Object.entries(reportsByLocation).map(([locationId, reportsInLocation]) => {
                                           const firstReport = reportsInLocation[0]
-                                          const isSelected = reportsInLocation.some(r => r.id === selectedReport?.id)
+                                          const isSelected = selectedReports.length > 0 && selectedReports[0].locationData?.id === locationId
                                           const reportCount = reportsInLocation.length
                                           const Icon = firstReport.locationData?.icon
                                             ? getIconComponent(firstReport.locationData.icon)
@@ -673,7 +684,14 @@ export default function ReportsPage() {
                                                 left: `${firstReport.coordinates!.x}%`,
                                                 top: `${firstReport.coordinates!.y}%`,
                                               }}
-                                              onClick={() => setSelectedReport(isSelected ? null : firstReport)}
+                                              onClick={() => {
+                                                if (isSelected) {
+                                                  setSelectedReports([])
+                                                } else {
+                                                  setSelectedReports(reportsInLocation)
+                                                  setSelectedReportIndex(0)
+                                                }
+                                              }}
                                             >
                                               <div className={`relative flex flex-col items-center ${isSelected ? "animate-bounce" : ""}`}>
                                                 <div
@@ -777,11 +795,14 @@ export default function ReportsPage() {
                       <div
                         key={report.id}
                         className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
-                          selectedReport?.id === report.id
+                          selectedReports.length > 0 && selectedReports[0].id === report.id
                             ? "border-primary bg-primary/5 ring-1 ring-primary"
                             : "border-border hover:border-primary/50"
                         }`}
-                        onClick={() => setSelectedReport(report)}
+                        onClick={() => {
+                          setSelectedReports([report])
+                          setSelectedReportIndex(0)
+                        }}
                       >
                         <div className="flex items-start space-x-2">
                           <span className="text-lg mt-0.5">{getTypeIcon(report.type)}</span>
@@ -810,9 +831,11 @@ export default function ReportsPage() {
       />
 
       <ReportDetailsDialog
-        report={selectedReport}
-        open={!!selectedReport}
-        onOpenChange={(open) => !open && setSelectedReport(null)}
+        reports={selectedReports}
+        initialIndex={selectedReportIndex}
+        open={selectedReports.length > 0}
+        onOpenChange={(open) => !open && setSelectedReports([])}
+        onReportChange={setSelectedReportIndex}
       />
     </AppLayout>
   )

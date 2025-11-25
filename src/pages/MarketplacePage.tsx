@@ -10,13 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Search, Filter, Heart, Star, X, Loader2 } from "lucide-react"
+import { Plus, Search, Heart, Star, X, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { CreateProductDialog } from "@/components/marketplace/create-product-dialog"
 import { ProductDetailsDialog } from "@/components/marketplace/product-details-dialog"
-import { getProducts, getProductCategories, getUserFavoriteProducts, type ProductWithSeller } from "@/services/products.service"
+import { getProducts, getProductCategories, type ProductWithSeller } from "@/services/products.service"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth"
+import { useFavorites } from "@/contexts/favorites-context"
 import { ProductFavoriteButton } from "@/components/marketplace/product-favorite-button"
 import { Switch } from "@/components/ui/switch"
 import type { Database } from "@/types/database.types"
@@ -26,7 +27,8 @@ type Category = Database['public']['Tables']['categories']['Row']
 
 export default function MarketplacePage() {
   const { toast } = useToast()
-  const { user, isAuthenticated } = useAuth()
+  const { isAuthenticated } = useAuth()
+  const { isUserFavorite, favoritesCount, setInitialCounts, getProductFavoritesCount } = useFavorites()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -34,16 +36,13 @@ export default function MarketplacePage() {
   const [minPrice, setMinPrice] = useState<number>(0)
   const [maxPrice, setMaxPrice] = useState<number>(5000000)
   const [selectedCondition, setSelectedCondition] = useState<string | null>(null)
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
 
   // Estados para datos reales
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  // Estados para favoritos
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
-  const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>([])
 
   const conditions = [
     { value: "new", label: "Nuevo" },
@@ -58,25 +57,15 @@ export default function MarketplacePage() {
     loadData()
   }, [])
 
-  // Cargar favoritos del usuario
+  // Inicializar contadores de favoritos cuando se cargan productos
   useEffect(() => {
-    async function loadFavorites() {
-      if (!user) {
-        setFavoriteProductIds([])
-        return
-      }
-
-      try {
-        const favorites = await getUserFavoriteProducts(user.id)
-        const ids = favorites.map(f => f.product_id).filter((id): id is string => id !== null)
-        setFavoriteProductIds(ids)
-      } catch (error) {
-        console.error('Error loading favorites:', error)
-      }
+    if (products.length > 0) {
+      setInitialCounts(products.map(p => ({
+        id: p.id,
+        favorites_count: p.favorites_count
+      })))
     }
-
-    loadFavorites()
-  }, [user])
+  }, [products, setInitialCounts])
 
   async function loadData() {
     setLoading(true)
@@ -117,7 +106,7 @@ export default function MarketplacePage() {
     const matchesPrice = product.price >= minPrice && product.price <= maxPrice
     const matchesCondition = !selectedCondition || product.condition === selectedCondition
     const matchesStatus = product.status === 'available' // Solo mostrar productos disponibles
-    const matchesFavorites = !showFavoritesOnly || favoriteProductIds.includes(product.id)
+    const matchesFavorites = !showFavoritesOnly || isUserFavorite(product.id)
     return matchesSearch && matchesCategory && matchesPrice && matchesCondition && matchesStatus && matchesFavorites
   })
 
@@ -176,13 +165,7 @@ export default function MarketplacePage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full"
                 />
-              </div>
-              <Button variant="outline" size="icon">
-                <Search className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
+              </div>              
             </div>
 
             {/* Categories */}
@@ -190,7 +173,6 @@ export default function MarketplacePage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Category Filter */}
               <div className="space-y-2">
-                <label className="text-xs font-medium">Categoría</label>
                 <Select
                   value={selectedCategory || "all"}
                   onValueChange={(value) => setSelectedCategory(value === "all" ? null : value)}
@@ -212,7 +194,6 @@ export default function MarketplacePage() {
 
               {/* Condition Filter */}
               <div className="space-y-2">
-                <label className="text-xs font-medium">Estado del Producto</label>
                 <Select
                   value={selectedCondition || "all"}
                   onValueChange={(value) => setSelectedCondition(value === "all" ? null : value)}
@@ -241,7 +222,7 @@ export default function MarketplacePage() {
                     disabled={!isAuthenticated}
                   />
                   <span className="text-xs text-muted-foreground">
-                    {favoriteProductIds.length} productos
+                    {favoritesCount} productos
                   </span>
                 </div>
               </div>
@@ -357,17 +338,9 @@ export default function MarketplacePage() {
                       <h3 className="font-medium line-clamp-2 text-sm">{product.title}</h3>
                       <ProductFavoriteButton
                         productId={product.id}
-                        initialIsFavorite={favoriteProductIds.includes(product.id)}
                         initialFavoritesCount={product.favorites_count || 0}
                         variant="ghost"
                         size="sm"
-                        onFavoriteChange={(isFavorite) => {
-                          setFavoriteProductIds(prev =>
-                            isFavorite
-                              ? [...prev, product.id]
-                              : prev.filter(id => id !== product.id)
-                          )
-                        }}
                       />
                     </div>
 
@@ -393,7 +366,7 @@ export default function MarketplacePage() {
                       </div>
                       <div className="flex items-center space-x-1">
                         <Heart className="h-3 w-3" />
-                        <span>{product.favorites_count || 0}</span>
+                        <span>{getProductFavoritesCount(product.id, product.favorites_count || 0)}</span>
                       </div>
                     </div>
 

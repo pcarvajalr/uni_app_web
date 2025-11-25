@@ -43,13 +43,42 @@ export const handleSupabaseError = (error: any): never => {
 };
 
 // Helper para extraer datos de respuesta de Supabase con manejo de errores
-export function unwrapData<T>(data: T | null, error: any): T {
+export function unwrapData<T>(data: T | null, error: any, context?: string): T {
   if (error) {
-    handleSupabaseError(error);
+    console.error(context ? `Error en ${context}:` : 'Supabase error:', error);
+
+    const errorMsg = error.message || error.toString();
+
+    // Detectar errores RLS específicos
+    if (errorMsg.includes('row-level security') || errorMsg.includes('RLS')) {
+      throw new Error('No tienes permisos para ver estos datos. Verifica que estés autenticado.');
+    }
+
+    // Detectar errores de autenticación
+    if (errorMsg.includes('JWT') || errorMsg.includes('token') || errorMsg.includes('auth')) {
+      throw new Error('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+    }
+
+    // Detectar errores de conexión
+    if (errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('ECONNREFUSED')) {
+      throw new Error('Error de conexión. Verifica tu conexión a internet e intenta nuevamente.');
+    }
+
+    // Error genérico con contexto
+    const finalMsg = context
+      ? `Error en ${context}: ${errorMsg}`
+      : errorMsg;
+
+    throw new Error(finalMsg);
   }
+
   if (data === null) {
-    throw new Error('No se encontraron datos');
+    const nullMsg = context
+      ? `No hay datos en ${context}`
+      : 'No se encontraron datos';
+    throw new Error(nullMsg);
   }
+
   return data;
 }
 

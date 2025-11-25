@@ -1,19 +1,47 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { MapPin, Clock, User, AlertTriangle, Phone } from "lucide-react"
 import type { Report } from "@/hooks/useReports"
+import { ReportsCarousel } from "./reports-carousel"
 
 interface ReportDetailsDialogProps {
-  report: Report | null
+  reports: Report[]
+  initialIndex?: number
   open: boolean
   onOpenChange: (open: boolean) => void
+  onReportChange?: (index: number) => void
 }
 
-export function ReportDetailsDialog({ report, open, onOpenChange }: ReportDetailsDialogProps) {
-  if (!report) return null
+export function ReportDetailsDialog({
+  reports,
+  initialIndex = 0,
+  open,
+  onOpenChange,
+  onReportChange
+}: ReportDetailsDialogProps) {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex)
+
+  // Reset index when dialog opens or reports change
+  useEffect(() => {
+    if (open) {
+      setCurrentIndex(initialIndex)
+    }
+  }, [open, initialIndex])
+
+  // Sync index changes with parent component
+  const handleIndexChange = (index: number) => {
+    setCurrentIndex(index)
+    onReportChange?.(index)
+  }
+
+  if (!reports || reports.length === 0) return null
+
+  const report = reports[currentIndex]
+  const hasMultipleReports = reports.length > 1
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -58,13 +86,25 @@ export function ReportDetailsDialog({ report, open, onOpenChange }: ReportDetail
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        {/* Carousel for multiple reports */}
+        {hasMultipleReports && (
+          <ReportsCarousel
+            reports={reports}
+            currentIndex={currentIndex}
+            onIndexChange={handleIndexChange}
+            locationName={report.locationData?.name || report.location}
+          />
+        )}
+
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <span className="text-2xl">{getTypeIcon(report.type)}</span>
             <span>{report.title}</span>
           </DialogTitle>
-          <DialogDescription>Reporte #{report.id} - Detalles completos del incidente</DialogDescription>
+          <DialogDescription>
+            Reporte #{report.id} - Detalles completos del incidente
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
