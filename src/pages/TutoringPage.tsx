@@ -4,165 +4,145 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, Search, Filter, Star, Clock, MapPin, BookOpen, Users, X } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Plus, Search, Filter, BookOpen, X, Heart } from "lucide-react"
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { CreateTutoringDialog } from "@/components/tutoring/create-tutoring-dialog"
+import { TutoringDetailsDialog } from "@/components/tutoring/tutoring-details-dialog"
+import { TutoringCard } from "@/components/tutoring/tutoring-card"
 import { getTutoringSubjects } from "@/services/tutoring-subjects.service"
+import { useTutoringSessions, useToggleTutoringFavorite } from "@/hooks/useTutoringSessions"
+import { useAuth } from "@/lib/auth"
+import type { TutoringFilters, TutoringSessionWithTutor, DayOfWeek, SessionMode } from "@/types/tutoring.types"
+import { DAY_LABELS } from "@/types/tutoring.types"
 import type { Database } from "@/types/database.types"
 
 type Category = Database['public']['Tables']['categories']['Row']
-import { TutoringDetailsDialog } from "@/components/tutoring/tutoring-details-dialog"
-
-interface Tutor {
-  id: string
-  name: string
-  studentId: string
-  subjects: string[]
-  rating: number
-  reviewCount: number
-  hourlyRate: number
-  availability: string[]
-  location: string
-  description: string
-  experience: string
-  languages: string[]
-  avatar?: string
-}
 
 export default function TutoringPage() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [selectedTutor, setSelectedTutor] = useState<Tutor | null>(null)
-  const [minPrice, setMinPrice] = useState<number>(0)
-  const [maxPrice, setMaxPrice] = useState<number>(100000)
-  const [selectedRating, setSelectedRating] = useState<string | null>(null)
+  const [selectedSession, setSelectedSession] = useState<TutoringSessionWithTutor | null>(null)
   const [subjects, setSubjects] = useState<Category[]>([])
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Filter states
+  const [filters, setFilters] = useState<TutoringFilters>({
+    exclude_own: true,
+  })
+
+  // Fetch sessions with filters
+  const { data: sessions, isLoading, error, refetch } = useTutoringSessions(filters)
+  const toggleFavorite = useToggleTutoringFavorite()
 
   useEffect(() => {
     getTutoringSubjects().then(setSubjects).catch(console.error)
   }, [])
 
-  const mockTutors: Tutor[] = [
-    {
-      id: "1",
-      name: "Ana García",
-      studentId: "2022001",
-      subjects: ["Cálculo Diferencial", "Cálculo Integral", "Álgebra Lineal"],
-      rating: 4.9,
-      reviewCount: 24,
-      hourlyRate: 25000,
-      availability: ["Lunes 2-6 PM", "Miércoles 10 AM-2 PM", "Viernes 3-7 PM"],
-      location: "Biblioteca Central",
-      description:
-        "Estudiante de Ingeniería Matemática con 3 años de experiencia en tutorías. Me especializo en hacer que las matemáticas sean comprensibles y divertidas.",
-      experience: "3 años",
-      languages: ["Español", "Inglés"],
-    },
-    {
-      id: "2",
-      name: "Carlos Ruiz",
-      studentId: "2021045",
-      subjects: ["Java", "Python", "Estructuras de Datos", "Algoritmos"],
-      rating: 4.8,
-      reviewCount: 18,
-      hourlyRate: 30000,
-      availability: ["Martes 1-5 PM", "Jueves 9 AM-1 PM", "Sábados 10 AM-4 PM"],
-      location: "Laboratorio de Sistemas",
-      description:
-        "Desarrollador de software con experiencia en múltiples lenguajes. Ayudo a estudiantes a dominar la programación desde lo básico hasta proyectos avanzados.",
-      experience: "2 años",
-      languages: ["Español", "Inglés"],
-    },
-    {
-      id: "3",
-      name: "María López",
-      studentId: "2023078",
-      subjects: ["Física I", "Física II", "Mecánica", "Termodinámica"],
-      rating: 4.7,
-      reviewCount: 15,
-      hourlyRate: 28000,
-      availability: ["Lunes 10 AM-2 PM", "Miércoles 3-7 PM"],
-      location: "Laboratorio de Física",
-      description:
-        "Estudiante de Física con pasión por la enseñanza. Utilizo experimentos y ejemplos prácticos para explicar conceptos complejos.",
-      experience: "2 años",
-      languages: ["Español"],
-    },
-    {
-      id: "4",
-      name: "Diego Morales",
-      studentId: "2022156",
-      subjects: ["Inglés Conversacional", "TOEFL Prep", "Business English"],
-      rating: 4.9,
-      reviewCount: 31,
-      hourlyRate: 35000,
-      availability: ["Todos los días 6-10 PM"],
-      location: "Centro de Idiomas",
-      description:
-        "Certificado en enseñanza de inglés con experiencia internacional. Ayudo a estudiantes a mejorar su fluidez y prepararse para exámenes.",
-      experience: "4 años",
-      languages: ["Español", "Inglés", "Francés"],
-    },
-  ]
+  // Apply search filter with debounce
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setFilters(prev => ({
+        ...prev,
+        search: searchQuery || undefined,
+      }))
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [searchQuery])
 
-  const filteredTutors = mockTutors.filter((tutor) => {
-    const matchesSearch =
-      tutor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tutor.subjects.some((subject) => subject.toLowerCase().includes(searchQuery.toLowerCase()))
-    const matchesSubject =
-      !selectedSubject ||
-      tutor.subjects.some((subject) => subject.toLowerCase().includes(selectedSubject.toLowerCase()))
-    const matchesPrice = tutor.hourlyRate >= minPrice && tutor.hourlyRate <= maxPrice
-    const matchesRating = !selectedRating || tutor.rating >= Number(selectedRating)
-    return matchesSearch && matchesSubject && matchesPrice && matchesRating
-  })
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("es-CO", {
-      style: "currency",
-      currency: "COP",
-      minimumFractionDigits: 0,
-    }).format(price)
+  const handleCategoryFilter = (categoryId: string | null) => {
+    setFilters(prev => ({
+      ...prev,
+      category_id: categoryId || undefined,
+    }))
   }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
+  const handleModeFilter = (mode: string | null) => {
+    setFilters(prev => ({
+      ...prev,
+      mode: mode as SessionMode | undefined,
+    }))
   }
+
+  const handleRatingFilter = (rating: string | null) => {
+    setFilters(prev => ({
+      ...prev,
+      min_rating: rating ? parseFloat(rating) : undefined,
+    }))
+  }
+
+  const handleDayFilter = (day: string | null) => {
+    setFilters(prev => ({
+      ...prev,
+      availability_day: day as DayOfWeek | undefined,
+    }))
+  }
+
+  const handleFavoritesFilter = (onlyFavorites: boolean) => {
+    setFilters(prev => ({
+      ...prev,
+      only_favorites: onlyFavorites || undefined,
+    }))
+  }
+
+  const clearFilters = () => {
+    setFilters({ exclude_own: true })
+    setSearchQuery("")
+  }
+
+  const handleFavoriteClick = (e: React.MouseEvent, session: TutoringSessionWithTutor) => {
+    e.stopPropagation()
+    toggleFavorite.mutate(session.id)
+  }
+
+  const handleBookClick = (e: React.MouseEvent, session: TutoringSessionWithTutor) => {
+    e.stopPropagation()
+    setSelectedSession(session)
+  }
+
+  const hasActiveFilters = filters.category_id || filters.mode || filters.min_rating ||
+    filters.availability_day || filters.only_favorites || searchQuery
+
+  // Calculate stats
+  const activeTutors = sessions ? new Set(sessions.map(s => s.tutor_id)).size : 0
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="space-y-4">
           <div>
             <h1 className="text-2xl font-bold">Sistema de Tutorías</h1>
             <p className="text-muted-foreground">Encuentra tutores o ofrece tus servicios</p>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Ser Tutor
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate('/tutoring/my-sessions')} className="flex-1">
+              <BookOpen className="h-4 w-4 mr-2" />
+              Mis tutorias
+            </Button>
+            <Button onClick={() => setShowCreateDialog(true)} className="flex-1">
+              <Plus className="h-4 w-4 mr-2" />
+              Ofrecer Tutoría
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-primary">23</div>
+              <div className="text-2xl font-bold text-primary">{activeTutors}</div>
               <p className="text-sm text-muted-foreground">Tutores Activos</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">156</div>
-              <p className="text-sm text-muted-foreground">Sesiones Completadas</p>
+              <div className="text-2xl font-bold text-green-600">{sessions?.length || 0}</div>
+              <p className="text-sm text-muted-foreground">Sesiones Disponibles</p>
             </CardContent>
-          </Card>          
+          </Card>
         </div>
 
         {/* Search and Filter */}
@@ -180,92 +160,155 @@ export default function TutoringPage() {
               <Button variant="outline" size="icon">
                 <Search className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowFilters(!showFilters)}
+                className={showFilters ? "bg-primary text-primary-foreground" : ""}
+              >
                 <Filter className="h-4 w-4" />
               </Button>
             </div>
 
-            <h3 className="font-medium mb-3 text-sm">Filtros</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Subject Filter */}
-              <div className="space-y-2">
-                <Select value={selectedSubject || "all"} onValueChange={(value) => setSelectedSubject(value === "all" ? null : value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Todas las Materias" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las Materias</SelectItem>
-                    {subjects.map((subject) => (
-                      <SelectItem key={subject.id} value={subject.name.toLowerCase()}>
-                        {subject.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {showFilters && (
+              <>
+                <h3 className="font-medium mb-3 text-sm">Filtros</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  {/* Category Filter */}
+                  <Select
+                    value={filters.category_id || "all"}
+                    onValueChange={(value) => handleCategoryFilter(value === "all" ? null : value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las Categorías</SelectItem>
+                      {subjects.map((subject) => (
+                        <SelectItem key={subject.id} value={subject.id}>
+                          {subject.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-              {/* Rating Filter */}
-              <div className="space-y-2">
-                <Select value={selectedRating || "all"} onValueChange={(value) => setSelectedRating(value === "all" ? null : value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Puntaje del tutor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Puntaje del tutor</SelectItem>
-                    <SelectItem value="4.5">4.5+ Estrellas</SelectItem>
-                    <SelectItem value="4.0">4.0+ Estrellas</SelectItem>
-                    <SelectItem value="3.5">3.5+ Estrellas</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  {/* Mode Filter */}
+                  <Select
+                    value={filters.mode || "all"}
+                    onValueChange={(value) => handleModeFilter(value === "all" ? null : value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Modalidad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las Modalidades</SelectItem>
+                      <SelectItem value="presential">Presencial</SelectItem>
+                      <SelectItem value="online">Virtual</SelectItem>
+                      <SelectItem value="both">Ambas</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-              {/* Price Range Filter */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium">Precio por Hora</label>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    type="number"
-                    placeholder="Min"
-                    value={minPrice}
-                    onChange={(e) => setMinPrice(Number(e.target.value))}
-                    className="w-full text-sm"
-                  />
-                  <span className="text-muted-foreground text-sm">-</span>
-                  <Input
-                    type="number"
-                    placeholder="Max"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(Number(e.target.value))}
-                    className="w-full text-sm"
-                  />
+                  {/* Rating Filter */}
+                  <Select
+                    value={filters.min_rating?.toString() || "all"}
+                    onValueChange={(value) => handleRatingFilter(value === "all" ? null : value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Puntaje mínimo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Cualquier puntaje</SelectItem>
+                      <SelectItem value="4.5">4.5+ Estrellas</SelectItem>
+                      <SelectItem value="4.0">4.0+ Estrellas</SelectItem>
+                      <SelectItem value="3.5">3.5+ Estrellas</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Day Filter */}
+                  <Select
+                    value={filters.availability_day || "all"}
+                    onValueChange={(value) => handleDayFilter(value === "all" ? null : value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Disponibilidad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Cualquier día</SelectItem>
+                      {Object.entries(DAY_LABELS).map(([day, label]) => (
+                        <SelectItem key={day} value={day}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-            </div>
 
-            {(selectedSubject || selectedRating || minPrice > 0 || maxPrice < 100000) && (
+                {/* Favorites Toggle */}
+                {user && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button
+                      variant={filters.only_favorites ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleFavoritesFilter(!filters.only_favorites)}
+                    >
+                      <Heart className={`h-4 w-4 mr-2 ${filters.only_favorites ? "fill-current" : ""}`} />
+                      Solo favoritos
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Active Filters */}
+            {hasActiveFilters && (
               <div className="mt-3 flex flex-wrap gap-2 items-center">
-                {selectedSubject && (
+                {filters.category_id && (
                   <Badge variant="secondary" className="flex items-center gap-1">
-                    {selectedSubject}
-                    <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedSubject(null)} />
+                    {subjects.find(s => s.id === filters.category_id)?.name}
+                    <X
+                      className="h-3 w-3 cursor-pointer"
+                      onClick={() => handleCategoryFilter(null)}
+                    />
                   </Badge>
                 )}
-                {selectedRating && (
+                {filters.mode && (
                   <Badge variant="secondary" className="flex items-center gap-1">
-                    {selectedRating}+ estrellas
-                    <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedRating(null)} />
+                    {filters.mode === "presential" ? "Presencial" :
+                     filters.mode === "online" ? "Virtual" : "Ambas"}
+                    <X
+                      className="h-3 w-3 cursor-pointer"
+                      onClick={() => handleModeFilter(null)}
+                    />
                   </Badge>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedSubject(null)
-                    setSelectedRating(null)
-                    setMinPrice(0)
-                    setMaxPrice(100000)
-                  }}
-                >
+                {filters.min_rating && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    {filters.min_rating}+ estrellas
+                    <X
+                      className="h-3 w-3 cursor-pointer"
+                      onClick={() => handleRatingFilter(null)}
+                    />
+                  </Badge>
+                )}
+                {filters.availability_day && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    {DAY_LABELS[filters.availability_day]}
+                    <X
+                      className="h-3 w-3 cursor-pointer"
+                      onClick={() => handleDayFilter(null)}
+                    />
+                  </Badge>
+                )}
+                {filters.only_favorites && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    Favoritos
+                    <X
+                      className="h-3 w-3 cursor-pointer"
+                      onClick={() => handleFavoritesFilter(false)}
+                    />
+                  </Badge>
+                )}
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
                   Limpiar filtros
                 </Button>
               </div>
@@ -273,142 +316,101 @@ export default function TutoringPage() {
           </CardContent>
         </Card>
 
-        {/* Tutors List */}
+        {/* Sessions List */}
         <div className="space-y-4">
-          {filteredTutors.map((tutor) => (
-            <Card
-              key={tutor.id}
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => setSelectedTutor(tutor)}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start space-x-4">
-                  <Avatar className="h-16 w-16">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-lg">
-                      {getInitials(tutor.name)}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h3 className="text-lg font-semibold">{tutor.name}</h3>
-                      <div className="flex items-center space-x-1">
-                        <Star className="h-4 w-4 fill-current text-yellow-400" />
-                        <span className="text-sm font-medium">{tutor.rating}</span>
-                        <span className="text-sm text-muted-foreground">({tutor.reviewCount} reseñas)</span>
-                      </div>
+          {isLoading ? (
+            // Loading skeletons
+            Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <Skeleton className="h-16 w-16 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-1/3" />
+                      <Skeleton className="h-4 w-1/4" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
                     </div>
-
-                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{tutor.description}</p>
-
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {tutor.subjects.slice(0, 3).map((subject, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {subject}
-                        </Badge>
-                      ))}
-                      {tutor.subjects.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{tutor.subjects.length - 3} más
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      <span className="flex items-center">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        {tutor.location}
-                      </span>
-                      <span className="flex items-center">
-                        <Clock className="h-4 w-4 mr-1" />
-                        {tutor.experience} experiencia
-                      </span>
-                      <span className="flex items-center">
-                        <Users className="h-4 w-4 mr-1" />
-                        {tutor.languages.join(", ")}
-                      </span>
+                    <div className="space-y-2">
+                      <Skeleton className="h-8 w-24" />
+                      <Skeleton className="h-10 w-20" />
                     </div>
                   </div>
-
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-primary mb-1">{formatPrice(tutor.hourlyRate)}</div>
-                    <p className="text-sm text-muted-foreground mb-3">por hora</p>
-                    <Button>
-                      <BookOpen className="h-4 w-4 mr-2" />
-                      Reservar
-                    </Button>
-                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : error ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <div className="text-muted-foreground">
+                  <p className="mb-4">Error al cargar las sesiones de tutoría</p>
+                  <Button onClick={() => refetch()}>Reintentar</Button>
                 </div>
               </CardContent>
             </Card>
-          ))}
+          ) : sessions && sessions.length > 0 ? (
+            sessions.map((session) => (
+              <TutoringCard
+                key={session.id}
+                session={session}
+                onClick={() => setSelectedSession(session)}
+                onFavoriteClick={user ? (e) => handleFavoriteClick(e, session) : undefined}
+                onBookClick={(e) => handleBookClick(e, session)}
+                showBookButton={!!user && session.tutor_id !== user.id}
+              />
+            ))
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <div className="text-muted-foreground">
+                  <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium mb-2">No se encontraron sesiones</h3>
+                  <p>Intenta cambiar los filtros de búsqueda o explora otras materias</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {filteredTutors.length === 0 && (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <div className="text-muted-foreground">
-                <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">No se encontraron tutores</h3>
-                <p>Intenta cambiar los filtros de búsqueda o explora otras materias</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Popular Subjects */}
+        {/* Popular Categories */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <BookOpen className="h-5 w-5" />
-              <span>Materias Más Populares</span>
+              <span>Categorías Populares</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div
-                className="text-center p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => setSelectedSubject("matematicas")}
-              >
-                <div className="text-2xl font-bold text-primary">8</div>
-                <p className="text-sm font-medium">Matemáticas</p>
-                <p className="text-xs text-muted-foreground">tutores disponibles</p>
-              </div>
-              <div
-                className="text-center p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => setSelectedSubject("fisica")}
-              >
-                <div className="text-2xl font-bold text-primary">6</div>
-                <p className="text-sm font-medium">Física</p>
-                <p className="text-xs text-muted-foreground">tutores disponibles</p>
-              </div>
-              <div
-                className="text-center p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => setSelectedSubject("quimica")}
-              >
-                <div className="text-2xl font-bold text-primary">4</div>
-                <p className="text-sm font-medium">Química</p>
-                <p className="text-xs text-muted-foreground">tutores disponibles</p>
-              </div>
-              <div
-                className="text-center p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => setSelectedSubject("programacion")}
-              >
-                <div className="text-2xl font-bold text-primary">5</div>
-                <p className="text-sm font-medium">Programación</p>
-                <p className="text-xs text-muted-foreground">tutores disponibles</p>
-              </div>
+              {subjects.slice(0, 4).map((subject) => {
+                const count = sessions?.filter(s => s.category_id === subject.id).length || 0
+                return (
+                  <div
+                    key={subject.id}
+                    className="text-center p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => handleCategoryFilter(subject.id)}
+                  >
+                    <div className="text-2xl font-bold text-primary">{count}</div>
+                    <p className="text-sm font-medium">{subject.name}</p>
+                    <p className="text-xs text-muted-foreground">tutores disponibles</p>
+                  </div>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <CreateTutoringDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
+      <CreateTutoringDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSuccess={() => refetch()}
+      />
 
       <TutoringDetailsDialog
-        tutor={selectedTutor}
-        open={!!selectedTutor}
-        onOpenChange={(open) => !open && setSelectedTutor(null)}
+        session={selectedSession}
+        open={!!selectedSession}
+        onOpenChange={(open) => !open && setSelectedSession(null)}
       />
     </AppLayout>
   )
