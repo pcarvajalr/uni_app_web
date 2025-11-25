@@ -5,13 +5,12 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { MapPin, Clock, Heart, MessageCircle, Star, Share, Flag } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { ProductFavoriteButton } from "@/components/marketplace/product-favorite-button"
 import { ProductOwnerActions } from "@/components/marketplace/product-owner-actions"
 import { EditProductDialog } from "@/components/marketplace/edit-product-dialog"
-import { useAuth } from "@/lib/auth"
-import { useToast } from "@/hooks/use-toast"
-import { isProductFavorite, type ProductWithSeller } from "@/services/products.service"
+import { useFavorites } from "@/contexts/favorites-context"
+import { type ProductWithSeller } from "@/services/products.service"
 
 interface ProductDetailsDialogProps {
   product: ProductWithSeller | null
@@ -21,31 +20,9 @@ interface ProductDetailsDialogProps {
 }
 
 export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpdated }: ProductDetailsDialogProps) {
-  const { user } = useAuth()
-  const { toast } = useToast()
+  const { getProductFavoritesCount } = useFavorites()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const [isFavorite, setIsFavorite] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-
-  // Cargar estado de favorito cuando cambia el producto
-  useEffect(() => {
-    async function checkFavorite() {
-      if (!product || !user) {
-        setIsFavorite(false)
-        return
-      }
-
-      try {
-        const favorite = await isProductFavorite(product.id, user.id)
-        setIsFavorite(favorite)
-      } catch (error) {
-        console.error('Error checking favorite:', error)
-        setIsFavorite(false)
-      }
-    }
-
-    checkFavorite()
-  }, [product, user])
 
   if (!product) return null
 
@@ -143,17 +120,21 @@ export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpd
           {/* Price and Actions */}
           <div className="flex flex-col sm:flex-row items-center sm:items-center justify-between gap-3">
             <div className="text-2xl sm:text-3xl font-bold text-primary">{formatPrice(product.price)}</div>
-            <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-end items-center">
+              {/* Contador informativo separado */}
+              <div className="flex items-center text-sm text-muted-foreground mr-2">
+                <Heart className="h-4 w-4 mr-1" />
+                <span>{getProductFavoritesCount(product.id, product.favorites_count || 0)}</span>
+              </div>
+              {/* Botón para marcar/desmarcar - sin contador */}
               <ProductFavoriteButton
                 productId={product.id}
-                initialIsFavorite={isFavorite}
                 initialFavoritesCount={product.favorites_count || 0}
                 variant="outline"
-                size="sm"
-                showCount={true}
-                onFavoriteChange={(newIsFavorite) => setIsFavorite(newIsFavorite)}
+                size="default"
+                showCount={false}
               />
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="default">
                 <Share className="h-4 w-4 sm:mr-1" />
                 <span className="hidden sm:inline">Compartir</span>
               </Button>

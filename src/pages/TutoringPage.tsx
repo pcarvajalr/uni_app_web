@@ -190,8 +190,7 @@ export default function TutoringPage() {
             <h3 className="font-medium mb-3 text-sm">Filtros</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Subject Filter */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium">Materia</label>
+              <div className="space-y-2">                
                 <select
                   value={selectedSubject || ""}
                   onChange={(e) => setSelectedSubject(e.target.value || null)}
@@ -209,13 +208,12 @@ export default function TutoringPage() {
 
               {/* Rating Filter */}
               <div className="space-y-2">
-                <label className="text-xs font-medium">Calificación Mínima</label>
                 <select
                   value={selectedRating || ""}
                   onChange={(e) => setSelectedRating(e.target.value || null)}
                   className="w-full px-3 py-2 border rounded-md text-sm bg-background"
                 >
-                  <option value="">Todas las Calificaciones</option>
+                  <option value="">Puntaje del tutor</option>
                   <option value="4.5">4.5+ Estrellas</option>
                   <option value="4.0">4.0+ Estrellas</option>
                   <option value="3.5">3.5+ Estrellas</option>

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/lib/auth';
+import { FavoritesProvider } from '@/contexts/favorites-context';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { Toaster } from '@/components/ui/toaster';
 
@@ -37,8 +38,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="uni-app-theme">
         <AuthProvider>
-          <BrowserRouter>
-            <Routes>
+          <FavoritesProvider>
+            <BrowserRouter>
+              <Routes>
               {/* Rutas públicas */}
               <Route path="/" element={<HomePage />} />
               <Route path="/auth" element={<AuthPage />} />
@@ -62,6 +64,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
+          </FavoritesProvider>
         </AuthProvider>
       </ThemeProvider>
       <Toaster />
