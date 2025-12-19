@@ -12,6 +12,7 @@ import { Loader2 } from 'lucide-react';
 import HomePage from '@/pages/HomePage';
 import AuthPage from '@/pages/AuthPage';
 import ResetPasswordPage from '@/pages/ResetPasswordPage';
+import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
 import DashboardPage from '@/pages/DashboardPage';
 import MarketplacePage from '@/pages/MarketplacePage';
 import MySalesPage from '@/pages/MySalesPage';
@@ -54,6 +55,7 @@ function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
                 {/* Rutas privadas - requieren autenticación y email verificado */}
                 <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
