@@ -1,6 +1,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -290,12 +291,11 @@ export default function SettingsPage() {
     })
   }
 
+  const navigate = useNavigate()
+
   const handleDeleteAccount = () => {
-    toast({
-      title: "Solicitud enviada",
-      description: "Tu solicitud de eliminación de cuenta ha sido procesada.",
-      variant: "destructive",
-    })
+    // Navigate to the account deletion page
+    navigate("/account-deletion")
   }
 
   const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {

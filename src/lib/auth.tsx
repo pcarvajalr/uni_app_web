@@ -22,6 +22,9 @@ interface User {
   total_tutoring_sessions?: number;
   is_verified?: boolean;
   is_tutor?: boolean;
+  is_deleted?: boolean;
+  deleted_at?: string;
+  deletion_scheduled_at?: string;
 }
 
 interface AuthContextType {
@@ -38,6 +41,7 @@ interface AuthContextType {
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInGracePeriod: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -98,6 +102,9 @@ function clearProfileCache(userId: string): void {
 
 // Helper para mapear UserProfile a User
 function mapProfileToUser(userProfile: UserProfile): User {
+  // Access deletion fields with type assertion (they may not be in the type yet)
+  const profileAny = userProfile as any;
+
   return {
     id: userProfile.id,
     name: userProfile.full_name,
@@ -108,6 +115,9 @@ function mapProfileToUser(userProfile: UserProfile): User {
     semester: userProfile.semester ?? undefined,
     phone: userProfile.phone || undefined,
     avatar_url: userProfile.avatar_url || undefined,
+    is_deleted: profileAny.is_deleted || false,
+    deleted_at: profileAny.deleted_at || undefined,
+    deletion_scheduled_at: profileAny.deletion_scheduled_at || undefined,
     bio: userProfile.bio || undefined,
     rating: userProfile.rating ?? undefined,
     total_sales: userProfile.total_sales ?? undefined,
@@ -332,6 +342,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Calculate if user is in grace period (deleted but can still recover)
+  const isInGracePeriod = !!(
+    user?.is_deleted &&
+    user?.deletion_scheduled_at &&
+    new Date(user.deletion_scheduled_at) > new Date()
+  );
+
   const value = {
     user,
     profile,
@@ -342,6 +359,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateProfile,
     isAuthenticated: !!user && !!session,
     isLoading,
+    isInGracePeriod,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
