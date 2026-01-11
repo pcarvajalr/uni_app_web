@@ -37,10 +37,10 @@ export default function SupportPage() {
               </CardHeader>
               <CardContent>
                 <a
-                  href="mailto:support@uniapp.com"
+                  href="mailto:uniapp.col@gmail.com"
                   className="text-primary hover:underline font-medium"
                 >
-                  support@uniapp.com
+                  uniapp.col@gmail.com
                 </a>
               </CardContent>
             </Card>
