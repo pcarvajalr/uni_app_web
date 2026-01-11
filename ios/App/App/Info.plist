@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>UNI APP</string>
+	<string>UNI APP</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -22,6 +22,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>La aplicación necesita acceso a la cámara para que puedas tomar fotos de los productos que publicas en el marketplace universitario.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>La aplicación necesita acceso a tu ubicación para mostrarte reportes de seguridad cercanos en el campus y permitirte reportar incidentes con tu ubicación.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>La aplicación necesita acceso a tu galería de fotos para que puedas seleccionar imágenes de productos para publicar en el marketplace universitario.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
