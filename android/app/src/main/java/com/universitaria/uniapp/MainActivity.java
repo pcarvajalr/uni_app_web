@@ -1,4 +1,4 @@
-package com.universidad.app;
+package com.universitaria.uniapp;
 
 import com.getcapacitor.BridgeActivity;
 
