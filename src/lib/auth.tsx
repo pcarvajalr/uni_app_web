@@ -255,7 +255,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             full_name: name,
           },
           // Configurar URL de redirección después de confirmar email
-          emailRedirectTo: `${window.location.origin}/auth`,
+          // Usar URL de producción en lugar de window.location.origin para apps móviles
+          emailRedirectTo: `${import.meta.env.VITE_APP_URL || window.location.origin}/auth`,
         },
       });
 

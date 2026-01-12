@@ -252,7 +252,7 @@ export default function SupportPage() {
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <p>
-                <strong className="text-foreground">Versión:</strong> 1.0.0
+                <strong className="text-foreground">Versión:</strong> 1.4.0
               </p>
               <p>
                 <strong className="text-foreground">Última actualización:</strong> {new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
