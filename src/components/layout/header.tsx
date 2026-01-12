@@ -19,7 +19,10 @@ export function Header() {
     .toUpperCase()
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header
+      className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
       <div className="flex h-16 items-center justify-between px-4">
         <Link to="/dashboard" className="flex items-center overflow-hidden max-w-xs sm:max-w-sm md:max-w-md hover:opacity-80 transition-opacity">
           <div>
