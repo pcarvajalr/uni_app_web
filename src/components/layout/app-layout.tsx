@@ -29,7 +29,12 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="pb-20 px-2 py-6">{children}</main>
+      <main
+        className="pb-20 px-2 py-6"
+        style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+      >
+        {children}
+      </main>
       <MobileNav />
     </div>
   )

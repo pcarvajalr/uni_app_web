@@ -35,7 +35,10 @@ export function MobileNav() {
   const pathname = location.pathname
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
+    <nav
+      className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
       <div className="flex items-center justify-around py-2 px-2">
         {mainNavItems.map((item) => {
           const Icon = item.icon
