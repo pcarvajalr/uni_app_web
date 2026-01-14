@@ -9,7 +9,10 @@ import { useState } from "react"
 import { ProductFavoriteButton } from "@/components/marketplace/product-favorite-button"
 import { ProductOwnerActions } from "@/components/marketplace/product-owner-actions"
 import { EditProductDialog } from "@/components/marketplace/edit-product-dialog"
+import { PublicProfileDialog } from "@/components/marketplace/public-profile-dialog"
+import { MarketplaceChatDialog } from "@/components/marketplace/marketplace-chat-dialog"
 import { useFavorites } from "@/contexts/favorites-context"
+import { useAuth } from "@/lib/auth"
 import { type ProductWithSeller } from "@/services/products.service"
 
 interface ProductDetailsDialogProps {
@@ -20,9 +23,14 @@ interface ProductDetailsDialogProps {
 }
 
 export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpdated }: ProductDetailsDialogProps) {
+  const { user } = useAuth()
   const { getProductFavoritesCount } = useFavorites()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false)
+  const [isChatDialogOpen, setIsChatDialogOpen] = useState(false)
+
+  const isOwnProduct = user?.id === product?.seller_id
 
   if (!product) return null
 
@@ -192,7 +200,12 @@ export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpd
                 </div>
                 <p className="text-sm text-muted-foreground truncate">{product.seller_id}</p>
               </div>
-              <Button variant="outline" size="sm" className="w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+                onClick={() => setIsProfileDialogOpen(true)}
+              >
                 Ver Perfil
               </Button>
             </div>
@@ -200,7 +213,11 @@ export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpd
 
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <Button className="flex-1">
+            <Button
+              className="flex-1"
+              onClick={() => setIsChatDialogOpen(true)}
+              disabled={isOwnProduct}
+            >
               <MessageCircle className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Contactar Vendedor</span>
               <span className="sm:hidden">Contactar</span>
@@ -232,6 +249,20 @@ export function ProductDetailsDialog({ product, open, onOpenChange, onProductUpd
           onProductUpdated?.()
           setIsEditDialogOpen(false)
         }}
+      />
+
+      {/* Public Profile Dialog */}
+      <PublicProfileDialog
+        userId={product.seller_id}
+        open={isProfileDialogOpen}
+        onOpenChange={setIsProfileDialogOpen}
+      />
+
+      {/* Marketplace Chat Dialog */}
+      <MarketplaceChatDialog
+        product={product}
+        open={isChatDialogOpen}
+        onOpenChange={setIsChatDialogOpen}
       />
     </Dialog>
   )

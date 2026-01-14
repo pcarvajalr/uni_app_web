@@ -879,6 +879,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          is_profile_public: boolean | null
           is_tutor: boolean | null
           is_verified: boolean | null
           phone: string | null
@@ -899,6 +900,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          is_profile_public?: boolean | null
           is_tutor?: boolean | null
           is_verified?: boolean | null
           phone?: string | null
@@ -919,6 +921,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          is_profile_public?: boolean | null
           is_tutor?: boolean | null
           is_verified?: boolean | null
           phone?: string | null

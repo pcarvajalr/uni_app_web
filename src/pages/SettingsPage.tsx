@@ -38,6 +38,7 @@ import {
   getUserFavoriteLocations,
   toggleLocationFavorite,
 } from "@/services/location-favorites.service"
+import { usePrivacySetting, useUpdatePrivacySetting } from "@/hooks/useUserProfile"
 import {
   getAllCoupons,
   createCoupon,
@@ -127,11 +128,47 @@ export default function SettingsPage() {
   const [editingLocation, setEditingLocation] = useState<CampusLocation | null>(null)
   const [mapImageUrl, setMapImageUrl] = useState("/university-campus-map-layout-with-buildings-and-pa.jpg")
 
+  // Privacy settings with server persistence
+  const { data: serverPrivacySetting, isLoading: isLoadingPrivacy } = usePrivacySetting(user?.id || "", !!user?.id)
+  const updatePrivacy = useUpdatePrivacySetting()
+
   const [privacy, setPrivacy] = useState({
     profileVisible: true,
     showContact: false,
     showCareer: true,
   })
+
+  // Sync privacy state with server data
+  useEffect(() => {
+    if (serverPrivacySetting !== undefined) {
+      setPrivacy(prev => ({
+        ...prev,
+        profileVisible: serverPrivacySetting,
+      }))
+    }
+  }, [serverPrivacySetting])
+
+  // Handler to update profile visibility and persist to server
+  const handleProfileVisibleChange = async (checked: boolean) => {
+    setPrivacy(prev => ({ ...prev, profileVisible: checked }))
+    if (user?.id) {
+      try {
+        await updatePrivacy.mutateAsync({ userId: user.id, isPublic: checked })
+        toast({
+          title: "Configuracion guardada",
+          description: "Tu configuracion de privacidad ha sido actualizada",
+        })
+      } catch {
+        // Revert on error
+        setPrivacy(prev => ({ ...prev, profileVisible: !checked }))
+        toast({
+          title: "Error",
+          description: "No se pudo actualizar la configuracion",
+          variant: "destructive",
+        })
+      }
+    }
+  }
 
   const [appSettings, setAppSettings] = useState({
     darkMode: false,
@@ -1964,7 +2001,8 @@ export default function SettingsPage() {
               <Switch
                 id="profile-visible"
                 checked={privacy.profileVisible}
-                onCheckedChange={(checked) => setPrivacy({ ...privacy, profileVisible: checked })}
+                onCheckedChange={handleProfileVisibleChange}
+                disabled={isLoadingPrivacy || updatePrivacy.isPending}
               />
             </div>
             <Separator />
