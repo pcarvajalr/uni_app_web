@@ -13,6 +13,14 @@ export interface PublicUserProfile {
   total_sales: number | null
   bio: string | null
   is_profile_public: boolean
+  show_contact_info: boolean
+  phone: string | null
+  email: string | null
+}
+
+export interface PrivacySettings {
+  is_profile_public: boolean
+  show_contact_info: boolean
 }
 
 /**
@@ -20,17 +28,10 @@ export interface PublicUserProfile {
  * Returns null if the user has their profile set to private
  */
 export async function getPublicProfile(userId: string): Promise<PublicUserProfile | null> {
+  // Use type assertion to allow show_contact_info field (may not be in generated types yet)
   const { data, error } = await supabase
     .from('users')
-    .select(`
-      id,
-      full_name,
-      avatar_url,
-      rating,
-      total_sales,
-      bio,
-      is_profile_public
-    `)
+    .select('id, full_name, avatar_url, rating, total_sales, bio, is_profile_public, show_contact_info, phone, email')
     .eq('id', userId)
     .single()
 
@@ -43,21 +44,28 @@ export async function getPublicProfile(userId: string): Promise<PublicUserProfil
     return null
   }
 
-  // Return profile data with visibility flag
-  // The UI will decide how to handle private profiles
+  // Cast to any to access show_contact_info which may not be in types yet
+  const userData = data as any
+  const showContact = userData.show_contact_info ?? false
+
+  // Return profile data with visibility flags
+  // Only include contact info if show_contact_info is true
   return {
-    id: data.id,
-    full_name: data.full_name,
-    avatar_url: data.avatar_url,
-    rating: data.rating,
-    total_sales: data.total_sales,
-    bio: data.bio,
-    is_profile_public: data.is_profile_public ?? true, // Default to public if null
+    id: userData.id,
+    full_name: userData.full_name,
+    avatar_url: userData.avatar_url,
+    rating: userData.rating,
+    total_sales: userData.total_sales,
+    bio: userData.bio,
+    is_profile_public: userData.is_profile_public ?? true,
+    show_contact_info: showContact,
+    phone: showContact ? userData.phone : null,
+    email: showContact ? userData.email : null,
   }
 }
 
 /**
- * Update privacy setting for a user
+ * Update privacy setting for a user (profile visibility)
  */
 export async function updatePrivacySetting(userId: string, isPublic: boolean): Promise<void> {
   const { error } = await supabase
@@ -72,7 +80,29 @@ export async function updatePrivacySetting(userId: string, isPublic: boolean): P
 }
 
 /**
- * Get current privacy setting for a user
+ * Update contact info visibility setting for a user
+ * Note: Requires 'show_contact_info' column in users table
+ * Run: ALTER TABLE users ADD COLUMN show_contact_info BOOLEAN DEFAULT false;
+ */
+export async function updateShowContactSetting(userId: string, showContact: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({ show_contact_info: showContact } as any)
+    .eq('id', userId)
+
+  if (error) {
+    // If column doesn't exist, fail silently (column not yet added to DB)
+    if (error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('show_contact_info')) {
+      console.warn('Column show_contact_info does not exist in users table. Run: ALTER TABLE users ADD COLUMN show_contact_info BOOLEAN DEFAULT false;')
+      return
+    }
+    console.error('Error updating show contact setting:', error)
+    throw new Error("No se pudo actualizar la configuración de contacto")
+  }
+}
+
+/**
+ * Get current privacy setting for a user (profile visibility)
  */
 export async function getPrivacySetting(userId: string): Promise<boolean> {
   const { data, error } = await supabase
@@ -87,4 +117,28 @@ export async function getPrivacySetting(userId: string): Promise<boolean> {
   }
 
   return data?.is_profile_public ?? true // Default to public if null
+}
+
+/**
+ * Get all privacy settings for a user
+ */
+export async function getPrivacySettings(userId: string): Promise<PrivacySettings> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('is_profile_public, show_contact_info')
+    .eq('id', userId)
+    .single()
+
+  if (error) {
+    console.error('Error fetching privacy settings:', error)
+    throw new Error("No se pudo cargar la configuración de privacidad")
+  }
+
+  // Cast to any to access show_contact_info which may not be in types yet
+  const userData = data as any
+
+  return {
+    is_profile_public: userData?.is_profile_public ?? true,
+    show_contact_info: userData?.show_contact_info ?? false,
+  }
 }

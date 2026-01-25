@@ -103,7 +103,7 @@ export default function DashboardPage() {
   // Calcular métricas
   const activeReports = reports.filter(r => r.status === 'activo' || r.status === 'investigando').length
   const availableTutoring = tutoringSessions?.length ?? 0
-  const uniqueSubjects = new Set(tutoringSessions?.map(s => s.subject_id)).size
+  const uniqueSubjects = new Set(tutoringSessions?.map(s => s.subject)).size
 
   const quickActions = [
     {

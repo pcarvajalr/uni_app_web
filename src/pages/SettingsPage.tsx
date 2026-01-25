@@ -38,7 +38,7 @@ import {
   getUserFavoriteLocations,
   toggleLocationFavorite,
 } from "@/services/location-favorites.service"
-import { usePrivacySetting, useUpdatePrivacySetting } from "@/hooks/useUserProfile"
+import { usePrivacySettings, useUpdatePrivacySetting, useUpdateShowContactSetting } from "@/hooks/useUserProfile"
 import {
   getAllCoupons,
   createCoupon,
@@ -129,24 +129,24 @@ export default function SettingsPage() {
   const [mapImageUrl, setMapImageUrl] = useState("/university-campus-map-layout-with-buildings-and-pa.jpg")
 
   // Privacy settings with server persistence
-  const { data: serverPrivacySetting, isLoading: isLoadingPrivacy } = usePrivacySetting(user?.id || "", !!user?.id)
+  const { data: serverPrivacySettings, isLoading: isLoadingPrivacy } = usePrivacySettings(user?.id || "", !!user?.id)
   const updatePrivacy = useUpdatePrivacySetting()
+  const updateShowContact = useUpdateShowContactSetting()
 
   const [privacy, setPrivacy] = useState({
     profileVisible: true,
     showContact: false,
-    showCareer: true,
   })
 
   // Sync privacy state with server data
   useEffect(() => {
-    if (serverPrivacySetting !== undefined) {
-      setPrivacy(prev => ({
-        ...prev,
-        profileVisible: serverPrivacySetting,
-      }))
+    if (serverPrivacySettings) {
+      setPrivacy({
+        profileVisible: serverPrivacySettings.is_profile_public,
+        showContact: serverPrivacySettings.show_contact_info,
+      })
     }
-  }, [serverPrivacySetting])
+  }, [serverPrivacySettings])
 
   // Handler to update profile visibility and persist to server
   const handleProfileVisibleChange = async (checked: boolean) => {
@@ -155,15 +155,37 @@ export default function SettingsPage() {
       try {
         await updatePrivacy.mutateAsync({ userId: user.id, isPublic: checked })
         toast({
-          title: "Configuracion guardada",
-          description: "Tu configuracion de privacidad ha sido actualizada",
+          title: "Configuración guardada",
+          description: "Tu configuración de privacidad ha sido actualizada",
         })
       } catch {
         // Revert on error
         setPrivacy(prev => ({ ...prev, profileVisible: !checked }))
         toast({
           title: "Error",
-          description: "No se pudo actualizar la configuracion",
+          description: "No se pudo actualizar la configuración",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  // Handler to update show contact setting and persist to server
+  const handleShowContactChange = async (checked: boolean) => {
+    setPrivacy(prev => ({ ...prev, showContact: checked }))
+    if (user?.id) {
+      try {
+        await updateShowContact.mutateAsync({ userId: user.id, showContact: checked })
+        toast({
+          title: "Configuración actualizada",
+          description: "Tu preferencia de contacto ha sido guardada",
+        })
+      } catch {
+        // Revert on error
+        setPrivacy(prev => ({ ...prev, showContact: !checked }))
+        toast({
+          title: "Error",
+          description: "No se pudo actualizar la configuración",
           variant: "destructive",
         })
       }
@@ -2014,19 +2036,8 @@ export default function SettingsPage() {
               <Switch
                 id="show-contact"
                 checked={privacy.showContact}
-                onCheckedChange={(checked) => setPrivacy({ ...privacy, showContact: checked })}
-              />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="show-career">Mostrar carrera</Label>
-                <p className="text-sm text-muted-foreground">Permite que otros vean tu carrera y semestre</p>
-              </div>
-              <Switch
-                id="show-career"
-                checked={privacy.showCareer}
-                onCheckedChange={(checked) => setPrivacy({ ...privacy, showCareer: checked })}
+                onCheckedChange={handleShowContactChange}
+                disabled={isLoadingPrivacy || updateShowContact.isPending}
               />
             </div>
           </CardContent>

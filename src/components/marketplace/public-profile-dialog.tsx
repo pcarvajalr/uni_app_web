@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Star, ShoppingBag, Lock } from "lucide-react"
+import { Star, ShoppingBag, Lock, Phone, Mail } from "lucide-react"
 import { usePublicProfile } from "@/hooks/useUserProfile"
 
 interface PublicProfileDialogProps {
@@ -104,6 +104,29 @@ export function PublicProfileDialog({ userId, open, onOpenChange }: PublicProfil
                     <span className="text-xs text-muted-foreground">Ventas</span>
                   </div>
                 </div>
+
+                {/* Contact Info - Only shown if user enabled it */}
+                {profile.show_contact_info && (profile.phone || profile.email) && (
+                  <div className="w-full space-y-2 pt-2 border-t">
+                    <p className="text-xs text-muted-foreground text-center mb-3">Información de contacto</p>
+                    {profile.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <a href={`tel:${profile.phone}`} className="text-primary hover:underline">
+                          {profile.phone}
+                        </a>
+                      </div>
+                    )}
+                    {profile.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <a href={`mailto:${profile.email}`} className="text-primary hover:underline">
+                          {profile.email}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </>

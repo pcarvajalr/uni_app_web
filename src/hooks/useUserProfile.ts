@@ -7,7 +7,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   getPublicProfile,
   updatePrivacySetting,
+  updateShowContactSetting,
   getPrivacySetting,
+  getPrivacySettings,
+  type PrivacySettings,
 } from "@/services/user-profile.service"
 
 // Query keys
@@ -44,7 +47,7 @@ export function usePrivacySetting(userId: string, enabled = true) {
 }
 
 /**
- * Mutation hook to update privacy setting
+ * Mutation hook to update privacy setting (profile visibility)
  */
 export function useUpdatePrivacySetting() {
   const queryClient = useQueryClient()
@@ -58,6 +61,40 @@ export function useUpdatePrivacySetting() {
         queryKey: userProfileKeys.privacySetting(variables.userId),
       })
       // Also invalidate public profile since visibility changed
+      queryClient.invalidateQueries({
+        queryKey: userProfileKeys.publicProfile(variables.userId),
+      })
+    },
+  })
+}
+
+/**
+ * Hook to get all privacy settings for a user
+ */
+export function usePrivacySettings(userId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...userProfileKeys.privacySetting(userId), 'all'],
+    queryFn: () => getPrivacySettings(userId),
+    enabled: enabled && !!userId,
+    staleTime: 60000,
+  })
+}
+
+/**
+ * Mutation hook to update show contact setting
+ */
+export function useUpdateShowContactSetting() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ userId, showContact }: { userId: string; showContact: boolean }) =>
+      updateShowContactSetting(userId, showContact),
+    onSuccess: (_, variables) => {
+      // Invalidate privacy settings queries
+      queryClient.invalidateQueries({
+        queryKey: userProfileKeys.privacySetting(variables.userId),
+      })
+      // Also invalidate public profile
       queryClient.invalidateQueries({
         queryKey: userProfileKeys.publicProfile(variables.userId),
       })
