@@ -32,7 +32,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   session: Session | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<{
+  register: (name: string, email: string, password: string, studentId?: string, university?: string) => Promise<{
     success: boolean;
     message: string;
     needsEmailVerification: boolean;
@@ -243,7 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string, studentId?: string, university?: string) => {
     setIsLoading(true);
 
     try {
@@ -253,6 +253,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: {
           data: {
             full_name: name,
+            student_id: studentId || null,
+            campus: university || null,
           },
           // Configurar URL de redirección después de confirmar email
           // Usar URL de producción en lugar de window.location.origin para apps móviles
