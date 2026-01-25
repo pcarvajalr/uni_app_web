@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useAuth } from "@/lib/auth"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { LogOut, Settings, User, Bell, HelpCircle, Home } from "lucide-react"
+import { LogOut, Settings, User, Bell, HelpCircle } from "lucide-react"
+import AppIcon from "@/assets/AppIcon_Principal.png"
 import { Link } from "react-router-dom"
 import { useState } from "react"
 
@@ -26,10 +27,25 @@ export function Header() {
       <div className="flex h-16 items-center justify-between px-4">
         <Link to="/dashboard" className="flex items-center overflow-hidden max-w-xs sm:max-w-sm md:max-w-md hover:opacity-80 transition-opacity">
           <div>
-            <div className="flex">
-              <Home className="h-5 w-5 text-primary flex-shrink-0 mr-1" style={{marginTop: "3px"}}/>
+            <div className="flex items-center">
+              <img
+                src={AppIcon}
+                alt="BLE"
+                className="h-7 w-7 flex-shrink-0 mr-2 rounded-md"
+              />
               <div className="min-w-0">
-                <h1 className="text-xl font-bold text-primary whitespace-nowrap">UniApp</h1>
+                <h1
+                  className="text-xl font-extrabold whitespace-nowrap tracking-wide"
+                  style={{
+                    background: "linear-gradient(135deg, #2E4A7D 0%, #4A6FA5 50%, #6B8FBF 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                    letterSpacing: "0.15em"
+                  }}
+                >
+                  BLE
+                </h1>
               </div>
             </div>
             <p className="text-sm text-muted-foreground truncate">{user.email}</p>

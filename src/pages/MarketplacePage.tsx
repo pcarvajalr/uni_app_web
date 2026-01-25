@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Plus, Search, Heart, Star, X, Loader2 } from "lucide-react"
+import AppIcon from "@/assets/AppIcon_Principal.png"
 import { useState, useEffect } from "react"
 import { CreateProductDialog } from "@/components/marketplace/create-product-dialog"
 import { ProductDetailsDialog } from "@/components/marketplace/product-details-dialog"
@@ -325,11 +326,16 @@ export default function MarketplacePage() {
                 className="cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => setSelectedProduct(product)}
               >
-                <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
+                <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden relative">
                   <img
                     src={(product.images && product.images[0]) || "/placeholder.svg"}
                     alt={product.title}
                     className="w-full h-full object-cover"
+                  />
+                  <img
+                    src={AppIcon}
+                    alt="BLE"
+                    className="absolute top-2 left-2 h-8 w-8 rounded-md opacity-70 shadow-sm"
                   />
                 </div>
                 <CardContent className="p-4">

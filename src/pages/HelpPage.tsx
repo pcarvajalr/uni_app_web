@@ -50,7 +50,7 @@ export default function HelpPage() {
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: "UniApp - Guía Completa de Funcionalidades",
+                      text: "Guía Completa de Funcionalidades",
                       bold: true,
                       size: 32,
                       color: "DC2626",
@@ -634,7 +634,7 @@ export default function HelpPage() {
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: "UniApp - Aplicación móvil universitaria",
+                      text: "Aplicación móvil universitaria",
                       italics: true,
                       size: 18,
                     }),
@@ -834,7 +834,7 @@ export default function HelpPage() {
       <div className="space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-balance">Centro de Ayuda</h1>
-          <p className="text-muted-foreground text-lg">Descubre todas las funcionalidades de UniApp</p>
+          <p className="text-muted-foreground text-lg">Descubre todas las funcionalidades</p>
           {/* <div className="pt-4">
             <Button onClick={downloadWord} className="gap-2">
               <FileText className="h-4 w-4" />
