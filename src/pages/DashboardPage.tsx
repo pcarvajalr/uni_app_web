@@ -2,11 +2,108 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth"
-import { MapPin, AlertTriangle, ShoppingBag, GraduationCap, TrendingUp, Users, Clock } from "lucide-react"
+import { MapPin, AlertTriangle, ShoppingBag, GraduationCap, TrendingUp, Users, Clock, Loader2 } from "lucide-react"
 import { Link } from "react-router-dom"
+import { useReports } from "@/hooks/useReports"
+import { useTutoringSessions } from "@/hooks/useTutoringSessions"
+import { getProducts, type ProductWithSeller } from "@/services/products.service"
+import { useState, useEffect, useMemo } from "react"
 
 export default function DashboardPage() {
   const { user } = useAuth()
+
+  // Datos dinámicos
+  const { reports, loading: reportsLoading } = useReports()
+  const { data: tutoringSessions, isLoading: tutoringLoading } = useTutoringSessions()
+  const [products, setProducts] = useState<ProductWithSeller[]>([])
+  const [productsLoading, setProductsLoading] = useState(true)
+
+  // Cargar productos
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const data = await getProducts({ status: 'available' })
+        setProducts(data)
+      } catch (error) {
+        console.error('Error cargando productos:', error)
+      } finally {
+        setProductsLoading(false)
+      }
+    }
+    loadProducts()
+  }, [])
+
+  // Generar actividad reciente combinando todas las fuentes
+  const recentActivity = useMemo(() => {
+    type ActivityItem = {
+      id: string
+      type: 'report' | 'product' | 'tutoring'
+      title: string
+      date: Date
+      color: string
+    }
+
+    const activities: ActivityItem[] = []
+
+    // Agregar reportes recientes
+    reports.slice(0, 5).forEach(report => {
+      activities.push({
+        id: `report-${report.id}`,
+        type: 'report',
+        title: `Reporte: ${report.title}`,
+        date: new Date(report.createdAt),
+        color: 'bg-red-500'
+      })
+    })
+
+    // Agregar productos recientes
+    products.slice(0, 5).forEach(product => {
+      activities.push({
+        id: `product-${product.id}`,
+        type: 'product',
+        title: `Producto: ${product.title}`,
+        date: new Date(product.created_at || ''),
+        color: 'bg-green-500'
+      })
+    })
+
+    // Agregar tutorías recientes
+    tutoringSessions?.slice(0, 5).forEach(session => {
+      activities.push({
+        id: `tutoring-${session.id}`,
+        type: 'tutoring',
+        title: `Tutoría: ${session.subject}`,
+        date: new Date(session.created_at || ''),
+        color: 'bg-blue-500'
+      })
+    })
+
+    // Ordenar por fecha (más reciente primero) y tomar las primeras 5
+    return activities
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 5)
+  }, [reports, products, tutoringSessions])
+
+  // Función para formatear tiempo relativo
+  const formatRelativeTime = (date: Date): string => {
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Justo ahora'
+    if (diffMins < 60) return `Hace ${diffMins} min`
+    if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`
+    if (diffDays === 1) return 'Ayer'
+    if (diffDays < 7) return `Hace ${diffDays} días`
+    return date.toLocaleDateString('es-CO')
+  }
+
+  // Calcular métricas
+  const activeReports = reports.filter(r => r.status === 'activo' || r.status === 'investigando').length
+  const availableTutoring = tutoringSessions?.length ?? 0
+  const uniqueSubjects = new Set(tutoringSessions?.map(s => s.subject_id)).size
 
   const quickActions = [
     {
@@ -39,24 +136,26 @@ export default function DashboardPage() {
     },
   ]
 
+  const isLoading = reportsLoading || tutoringLoading || productsLoading
+
   const stats = [
     {
       title: "Reportes Activos",
-      value: "12",
+      value: isLoading ? null : activeReports,
       icon: AlertTriangle,
-      trend: "+2 esta semana",
+      trend: `${reports.length} total`,
     },
     {
       title: "Productos en Venta",
-      value: "48",
+      value: isLoading ? null : products.length,
       icon: ShoppingBag,
-      trend: "+8 nuevos hoy",
+      trend: "disponibles",
     },
     {
       title: "Tutorías Disponibles",
-      value: "23",
+      value: isLoading ? null : availableTutoring,
       icon: Users,
-      trend: "5 materias",
+      trend: `${uniqueSubjects} materias`,
     },
   ]
 
@@ -79,7 +178,11 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                      <p className="text-2xl font-bold">{stat.value}</p>
+                      {stat.value === null ? (
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground my-1" />
+                      ) : (
+                        <p className="text-2xl font-bold">{stat.value}</p>
+                      )}
                       <p className="text-xs text-muted-foreground flex items-center mt-1">
                         <TrendingUp className="h-3 w-3 mr-1" />
                         {stat.trend}
@@ -128,23 +231,27 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3 text-sm">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-muted-foreground">Hace 2 horas</span>
-                <span>Nuevo producto publicado en Marketplace</span>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-              <div className="flex items-center space-x-3 text-sm">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-muted-foreground">Hace 4 horas</span>
-                <span>Tutoría de Matemáticas programada</span>
+            ) : recentActivity.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No hay actividad reciente
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-center space-x-3 text-sm">
+                    <div className={`w-2 h-2 ${activity.color} rounded-full flex-shrink-0`}></div>
+                    <span className="text-muted-foreground whitespace-nowrap">
+                      {formatRelativeTime(activity.date)}
+                    </span>
+                    <span className="truncate">{activity.title}</span>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center space-x-3 text-sm">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-muted-foreground">Ayer</span>
-                <span>Reporte de seguridad actualizado</span>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
