@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth"
-import { Bell, MapPin, Shield, Download, Trash2, Save, Plus, X, Map, Ticket, Upload, ImageIcon, Settings, Edit2, Loader2, Info, BookOpen } from 'lucide-react'
+import { MapPin, Shield, Download, Trash2, Save, Plus, X, Map, Ticket, Upload, ImageIcon, Settings, Edit2, Loader2, Info, BookOpen } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 import {
   getLocationCategories,
@@ -90,14 +90,15 @@ export default function SettingsPage() {
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // ... existing notification state ...
-  const [notifications, setNotifications] = useState({
-    reports: true,
-    marketplace: true,
-    tutoring: true,
-    security: true,
-    general: false,
-  })
+  // TODO: Implementar preferencias de notificaciones con persistencia en BD
+  // Requiere: agregar campos en tabla users o crear tabla notification_preferences
+  // const [notifications, setNotifications] = useState({
+  //   reports: true,
+  //   marketplace: true,
+  //   tutoring: true,
+  //   security: true,
+  //   general: false,
+  // })
 
   const [favoriteLocations, setFavoriteLocations] = useState<CampusLocation[]>([])
   const [isFavoriteLocationsModalOpen, setIsFavoriteLocationsModalOpen] = useState(false)
@@ -1941,7 +1942,9 @@ export default function SettingsPage() {
           </Card>
         )}
 
-        {/* Notification Settings */}
+        {/* TODO: Implementar preferencias de notificaciones con persistencia en BD
+            Requiere: agregar campos en tabla users o crear tabla notification_preferences
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -2000,6 +2003,7 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+        */}
 
         {/* Privacy Settings */}
         <Card>
