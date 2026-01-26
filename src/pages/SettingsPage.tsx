@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth"
-import { Bell, MapPin, Shield, Palette, Download, Trash2, Save, Plus, X, Map, Ticket, Upload, ImageIcon, Settings, Edit2, Loader2, Info, BookOpen } from 'lucide-react'
+import { Bell, MapPin, Shield, Download, Trash2, Save, Plus, X, Map, Ticket, Upload, ImageIcon, Settings, Edit2, Loader2, Info, BookOpen } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 import {
   getLocationCategories,
@@ -192,10 +192,6 @@ export default function SettingsPage() {
     }
   }
 
-  const [appSettings, setAppSettings] = useState({
-    darkMode: false,
-    language: "es",
-  })
 
   // Location categories state
   const [locationCategories, setLocationCategories] = useState<Category[]>([])
@@ -2043,29 +2039,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* App Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Palette className="h-5 w-5" />
-              Configuración de la App
-            </CardTitle>
-            <CardDescription>Personaliza la apariencia y comportamiento de la aplicación</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="dark-mode">Modo oscuro</Label>
-                <p className="text-sm text-muted-foreground">Activa el tema oscuro de la aplicación</p>
-              </div>
-              <Switch
-                id="dark-mode"
-                checked={appSettings.darkMode}
-                onCheckedChange={(checked) => setAppSettings({ ...appSettings, darkMode: checked })}
-              />
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Data Management */}
         <Card>
