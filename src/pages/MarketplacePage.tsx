@@ -10,13 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Search, Heart, Star, X, Loader2 } from "lucide-react"
+import { Plus, Search, Heart, Star, X, Loader2, ShoppingBag } from "lucide-react"
 import AppIcon from "@/assets/AppIcon_Principal.png"
 import { useState, useEffect } from "react"
 import { CreateProductDialog } from "@/components/marketplace/create-product-dialog"
 import { ProductDetailsDialog } from "@/components/marketplace/product-details-dialog"
 import { getProducts, getProductCategories, type ProductWithSeller } from "@/services/products.service"
 import { useToast } from "@/hooks/use-toast"
+import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/lib/auth"
 import { useFavorites } from "@/contexts/favorites-context"
 import { ProductFavoriteButton } from "@/components/marketplace/product-favorite-button"
@@ -29,6 +30,7 @@ type Category = Database['public']['Tables']['categories']['Row']
 export default function MarketplacePage() {
   const { toast } = useToast()
   const { isAuthenticated } = useAuth()
+  const navigate = useNavigate()
   const { isUserFavorite, favoritesCount, setInitialCounts, getProductFavoritesCount } = useFavorites()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -144,15 +146,19 @@ export default function MarketplacePage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Marketplace Estudiantil</h1>
-            <p className="text-muted-foreground">Compra y vende con otros estudiantes</p>
+        <div>
+          <h1 className="text-2xl font-bold">Marketplace Estudiantil</h1>
+          <p className="text-muted-foreground">Compra y vende con otros estudiantes</p>
+          <div className="flex gap-2 mt-3">
+            <Button className="w-1/2" onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Vender
+            </Button>
+            <Button className="w-1/2" variant="outline" onClick={() => navigate("/marketplace/my-sales")}>
+              <ShoppingBag className="h-4 w-4 mr-2" />
+              Mis Ventas
+            </Button>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Vender
-          </Button>
         </div>
 
         {/* Search and Filter */}
