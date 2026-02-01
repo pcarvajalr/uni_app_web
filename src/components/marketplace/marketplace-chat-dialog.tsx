@@ -25,9 +25,13 @@ interface MarketplaceChatDialogProps {
   product: ProductWithSeller | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** When provided, chat with this user instead of the product seller (used by seller to reply to buyers) */
+  participantId?: string
+  participantName?: string
+  participantAvatar?: string | null
 }
 
-export function MarketplaceChatDialog({ product, open, onOpenChange }: MarketplaceChatDialogProps) {
+export function MarketplaceChatDialog({ product, open, onOpenChange, participantId, participantName, participantAvatar }: MarketplaceChatDialogProps) {
   const { user } = useAuth()
   const { toast } = useToast()
   const [message, setMessage] = useState("")
@@ -35,8 +39,8 @@ export function MarketplaceChatDialog({ product, open, onOpenChange }: Marketpla
   const inputRef = useRef<HTMLInputElement>(null)
 
   const currentUserId = user?.id || ""
-  const sellerId = product?.seller_id || ""
-  const canChat = !!currentUserId && !!sellerId && currentUserId !== sellerId
+  const otherUserId = participantId || product?.seller_id || ""
+  const canChat = !!currentUserId && !!otherUserId && currentUserId !== otherUserId
 
   const {
     data: messages,
@@ -45,7 +49,7 @@ export function MarketplaceChatDialog({ product, open, onOpenChange }: Marketpla
   } = useMarketplaceMessages({
     product_id: product?.id || "",
     user_id: currentUserId,
-    other_user_id: sellerId,
+    other_user_id: otherUserId,
     enabled: canChat && open,
     refetchInterval: 5000, // Poll every 5 seconds
   })
@@ -60,7 +64,7 @@ export function MarketplaceChatDialog({ product, open, onOpenChange }: Marketpla
 
   // Mark messages as read when viewing
   useEffect(() => {
-    if (messages && messages.length > 0 && currentUserId && sellerId && product) {
+    if (messages && messages.length > 0 && currentUserId && otherUserId && product) {
       const hasUnread = messages.some(
         (msg) => msg.recipient_id === currentUserId && !msg.is_read
       )
@@ -68,20 +72,21 @@ export function MarketplaceChatDialog({ product, open, onOpenChange }: Marketpla
         markAsRead.mutate({
           product_id: product.id,
           recipient_id: currentUserId,
-          sender_id: sellerId,
+          sender_id: otherUserId,
         })
       }
     }
-  }, [messages, product, currentUserId, sellerId, markAsRead])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, product?.id, currentUserId, otherUserId])
 
   const handleSend = async () => {
-    if (!message.trim() || !currentUserId || !sellerId || !product) return
+    if (!message.trim() || !currentUserId || !otherUserId || !product) return
 
     try {
       await sendMessage.mutateAsync({
         product_id: product.id,
         sender_id: currentUserId,
-        recipient_id: sellerId,
+        recipient_id: otherUserId,
         content: message.trim(),
       })
       setMessage("")
@@ -125,9 +130,9 @@ export function MarketplaceChatDialog({ product, open, onOpenChange }: Marketpla
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] h-[600px] flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>Contactar Vendedor</DialogTitle>
+          <DialogTitle>{participantId ? "Chat con Comprador" : "Contactar Vendedor"}</DialogTitle>
           <DialogDescription>
-            Enviar mensaje sobre este producto
+            {participantId ? `Conversación sobre ${product.title}` : "Enviar mensaje sobre este producto"}
           </DialogDescription>
         </DialogHeader>
 
@@ -146,15 +151,17 @@ export function MarketplaceChatDialog({ product, open, onOpenChange }: Marketpla
           </div>
         </div>
 
-        {/* Seller Info */}
+        {/* Other User Info */}
         <div className="flex items-center gap-2 py-2 flex-shrink-0">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={product.seller.avatar_url || undefined} />
+            <AvatarImage src={(participantId ? participantAvatar : product.seller.avatar_url) || undefined} />
             <AvatarFallback className="text-xs">
-              {getInitials(product.seller.full_name)}
+              {getInitials(participantId ? (participantName || "Usuario") : product.seller.full_name)}
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium">{product.seller.full_name}</span>
+          <span className="text-sm font-medium">
+            {participantId ? (participantName || "Usuario") : product.seller.full_name}
+          </span>
         </div>
 
         {/* Messages Area */}
@@ -191,8 +198,8 @@ export function MarketplaceChatDialog({ product, open, onOpenChange }: Marketpla
                       key={msg.id}
                       message={msg}
                       isOwn={msg.sender_id === currentUserId}
-                      sellerName={product.seller.full_name}
-                      sellerAvatar={product.seller.avatar_url}
+                      sellerName={participantId ? (participantName || "Usuario") : product.seller.full_name}
+                      sellerAvatar={participantId ? participantAvatar : product.seller.avatar_url}
                     />
                   ))}
                   <div ref={messagesEndRef} />

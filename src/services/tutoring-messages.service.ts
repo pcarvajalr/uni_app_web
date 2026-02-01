@@ -34,7 +34,7 @@ export interface ConversationGroup {
  * T045: Send a message for a tutoring session
  */
 export async function sendTutoringMessage(params: {
-  tutoring_session_id: string
+  tutoring_session_id?: string | null
   sender_id: string
   recipient_id: string
   content: string
@@ -55,7 +55,7 @@ export async function sendTutoringMessage(params: {
   const { data, error } = await supabase
     .from('messages')
     .insert({
-      tutoring_session_id,
+      tutoring_session_id: tutoring_session_id || null,
       sender_id,
       recipient_id,
       content: content.trim(),
@@ -95,6 +95,7 @@ export async function getTutoringMessages(params: {
         avatar_url
       )
     `)
+    .is('product_id', null)
     .or(`and(sender_id.eq.${user_id},recipient_id.eq.${other_user_id}),and(sender_id.eq.${other_user_id},recipient_id.eq.${user_id})`)
 
   // Solo filtrar por sesión si se proporciona
@@ -214,7 +215,7 @@ export async function getTutoringMessagesGroupedByStudent(params: {
  * Get all conversations for a user (across all tutoring sessions)
  */
 export async function getAllUserConversations(user_id: string): Promise<ConversationGroup[]> {
-  // Get all messages where user is involved
+  // Get all messages where user is involved (exclude marketplace messages)
   const { data: messages, error } = await supabase
     .from('messages')
     .select(`
@@ -234,7 +235,7 @@ export async function getAllUserConversations(user_id: string): Promise<Conversa
         title
       )
     `)
-    .not('tutoring_session_id', 'is', null)
+    .is('product_id', null)
     .or(`sender_id.eq.${user_id},recipient_id.eq.${user_id}`)
     .order('created_at', { ascending: false })
 
@@ -243,7 +244,7 @@ export async function getAllUserConversations(user_id: string): Promise<Conversa
     throw new Error("No se pudieron cargar las conversaciones")
   }
 
-  // Group by session + other participant
+  // Group by session + other participant (unique conversation per session per user)
   const conversationsMap = new Map<string, {
     participant: { id: string; full_name: string | null; avatar_url: string | null }
     lastMessage: any
@@ -258,17 +259,16 @@ export async function getAllUserConversations(user_id: string): Promise<Conversa
     const otherInfo = isFromUser ? msg.recipient : msg.sender
     const sessionInfo = msg.session as { id: string; title: string } | null
 
-    if (!sessionInfo) continue
-
-    const key = `${sessionInfo.id}-${otherId}`
+    const sessionId = sessionInfo?.id || 'direct'
+    const key = `${sessionId}-${otherId}`
 
     if (!conversationsMap.has(key)) {
       conversationsMap.set(key, {
         participant: otherInfo as { id: string; full_name: string | null; avatar_url: string | null },
         lastMessage: msg,
         unreadCount: 0,
-        sessionId: sessionInfo.id,
-        sessionTitle: sessionInfo.title,
+        sessionId: sessionInfo?.id || '',
+        sessionTitle: sessionInfo?.title || 'Mensaje directo',
       })
     }
 
@@ -309,6 +309,7 @@ export async function markMessagesAsRead(params: {
     .eq('sender_id', sender_id)
     .eq('recipient_id', recipient_id)
     .eq('is_read', false)
+    .is('product_id', null)
 
   // Solo filtrar por sesión si se proporciona
   if (tutoring_session_id) {
@@ -332,7 +333,7 @@ export async function getUnreadMessageCount(user_id: string): Promise<number> {
     .select('*', { count: 'exact', head: true })
     .eq('recipient_id', user_id)
     .eq('is_read', false)
-    .not('tutoring_session_id', 'is', null)
+    .is('product_id', null)
 
   if (error) {
     console.error('Error counting unread messages:', error)

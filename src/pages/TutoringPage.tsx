@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Plus, Search, Filter, BookOpen, X, Heart } from "lucide-react"
+import { Plus, Search, Filter, BookOpen, X, Heart, MessageSquare } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { CreateTutoringDialog } from "@/components/tutoring/create-tutoring-dialog"
@@ -13,6 +13,7 @@ import { TutoringDetailsDialog } from "@/components/tutoring/tutoring-details-di
 import { TutoringCard } from "@/components/tutoring/tutoring-card"
 import { getTutoringSubjects } from "@/services/tutoring-subjects.service"
 import { useTutoringSessions, useToggleTutoringFavorite } from "@/hooks/useTutoringSessions"
+import { useUnreadMessageCount } from "@/hooks/useTutoringMessages"
 import { useAuth } from "@/lib/auth"
 import type { TutoringFilters, TutoringSessionWithTutor, DayOfWeek, SessionMode } from "@/types/tutoring.types"
 import { DAY_LABELS } from "@/types/tutoring.types"
@@ -23,6 +24,7 @@ type Category = Database['public']['Tables']['categories']['Row']
 export default function TutoringPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { data: unreadCount } = useUnreadMessageCount(user?.id || '')
   const [searchQuery, setSearchQuery] = useState("")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [selectedSession, setSelectedSession] = useState<TutoringSessionWithTutor | null>(null)
@@ -121,6 +123,9 @@ export default function TutoringPage() {
             <Button onClick={() => navigate('/tutoring/my-sessions')} className="flex-1">
               <BookOpen className="h-4 w-4 mr-2" />
               Mis tutorias
+              {(unreadCount ?? 0) > 0 && (
+                <MessageSquare className="h-4 w-4 ml-2 animate-pulse text-orange-500" />
+              )}
             </Button>
             <Button onClick={() => setShowCreateDialog(true)} className="flex-1">
               <Plus className="h-4 w-4 mr-2" />

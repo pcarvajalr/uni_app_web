@@ -289,12 +289,10 @@ export default function ReportsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Reportes de Seguridad</h1>
-            <p className="text-muted-foreground">Mantén seguro nuestro campus</p>
-          </div>
-          <Button onClick={() => setShowCreateDialog(true)}>
+        <div>
+          <h1 className="text-2xl font-bold">Reportes de Seguridad</h1>
+          <p className="text-muted-foreground">Mantén seguro nuestro campus</p>
+          <Button className="w-full mt-3" onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Reporte
           </Button>
