@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,9 @@ import {
   AlertCircle,
   Edit,
   Pause,
+  GraduationCap,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
@@ -46,7 +49,8 @@ import {
 } from "@/hooks/useTutoringSessions"
 import { CreateTutoringDialog } from "@/components/tutoring/create-tutoring-dialog"
 import { EditTutoringDialog } from "@/components/tutoring/edit-tutoring-dialog"
-import { TutoringMessages } from "@/components/tutoring/tutoring-messages"
+import { TutoringMessages, ConversationItem } from "@/components/tutoring/tutoring-messages"
+import { useUserConversations, useUnreadMessageCount } from "@/hooks/useTutoringMessages"
 import {
   BOOKING_STATUS_COLORS,
   BOOKING_STATUS_LABELS,
@@ -75,11 +79,35 @@ export default function MySessionsPage() {
   } | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [selectedSessionForEdit, setSelectedSessionForEdit] = useState<TutoringSessionWithTutor | null>(null)
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set())
 
   // Fetch data
   const { data: tutorBookings, isLoading: tutorLoading, error: tutorError, refetch: refetchTutorBookings } = useTutorBookings()
   const { data: studentBookings, isLoading: studentLoading, error: studentError, refetch: refetchStudentBookings } = useStudentBookings()
   const { data: mySessions, isLoading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useMyTutoringSessions()
+  const { data: conversations, isLoading: conversationsLoading } = useUserConversations(user?.id || '')
+  const { data: unreadCount } = useUnreadMessageCount(user?.id || '')
+
+  // Auto-expand sessions with unread messages
+  useEffect(() => {
+    if (conversations && conversations.length > 0) {
+      const sessionsWithUnread = new Set<string>()
+      for (const conv of conversations) {
+        if (conv.unreadCount > 0) {
+          sessionsWithUnread.add(conv.sessionId || 'direct')
+        }
+      }
+      if (sessionsWithUnread.size > 0) {
+        setExpandedSessions((prev) => {
+          const next = new Set(prev)
+          for (const id of sessionsWithUnread) {
+            next.add(id)
+          }
+          return next
+        })
+      }
+    }
+  }, [conversations])
 
   // Mutations
   const confirmBooking = useConfirmBooking()
@@ -242,6 +270,34 @@ export default function MySessionsPage() {
     cancelBooking.isPending || startSession.isPending ||
     completeSession.isPending || markNoShow.isPending
 
+  const toggleSessionExpanded = (sessionId: string) => {
+    setExpandedSessions((prev) => {
+      const next = new Set(prev)
+      if (next.has(sessionId)) {
+        next.delete(sessionId)
+      } else {
+        next.add(sessionId)
+      }
+      return next
+    })
+  }
+
+  // Group conversations by session
+  const conversationsBySession = (conversations || []).reduce<
+    Record<string, { sessionTitle: string; sessionId: string; conversations: typeof conversations }>
+  >((acc, conv) => {
+    const key = conv.sessionId || 'direct'
+    if (!acc[key]) {
+      acc[key] = {
+        sessionTitle: conv.sessionTitle || 'Mensaje directo',
+        sessionId: conv.sessionId,
+        conversations: [],
+      }
+    }
+    acc[key].conversations!.push(conv)
+    return acc
+  }, {})
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -254,15 +310,23 @@ export default function MySessionsPage() {
 
         {/* Tabs */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 h-auto">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
             <TabsTrigger value="student">
               Como Estudiante ({studentBookings?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="tutor">
               Como Tutor ({tutorBookings?.length || 0})
-            </TabsTrigger>            
+            </TabsTrigger>
             <TabsTrigger value="sessions">
               Mis Sesiones ({mySessions?.length || 0})
+            </TabsTrigger>
+            <TabsTrigger value="messages" className="relative">
+              Mensajes
+              {(unreadCount ?? 0) > 0 && (
+                <span className="ml-1 bg-orange-500 text-white text-xs rounded-full h-5 min-w-[20px] px-1 inline-flex items-center justify-center">
+                  {unreadCount! > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -775,6 +839,82 @@ export default function MySessionsPage() {
               </Card>
             )}
           </TabsContent>
+
+          {/* Messages Tab */}
+          <TabsContent value="messages" className="space-y-4">
+            <h3 className="font-semibold text-lg">Mis Conversaciones</h3>
+
+            {conversationsLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4">
+                    <Skeleton className="h-16 w-full" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : Object.keys(conversationsBySession).length > 0 ? (
+              Object.entries(conversationsBySession).map(([key, group]) => {
+                const isExpanded = expandedSessions.has(key)
+                const sessionUnread = group.conversations!.reduce((sum, c) => sum + c.unreadCount, 0)
+
+                return (
+                  <Card key={key}>
+                    <button
+                      className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left"
+                      onClick={() => toggleSessionExpanded(key)}
+                    >
+                      <GraduationCap className="h-5 w-5 text-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-semibold truncate block">{group.sessionTitle}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {group.conversations!.length} {group.conversations!.length === 1 ? 'conversación' : 'conversaciones'}
+                        </span>
+                      </div>
+                      {sessionUnread > 0 && (
+                        <span className="bg-orange-500 text-white text-xs rounded-full h-5 min-w-[20px] px-1 inline-flex items-center justify-center">
+                          {sessionUnread > 9 ? "9+" : sessionUnread}
+                        </span>
+                      )}
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      )}
+                    </button>
+                    {isExpanded && (
+                      <CardContent className="p-2 pt-0 border-t">
+                        {group.conversations!.map((conv) => (
+                          <ConversationItem
+                            key={`${conv.sessionId}-${conv.participant.id}`}
+                            participant={conv.participant}
+                            lastMessage={conv.lastMessage.content || ''}
+                            lastMessageDate={conv.lastMessage.created_at}
+                            unreadCount={conv.unreadCount}
+                            onClick={() => {
+                              setSelectedStudent({
+                                id: conv.participant.id,
+                                name: conv.participant.full_name || "Usuario",
+                                avatar: conv.participant.avatar_url,
+                                sessionId: conv.sessionId,
+                              })
+                              setShowMessagesDialog(true)
+                            }}
+                          />
+                        ))}
+                      </CardContent>
+                    )}
+                  </Card>
+                )
+              })
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No tienes conversaciones aún</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -855,9 +995,9 @@ export default function MySessionsPage() {
           </DialogHeader>
           {selectedStudent && user && (
             <TutoringMessages
-              sessionId={selectedStudent.sessionId}
+              sessionId={selectedStudent.sessionId || undefined}
               studentId={selectedStudent.id}
-              tutorId={selectedTab === "tutor" ? user.id : selectedStudent.id}
+              tutorId={selectedTab === "tutor" || selectedTab === "messages" ? user.id : selectedStudent.id}
               tutorName={selectedStudent.name}
               tutorAvatar={selectedStudent.avatar}
               className="flex-1"

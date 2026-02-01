@@ -10,13 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Search, Heart, Star, X, Loader2, ShoppingBag } from "lucide-react"
+import { Plus, Search, Heart, Star, X, Loader2, ShoppingBag, MessageSquare } from "lucide-react"
 import AppIcon from "@/assets/AppIcon_Principal.png"
 import { useState, useEffect } from "react"
 import { CreateProductDialog } from "@/components/marketplace/create-product-dialog"
 import { ProductDetailsDialog } from "@/components/marketplace/product-details-dialog"
 import { getProducts, getProductCategories, type ProductWithSeller } from "@/services/products.service"
 import { useToast } from "@/hooks/use-toast"
+import { useUnreadMarketplaceCount } from "@/hooks/useMarketplaceMessages"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/lib/auth"
 import { useFavorites } from "@/contexts/favorites-context"
@@ -29,8 +30,9 @@ type Category = Database['public']['Tables']['categories']['Row']
 
 export default function MarketplacePage() {
   const { toast } = useToast()
-  const { isAuthenticated } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const navigate = useNavigate()
+  const { data: unreadMarketplace } = useUnreadMarketplaceCount(user?.id || '')
   const { isUserFavorite, favoritesCount, setInitialCounts, getProductFavoritesCount } = useFavorites()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -157,6 +159,9 @@ export default function MarketplacePage() {
             <Button className="w-1/2" variant="outline" onClick={() => navigate("/marketplace/my-sales")}>
               <ShoppingBag className="h-4 w-4 mr-2" />
               Mis Ventas
+              {(unreadMarketplace ?? 0) > 0 && (
+                <MessageSquare className="h-4 w-4 ml-2 animate-pulse text-orange-500" />
+              )}
             </Button>
           </div>
         </div>

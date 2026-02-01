@@ -136,28 +136,29 @@ export function useSendTutoringMessage() {
   return useMutation({
     mutationFn: sendTutoringMessage,
     onSuccess: (data, variables) => {
-      // Invalidate conversation query
-      queryClient.invalidateQueries({
-        queryKey: messageKeys.conversation(
-          variables.tutoring_session_id,
-          variables.sender_id,
-          variables.recipient_id
-        ),
-      })
-
-      // Also invalidate the reverse conversation (for the recipient)
-      queryClient.invalidateQueries({
-        queryKey: messageKeys.conversation(
-          variables.tutoring_session_id,
-          variables.recipient_id,
-          variables.sender_id
-        ),
-      })
-
-      // Invalidate grouped messages for tutors
-      queryClient.invalidateQueries({
-        queryKey: messageKeys.grouped(variables.tutoring_session_id, variables.recipient_id),
-      })
+      // Invalidate session-specific queries only if tutoring_session_id exists
+      if (variables.tutoring_session_id) {
+        queryClient.invalidateQueries({
+          queryKey: messageKeys.conversation(
+            variables.tutoring_session_id,
+            variables.sender_id,
+            variables.recipient_id
+          ),
+        })
+        queryClient.invalidateQueries({
+          queryKey: messageKeys.conversation(
+            variables.tutoring_session_id,
+            variables.recipient_id,
+            variables.sender_id
+          ),
+        })
+        queryClient.invalidateQueries({
+          queryKey: messageKeys.grouped(variables.tutoring_session_id, variables.recipient_id),
+        })
+        queryClient.invalidateQueries({
+          queryKey: messageKeys.unreadCountSession(variables.tutoring_session_id, variables.recipient_id),
+        })
+      }
 
       // Invalidate user conversations
       queryClient.invalidateQueries({
@@ -170,9 +171,6 @@ export function useSendTutoringMessage() {
       // Invalidate unread counts
       queryClient.invalidateQueries({
         queryKey: messageKeys.unreadCount(variables.recipient_id),
-      })
-      queryClient.invalidateQueries({
-        queryKey: messageKeys.unreadCountSession(variables.tutoring_session_id, variables.recipient_id),
       })
 
       // Invalidate all-messages query (for conversations without session filter)

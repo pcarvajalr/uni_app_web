@@ -88,12 +88,11 @@ export function TutoringMessages({
   }, [messages, sessionId, currentUserId, otherUserId])
 
   const handleSend = async () => {
-    // Validar que tenemos sessionId para enviar mensajes
-    if (!message.trim() || !currentUserId || !otherUserId || !sessionId) return
+    if (!message.trim() || !currentUserId || !otherUserId) return
 
     try {
       await sendMessage.mutateAsync({
-        tutoring_session_id: sessionId,
+        tutoring_session_id: sessionId || null,
         sender_id: currentUserId,
         recipient_id: otherUserId,
         content: message.trim(),
@@ -193,17 +192,17 @@ export function TutoringMessages({
       <div className="flex gap-2 pt-4 border-t mt-4">
         <Input
           ref={inputRef}
-          placeholder={sessionId ? "Escribe tu mensaje..." : "Necesitas una sesión activa para enviar mensajes"}
+          placeholder="Escribe tu mensaje..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyPress={handleKeyPress}
-          disabled={sendMessage.isPending || !sessionId}
+          disabled={sendMessage.isPending}
           className="flex-1"
         />
         <Button
           size="icon"
           onClick={handleSend}
-          disabled={!message.trim() || sendMessage.isPending || !sessionId}
+          disabled={!message.trim() || sendMessage.isPending}
         >
           {sendMessage.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -290,7 +289,7 @@ export function ConversationItem({
           </AvatarFallback>
         </Avatar>
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}

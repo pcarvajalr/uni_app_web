@@ -76,7 +76,8 @@ export function MarketplaceChatDialog({ product, open, onOpenChange, participant
         })
       }
     }
-  }, [messages, product, currentUserId, otherUserId, markAsRead])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, product?.id, currentUserId, otherUserId])
 
   const handleSend = async () => {
     if (!message.trim() || !currentUserId || !otherUserId || !product) return
