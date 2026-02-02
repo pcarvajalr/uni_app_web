@@ -1,7 +1,7 @@
 {
-  "name": "UNI APP",
-  "short_name": "UNI APP",
-  "description": "Aplicación Universitaria",
+  "name": "kble",
+  "short_name": "kble",
+  "description": "kble - Aplicación Universitaria",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
