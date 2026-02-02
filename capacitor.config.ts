@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.universitaria.uniapp',
-  appName: 'UNI APP',
+  appName: 'kble',
   webDir: 'dist',
   server: {
     androidScheme: 'https',
