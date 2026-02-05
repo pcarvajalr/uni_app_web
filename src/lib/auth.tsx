@@ -266,6 +266,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
 
+      // Verificar si el usuario ya existe (Supabase retorna identities vacío por seguridad)
+      // Esto ocurre cuando el email ya está registrado y la confirmación de email está habilitada
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        throw new Error('User already registered');
+      }
+
       // Nota: El perfil se crea automáticamente con el trigger on_auth_user_created
       // El usuario DEBE confirmar su email antes de poder iniciar sesión
 
