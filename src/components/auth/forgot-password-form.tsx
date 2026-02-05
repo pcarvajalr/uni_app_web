@@ -41,7 +41,13 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       setSuccess(true);
     } catch (err: any) {
       console.error('Error al enviar email de recuperación:', err);
-      setError(err.message || 'Error al enviar el email de recuperación');
+
+      // Manejar error de rate limit
+      if (err.message?.includes('rate limit') || err.code === 'over_email_send_rate_limit') {
+        setError('Has solicitado demasiados emails de recuperación. Por favor espera una hora antes de intentar nuevamente.');
+      } else {
+        setError(err.message || 'Error al enviar el email de recuperación');
+      }
     } finally {
       setIsLoading(false);
     }
