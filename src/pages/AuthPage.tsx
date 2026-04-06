@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form"
@@ -9,9 +9,16 @@ import AppIcon from "@/assets/AppIcon_Principal.png"
 type AuthMode = 'login' | 'register' | 'forgot-password'
 
 export default function AuthPage() {
-  const [mode, setMode] = useState<AuthMode>('login')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialMode = (searchParams.get('mode') as AuthMode) || 'login'
+  const [mode, setMode] = useState<AuthMode>(initialMode)
   const { isAuthenticated, isLoading } = useAuth()
   const navigate = useNavigate()
+
+  const handleSetMode = (newMode: AuthMode) => {
+    setMode(newMode)
+    setSearchParams(newMode === 'login' ? {} : { mode: newMode }, { replace: true })
+  }
 
   // Redirigir al dashboard si ya está autenticado
   useEffect(() => {
@@ -53,17 +60,17 @@ export default function AuthPage() {
 
         {mode === 'login' && (
           <LoginForm
-            onToggleMode={() => setMode('register')}
-            onForgotPassword={() => setMode('forgot-password')}
+            onToggleMode={() => handleSetMode('register')}
+            onForgotPassword={() => handleSetMode('forgot-password')}
           />
         )}
 
         {mode === 'register' && (
-          <RegisterForm onToggleMode={() => setMode('login')} />
+          <RegisterForm onToggleMode={() => handleSetMode('login')} />
         )}
 
         {mode === 'forgot-password' && (
-          <ForgotPasswordForm onBackToLogin={() => setMode('login')} />
+          <ForgotPasswordForm onBackToLogin={() => handleSetMode('login')} />
         )}
       </div>
     </div>

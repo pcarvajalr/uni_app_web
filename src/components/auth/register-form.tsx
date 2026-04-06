@@ -1,13 +1,15 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth"
-import { Loader2 } from "lucide-react"
+import { Loader2, ExternalLink } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 import { PasswordStrengthIndicator } from "./password-strength-indicator"
 import { strongPasswordSchema } from "@/lib/password-validation"
 import { z } from "zod"
@@ -38,19 +40,64 @@ interface RegisterFormProps {
   onToggleMode: () => void
 }
 
+const REGISTER_FORM_KEY = "register_form_draft"
+
 export function RegisterForm({ onToggleMode }: RegisterFormProps) {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-    name: "",
-    studentId: "",
-    university: "",
+  const navigate = useNavigate()
+  const [formData, setFormData] = useState(() => {
+    const saved = sessionStorage.getItem(REGISTER_FORM_KEY)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        return {
+          email: parsed.email || "",
+          password: "",
+          confirmPassword: "",
+          name: parsed.name || "",
+          studentId: parsed.studentId || "",
+          university: parsed.university || "",
+        }
+      } catch { /* ignore */ }
+    }
+    return { email: "", password: "", confirmPassword: "", name: "", studentId: "", university: "" }
+  })
+  const [acceptances, setAcceptances] = useState(() => {
+    const saved = sessionStorage.getItem(REGISTER_FORM_KEY)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        return {
+          privacyPolicy: parsed.acceptances?.privacyPolicy || false,
+          dataTreatment: parsed.acceptances?.dataTreatment || false,
+          dataAuthorization: parsed.acceptances?.dataAuthorization || false,
+        }
+      } catch { /* ignore */ }
+    }
+    return { privacyPolicy: false, dataTreatment: false, dataAuthorization: false }
   })
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const { register, isLoading } = useAuth()
+
+  const saveToSession = useCallback(() => {
+    sessionStorage.setItem(REGISTER_FORM_KEY, JSON.stringify({
+      email: formData.email,
+      name: formData.name,
+      studentId: formData.studentId,
+      university: formData.university,
+      acceptances,
+    }))
+  }, [formData, acceptances])
+
+  useEffect(() => {
+    saveToSession()
+  }, [saveToSession])
+
+  const handleNavigateToPolicy = (path: string) => {
+    saveToSession()
+    navigate(path, { state: { from: "/auth?mode=register" } })
+  }
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -96,7 +143,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
 
       if (result?.needsEmailVerification) {
         setSuccess("¡Cuenta creada! Por favor verifica tu email antes de iniciar sesión. Revisa tu bandeja de entrada (y spam).")
-        // Limpiar el formulario
+        sessionStorage.removeItem(REGISTER_FORM_KEY)
         setFormData({
           email: "",
           password: "",
@@ -198,9 +245,89 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             />
             {fieldErrors.confirmPassword && <p className="text-sm text-destructive">{fieldErrors.confirmPassword}</p>}
           </div>
+          {/* Checkboxes de aceptación */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">Para crear tu cuenta, acepta los siguientes documentos:</p>
+
+            <div className="rounded-lg border bg-muted/30 divide-y">
+              <label htmlFor="privacyPolicy" className="flex items-center gap-3 px-3 py-3 cursor-pointer active:bg-muted/50 transition-colors">
+                <Checkbox
+                  id="privacyPolicy"
+                  checked={acceptances.privacyPolicy}
+                  onCheckedChange={(checked) =>
+                    setAcceptances((prev) => ({ ...prev, privacyPolicy: checked === true }))
+                  }
+                  disabled={isLoading}
+                  className="shrink-0"
+                />
+                <span className="text-sm leading-tight flex-1">
+                  Acepto el Aviso de Privacidad
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); handleNavigateToPolicy("/privacy-policy") }}
+                  className="shrink-0 text-primary p-1.5 rounded-md hover:bg-primary/10 active:bg-primary/20 transition-colors"
+                  aria-label="Ver Aviso de Privacidad"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </button>
+              </label>
+
+              <label htmlFor="dataTreatment" className="flex items-center gap-3 px-3 py-3 cursor-pointer active:bg-muted/50 transition-colors">
+                <Checkbox
+                  id="dataTreatment"
+                  checked={acceptances.dataTreatment}
+                  onCheckedChange={(checked) =>
+                    setAcceptances((prev) => ({ ...prev, dataTreatment: checked === true }))
+                  }
+                  disabled={isLoading}
+                  className="shrink-0"
+                />
+                <span className="text-sm leading-tight flex-1">
+                  Acepto la Política de Tratamiento de Datos
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); handleNavigateToPolicy("/data-treatment") }}
+                  className="shrink-0 text-primary p-1.5 rounded-md hover:bg-primary/10 active:bg-primary/20 transition-colors"
+                  aria-label="Ver Política de Tratamiento de Datos"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </button>
+              </label>
+
+              <label htmlFor="dataAuthorization" className="flex items-center gap-3 px-3 py-3 cursor-pointer active:bg-muted/50 transition-colors">
+                <Checkbox
+                  id="dataAuthorization"
+                  checked={acceptances.dataAuthorization}
+                  onCheckedChange={(checked) =>
+                    setAcceptances((prev) => ({ ...prev, dataAuthorization: checked === true }))
+                  }
+                  disabled={isLoading}
+                  className="shrink-0"
+                />
+                <span className="text-sm leading-tight flex-1">
+                  Autorizo el Tratamiento de mis Datos Personales
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); handleNavigateToPolicy("/data-authorization") }}
+                  className="shrink-0 text-primary p-1.5 rounded-md hover:bg-primary/10 active:bg-primary/20 transition-colors"
+                  aria-label="Ver Autorización de Datos"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </button>
+              </label>
+            </div>
+          </div>
+
           {error && <p className="text-sm text-destructive">{error}</p>}
           {success && <p className="text-sm text-green-600 bg-green-50 p-3 rounded-md">{success}</p>}
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isLoading || !acceptances.privacyPolicy || !acceptances.dataTreatment || !acceptances.dataAuthorization}
+          >
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

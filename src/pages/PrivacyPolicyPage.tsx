@@ -1,186 +1,120 @@
+import { useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 export default function PrivacyPolicyPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: string })?.from;
+
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+
+  const handleBack = () => {
+    if (from) {
+      navigate(from, { replace: true });
+    } else {
+      navigate(-1);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Link to="/">
-          <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver
-          </Button>
-        </Link>
+        <Button variant="ghost" className="mb-6" onClick={handleBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Volver
+        </Button>
 
         <div className="prose prose-slate dark:prose-invert max-w-none">
-          <h1 className="text-3xl font-bold mb-2">Política de Privacidad</h1>
-          <p className="text-muted-foreground mb-8">Última actualización: {new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <h1 className="text-3xl font-bold mb-8">AVISO DE PRIVACIDAD – TRATAMIENTO DE DATOS PERSONALES</h1>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">1. Introducción</h2>
-            <p className="mb-4">
-              Bienvenido a UNI APP. Nos comprometemos a proteger tu privacidad y a ser transparentes sobre cómo recopilamos,
-              usamos y protegemos tu información personal. Esta política de privacidad describe nuestras prácticas de manejo
-              de datos cuando utilizas nuestra aplicación móvil y web.
-            </p>
-          </section>
+          <p className="mb-4">
+            De conformidad con lo dispuesto en la Ley 1581 de 2012, el Decreto 1377 de 2013, el Decreto 1074 de 2015 y demás normas concordantes, KBLE identificado con cédula 1.125.578.439 de Bogotá, domiciliado en Bogotá, Colombia, en su calidad de Responsable del Tratamiento de Datos Personales, y que en adelante se denominará KBLE, pone en conocimiento de los titulares el presente Aviso de Privacidad.
+          </p>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">2. Información que Recopilamos</h2>
+          <p className="mb-4">
+            Para efectos de la atención de consultas, reclamos, solicitudes de actualización, rectificación o supresión de datos personales, los titulares podrán comunicarse a través de los siguientes canales de contacto:
+          </p>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Correo electrónico: uniapp.col@gmail.com</li>
+            <li>Teléfono: 3228698549</li>
+          </ul>
 
-            <h3 className="text-xl font-semibold mb-3 mt-6">2.1 Información de Cuenta</h3>
-            <p className="mb-4">
-              Cuando te registras en UNI APP, recopilamos:
-            </p>
-            <ul className="list-disc pl-6 mb-4">
-              <li>Nombre completo</li>
-              <li>Correo electrónico institucional</li>
-              <li>Información de perfil (opcional)</li>
-            </ul>
+          <p className="mb-4">
+            El presente aviso tiene como finalidad informar a los usuarios sobre la forma en que serán recolectados, almacenados, usados, circulados y, en general, tratados sus datos personales con ocasión de la interacción y uso de la plataforma digital. Dicho tratamiento se realizará de manera responsable, conforme a los principios de legalidad, finalidad, libertad, veracidad, transparencia, acceso y circulación restringida, seguridad y confidencialidad, así como a los estándares legales y técnicos aplicables.
+          </p>
 
-            <h3 className="text-xl font-semibold mb-3 mt-6">2.2 Permisos de Dispositivo</h3>
-            <p className="mb-4">
-              Nuestra aplicación móvil puede solicitar acceso a las siguientes funciones de tu dispositivo:
-            </p>
+          <p className="mb-4">
+            KBLE, en su calidad de Responsable del Tratamiento de Datos Personales, informa a los usuarios de KBLE que actúa únicamente como una plataforma tecnológica de intermediación, la cual permite el contacto y la interacción entre estudiantes, tutores, comercios, aliados y demás usuarios registrados. En ningún caso la plataforma KBLE presta servicios de tutoría, vende productos, ni es responsable por la calidad, idoneidad, precios, cumplimiento o ejecución de los servicios o productos ofrecidos por terceros a través de la plataforma.
+          </p>
 
-            <div className="mb-4">
-              <h4 className="font-semibold mb-2">Cámara</h4>
-              <p className="ml-4 mb-3">
-                Usamos el acceso a la cámara para permitirte tomar fotos de productos que deseas vender en el marketplace
-                o para actualizar tu foto de perfil. Las fotos se procesan localmente y solo se suben a nuestros servidores
-                cuando tú lo autorizas explícitamente.
-              </p>
-            </div>
+          <p className="mb-4">
+            Los datos personales recolectados serán tratados para permitir el registro, autenticación, operación y administración de la plataforma, así como para facilitar la conexión y comunicación entre los usuarios. Para el cumplimiento de dichas finalidades, los datos personales podrán ser compartidos con tutores, estudiantes, comercios aliados u otros usuarios, y transmitidos a terceros encargados del tratamiento, tales como proveedores tecnológicos, servicios de alojamiento en la nube, pasarelas de pago, herramientas de mensajería y soporte, quienes actuarán conforme a las instrucciones de KBLE y a la normatividad vigente.
+          </p>
 
-            <div className="mb-4">
-              <h4 className="font-semibold mb-2">Ubicación</h4>
-              <p className="ml-4 mb-3">
-                Solicitamos acceso a tu ubicación para mostrarte lugares de interés en el campus universitario, como
-                bibliotecas, cafeterías, salones de clase y puntos de encuentro para tutorías. Tu ubicación solo se
-                utiliza mientras usas activamente la función de mapas y no se almacena permanentemente.
-              </p>
-            </div>
+          <p className="mb-4">
+            Los datos personales recolectados serán almacenados, usados, circulados, transmitidos y/o transferidos, según corresponda, por KBLE, y serán tratados, entre otras, para las siguientes finalidades relacionadas con la operación de la plataforma tecnológica de intermediación:
+          </p>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Registro, creación, identificación, autenticación y gestión de usuarios dentro de la aplicación web.</li>
+            <li>Facilitar la conexión, interacción y comunicación entre tutores y estudiantes registrados en la plataforma.</li>
+            <li>Gestionar la publicación, administración y visualización de promociones, cupones, productos y servicios ofrecidos por los usuarios y comercios aliados.</li>
+            <li>Otorgar visibilidad a comercios aliados, incluyendo la difusión de su información comercial dentro de la plataforma.</li>
+            <li>Administrar la relación comercial, contractual y/o precontractual con usuarios, tutores, estudiantes y comercios aliados.</li>
+            <li>Enviar comunicaciones informativas, operativas y comerciales relacionadas con el uso de la plataforma, sus funcionalidades, promociones y actualizaciones.</li>
+            <li>Realizar análisis estadísticos, mediciones de uso y mejoras de la experiencia del usuario, garantizando la protección de los datos personales.</li>
+            <li>Atender peticiones, quejas, reclamos y solicitudes presentadas por los titulares.</li>
+            <li>Dar cumplimiento a obligaciones legales, regulatorias y requerimientos de autoridades competentes.</li>
+          </ul>
 
-            <div className="mb-4">
-              <h4 className="font-semibold mb-2">Almacenamiento (Fotos y Videos)</h4>
-              <p className="ml-4 mb-3">
-                Accedemos a tu galería de fotos y videos para permitirte seleccionar imágenes existentes al publicar
-                productos en el marketplace o actualizar tu perfil. Solo accedemos a las fotos que tú seleccionas
-                explícitamente.
-              </p>
-            </div>
+          <p className="mb-4">
+            De conformidad con la ley, los titulares de los datos personales tienen los siguientes derechos:
+          </p>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Conocer, actualizar y rectificar sus datos personales.</li>
+            <li>Solicitar prueba de la autorización otorgada para el tratamiento.</li>
+            <li>Ser informados sobre el uso que se ha dado a sus datos.</li>
+            <li>Presentar quejas ante la Superintendencia de Industria y Comercio.</li>
+            <li>Revocar la autorización y/o solicitar la supresión de los datos, cuando sea procedente.</li>
+            <li>Acceder de manera gratuita a sus datos personales.</li>
+            <li>Abstenerse de responder preguntas sobre datos sensibles o de menores de edad.</li>
+          </ul>
+          <p className="mb-4">
+            El titular de los datos tiene carácter facultativo de entregar datos sensibles, y si así lo hiciere reconoce que KBLE, los tratará mediante estándares de reserva y seguridad.
+          </p>
 
-            <div className="mb-4">
-              <h4 className="font-semibold mb-2">Notificaciones Push</h4>
-              <p className="ml-4 mb-3">
-                Usamos notificaciones push para informarte sobre mensajes nuevos, actualizaciones de tus publicaciones,
-                recordatorios de sesiones de tutoría programadas y otras actividades relevantes. Puedes desactivar las
-                notificaciones en cualquier momento desde la configuración de tu dispositivo.
-              </p>
-            </div>
-          </section>
+          <p className="mb-4">
+            En caso del registro de menores de edad, el Tratamiento de sus datos personales se realizará únicamente con la autorización previa, expresa e informada de los padres o representantes legales, y se limitará a finalidades estrictamente relacionadas con la operación de la plataforma, sin el envío de comunicaciones comerciales o de mercadeo, garantizando en todo momento la protección de sus derechos fundamentales.
+          </p>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">3. Cómo Usamos tu Información</h2>
-            <p className="mb-4">Utilizamos la información recopilada para:</p>
-            <ul className="list-disc pl-6 mb-4">
-              <li>Proporcionar y mantener nuestros servicios</li>
-              <li>Permitir la funcionalidad del marketplace estudiantil</li>
-              <li>Facilitar el sistema de tutorías entre estudiantes</li>
-              <li>Enviarte notificaciones importantes sobre tu cuenta y actividades</li>
-              <li>Mejorar la experiencia del usuario y la funcionalidad de la aplicación</li>
-              <li>Mostrar ubicaciones relevantes en el campus universitario</li>
-              <li>Comunicarnos contigo sobre cambios en el servicio</li>
-            </ul>
-          </section>
+          <p className="mb-4">
+            El ejercicio de los derechos podrá realizarse mediante solicitud enviada al siguiente correo electrónico: uniapp.col@gmail.com
+          </p>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">4. Compartir Información</h2>
-            <p className="mb-4">
-              No vendemos, alquilamos ni compartimos tu información personal con terceros para fines de marketing.
-              Podemos compartir tu información solo en los siguientes casos:
-            </p>
-            <ul className="list-disc pl-6 mb-4">
-              <li>Con otros usuarios cuando publicas contenido en el marketplace o solicitas/ofreces tutorías</li>
-              <li>Cuando sea requerido por ley o para responder a procesos legales</li>
-              <li>Para proteger los derechos, propiedad o seguridad de UNI APP y sus usuarios</li>
-            </ul>
-          </section>
+          <p className="mb-4">
+            Así mismo, el titular podrá consultar la Política de Tratamiento de Datos Personales, así como las actualizaciones o modificaciones que se realicen a la misma o al presente Aviso de Privacidad, a través de los canales dispuestos por el Responsable para tal efecto y que es la aplicación móvil KBLE.
+          </p>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">5. Seguridad de Datos</h2>
-            <p className="mb-4">
-              Implementamos medidas de seguridad técnicas y organizativas apropiadas para proteger tu información personal
-              contra el acceso no autorizado, alteración, divulgación o destrucción. Esto incluye:
-            </p>
-            <ul className="list-disc pl-6 mb-4">
-              <li>Cifrado de datos en tránsito y en reposo</li>
-              <li>Autenticación segura de usuarios</li>
-              <li>Acceso limitado a datos personales solo para personal autorizado</li>
-              <li>Monitoreo regular de nuestros sistemas para detectar vulnerabilidades</li>
-            </ul>
-          </section>
+          <p className="mb-4">
+            En caso de que se recolecten datos personales sensibles, tales como aquellos que puedan afectar la intimidad del titular o cuyo uso indebido pueda generar discriminación (incluyendo, entre otros, datos relacionados con el origen racial o étnico, orientación sexual, filiación política o religiosa), se informará previamente al titular sobre el carácter sensible de dichos datos, así como su derecho a no suministrarlos. En consecuencia, el titular podrá decidir de manera libre, expresa y voluntaria si autoriza o no su tratamiento.
+          </p>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">6. Tus Derechos</h2>
-            <p className="mb-4">Tienes derecho a:</p>
-            <ul className="list-disc pl-6 mb-4">
-              <li>Acceder a tu información personal</li>
-              <li>Corregir información inexacta o incompleta</li>
-              <li>Solicitar la eliminación de tu cuenta y datos asociados</li>
-              <li>Revocar permisos otorgados a la aplicación desde la configuración de tu dispositivo</li>
-              <li>Desactivar notificaciones push en cualquier momento</li>
-              <li>Exportar tus datos en un formato legible</li>
-            </ul>
-          </section>
+          <p className="mb-4">
+            KBLE informa a los titulares que la Política de Tratamiento de Datos Personales se encuentra disponible para su consulta a través de la aplicación móvil KBLE.
+          </p>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">7. Retención de Datos</h2>
-            <p className="mb-4">
-              Conservamos tu información personal solo durante el tiempo necesario para cumplir con los propósitos
-              descritos en esta política, a menos que la ley requiera o permita un período de retención más largo.
-              Cuando eliminas tu cuenta, procedemos a eliminar o anonimizar tu información personal de forma permanente.
-            </p>
-          </section>
+          <p className="mb-4">
+            Cualquier actualización o modificación que se realice a dicha política o al presente aviso será informada oportunamente mediante los mismos mecanismos, garantizando en todo momento el acceso a la versión vigente por parte de los titulares.
+          </p>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">8. Privacidad de Menores</h2>
-            <p className="mb-4">
-              Nuestra aplicación está dirigida a estudiantes universitarios mayores de 18 años. No recopilamos
-              intencionalmente información personal de menores de edad. Si descubrimos que hemos recopilado información
-              de un menor, tomaremos medidas para eliminar esa información lo antes posible.
-            </p>
-          </section>
+          <p className="mb-4">
+            En el evento en que KBLE, en su calidad de Responsable del Tratamiento, llegue a recolectar datos personales sensibles, tales como aquellos que revelen el origen racial o étnico, la orientación sexual, las convicciones religiosas, filosóficas o políticas, entre otros, informará de manera previa y expresa al titular sobre el carácter sensible de dicha información. Así mismo, se le garantizará el derecho a decidir libre y voluntariamente si suministra o no este tipo de datos, dejando claro que su entrega es facultativa y que la negativa a proporcionarlos no afectará el acceso a los servicios o actividades, salvo en los casos en que dichos datos sean estrictamente necesarios conforme a la ley. El Titular puede acceder a nuestra Política de Tratamiento de información, la cual se encuentra publicada en la aplicación móvil KBLE.
+          </p>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">9. Cambios a esta Política</h2>
-            <p className="mb-4">
-              Podemos actualizar esta política de privacidad periódicamente. Te notificaremos sobre cambios significativos
-              publicando la nueva política en esta página y actualizando la fecha de "Última actualización". Te recomendamos
-              revisar esta política periódicamente para estar informado sobre cómo protegemos tu información.
-            </p>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">10. Contacto</h2>
-            <p className="mb-4">
-              Si tienes preguntas o inquietudes sobre esta política de privacidad o nuestras prácticas de datos,
-              puedes contactarnos a través de:
-            </p>
-            <ul className="list-disc pl-6 mb-4">
-              <li>Correo electrónico: Dentro de la aplicación en la sección "Ayuda"</li>
-              <li>A través de la configuración de tu perfil en la aplicación</li>
-            </ul>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">11. Consentimiento</h2>
-            <p className="mb-4">
-              Al usar UNI APP, aceptas los términos de esta política de privacidad. Si no estás de acuerdo con esta
-              política, por favor no uses nuestra aplicación.
-            </p>
-          </section>
+          <p className="text-muted-foreground mt-8 font-semibold">
+            Fecha de entrada en vigencia: 30 de marzo de 2026
+          </p>
         </div>
       </div>
     </div>
