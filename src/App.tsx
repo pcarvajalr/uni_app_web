@@ -13,6 +13,8 @@ import HomePage from '@/pages/HomePage';
 import AuthPage from '@/pages/AuthPage';
 import ResetPasswordPage from '@/pages/ResetPasswordPage';
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
+import DataTreatmentPage from '@/pages/DataTreatmentPage';
+import DataAuthorizationPage from '@/pages/DataAuthorizationPage';
 import SupportPage from '@/pages/SupportPage';
 import AccountDeletionPage from '@/pages/AccountDeletionPage';
 import DashboardPage from '@/pages/DashboardPage';
@@ -58,6 +60,8 @@ function App() {
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                <Route path="/data-treatment" element={<DataTreatmentPage />} />
+                <Route path="/data-authorization" element={<DataAuthorizationPage />} />
                 <Route path="/support" element={<SupportPage />} />
                 <Route path="/account-deletion" element={<AccountDeletionPage />} />
 
