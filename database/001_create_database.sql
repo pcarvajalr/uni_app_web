@@ -38,7 +38,7 @@ CREATE TABLE public.users (
   role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin')) NOT NULL,
   avatar_url TEXT,
   phone TEXT,
-  student_id TEXT UNIQUE, -- Matrícula o ID estudiantil
+  student_id TEXT, -- Matrícula o ID estudiantil (puede repetirse)
   career TEXT, -- Carrera
   semester INTEGER,
   campus TEXT,
