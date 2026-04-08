@@ -638,7 +638,7 @@ export default function SettingsPage() {
         discount_value: discountValue,
         image_url: imageUrl,
         valid_until: validUntil,
-        applicable_to: newCoupon.category as 'products' | 'tutoring' | 'both' | null,
+        applicable_to: newCoupon.category || null,
         is_active: true,
       }
 
@@ -1656,15 +1656,14 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="coupon-category">Aplicable a</Label>
-                    <Select value={newCoupon.category} onValueChange={(value) => setNewCoupon({ ...newCoupon, category: value })} disabled={isSavingCoupon}>
+                    <Label htmlFor="coupon-category">Aplicable a (opcional)</Label>
+                    <Select value={newCoupon.category} onValueChange={(value) => setNewCoupon({ ...newCoupon, category: value === '_none' ? '' : value })} disabled={isSavingCoupon}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar tipo" />
+                        <SelectValue placeholder="Sin categoría" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="both">Productos y Tutorías</SelectItem>
-                        <SelectItem value="products">Solo Productos</SelectItem>
-                        <SelectItem value="tutoring">Solo Tutorías</SelectItem>
+                        <SelectItem value="_none">Sin categoría</SelectItem>
+                        <SelectItem value="Comida">Comida</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
