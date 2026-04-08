@@ -28,9 +28,6 @@ const formatDate = (dateString: string): string => {
 // Helper para formatear categoría
 const formatCategory = (applicableTo: string | null): string => {
   if (!applicableTo) return 'General'
-  if (applicableTo === 'products') return 'Productos'
-  if (applicableTo === 'tutoring') return 'Tutorías'
-  if (applicableTo === 'both') return 'Productos y Tutorías'
   return applicableTo
 }
 
