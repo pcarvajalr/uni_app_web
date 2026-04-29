@@ -280,7 +280,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return {
         success: true,
-        message: 'Cuenta creada exitosamente. Por favor verifica tu email antes de iniciar sesión.',
+        message: data.session
+          ? 'Cuenta creada exitosamente.'
+          : 'Cuenta creada exitosamente. Por favor verifica tu email antes de iniciar sesión.',
         needsEmailVerification: !data.session, // Si no hay sesión, necesita verificar email
       };
     } catch (error: any) {
