@@ -1663,7 +1663,10 @@ export default function SettingsPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="_none">Sin categoría</SelectItem>
-                        <SelectItem value="Comida">Comida</SelectItem>
+                        <SelectItem value="Restaurantes">Restaurantes</SelectItem>
+                        <SelectItem value="GYM">GYM</SelectItem>
+                        <SelectItem value="Bares">Bares</SelectItem>
+                        <SelectItem value="Otros">Otros</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
