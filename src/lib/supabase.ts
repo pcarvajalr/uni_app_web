@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { Preferences } from '@capacitor/preferences';
+import { isNative } from '../capacitor/platform';
 import type { Database } from '../types/database.types';
 
 // Validar que las variables de entorno estén configuradas
@@ -12,13 +14,46 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// En iOS 17, WKWebView purga localStorage bajo presión de memoria, lo que provoca
+// que el refresh token desaparezca y supabase-js emita SIGNED_OUT en mitad de una sesión.
+// Capacitor Preferences usa NSUserDefaults en iOS y SharedPreferences en Android, ambos
+// sobreviven a la limpieza del WebView. En web seguimos usando localStorage.
+const nativeAuthStorage = {
+  async getItem(key: string): Promise<string | null> {
+    const { value } = await Preferences.get({ key });
+    if (value !== null) return value;
+
+    // Migración única: si el usuario ya estaba logueado con la versión anterior
+    // (tokens en localStorage), los movemos a Preferences en el primer arranque
+    // para que no se desautentique tras actualizar.
+    try {
+      const legacy = window.localStorage.getItem(key);
+      if (legacy !== null) {
+        await Preferences.set({ key, value: legacy });
+        window.localStorage.removeItem(key);
+        return legacy;
+      }
+    } catch {
+      // localStorage puede no estar disponible; ignorar.
+    }
+    return null;
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    await Preferences.set({ key, value });
+  },
+  async removeItem(key: string): Promise<void> {
+    await Preferences.remove({ key });
+  },
+};
+
 // Crear cliente de Supabase con tipos generados automáticamente
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storage: window.localStorage,
+    flowType: 'pkce',
+    storage: isNative ? nativeAuthStorage : window.localStorage,
     storageKey: 'uni-app-auth',
   },
   realtime: {
@@ -136,8 +171,9 @@ export const getUserProfile = async (userId?: string) => {
       .eq('id', uid)
       .single();
 
-    // Aplicar timeout de 1 segundos a la query
-    const { data, error } = await withTimeout(queryPromise, 1000, 'Query getUserProfile');
+    // Timeout generoso (8s) para tolerar redes celulares lentas de iOS sin
+    // dejar al usuario en estado "no autenticado" cuando la sesión sí es válida.
+    const { data, error } = await withTimeout(queryPromise, 8000, 'Query getUserProfile');
 
     return unwrapData(data, error);
   } catch (error: any) {
