@@ -152,6 +152,9 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
           studentId: "",
           university: "",
         })
+      } else {
+        sessionStorage.removeItem(REGISTER_FORM_KEY)
+        navigate("/dashboard")
       }
     } catch (err: any) {
       setError(err.message || "Error al crear la cuenta")
