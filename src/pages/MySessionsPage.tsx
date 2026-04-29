@@ -315,7 +315,7 @@ export default function MySessionsPage() {
 
         {/* Tabs */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 min-h-9 h-auto">
             <TabsTrigger value="student">
               Como Estudiante ({studentBookings?.length || 0})
             </TabsTrigger>
