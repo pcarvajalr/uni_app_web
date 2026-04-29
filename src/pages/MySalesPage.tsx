@@ -227,7 +227,7 @@ export default function MySalesPage() {
 
         {/* Tabs */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 h-auto">
+          <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 min-h-9 h-auto">
             <TabsTrigger value="productos">Mis Productos ({products.length})</TabsTrigger>
             <TabsTrigger value="mensajes">Mensajes {unreadMessages > 0 ? `(${unreadMessages})` : ""}</TabsTrigger>
             <TabsTrigger value="ventas">Historial</TabsTrigger>
