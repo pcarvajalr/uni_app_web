@@ -166,7 +166,9 @@ export function CreateReportDialog({ open, onOpenChange, onSuccess }: CreateRepo
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Título del Reporte</Label>
+            <Label htmlFor="title">
+              Título del Reporte <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="title"
               placeholder="Ej: Robo de mochila"
@@ -177,7 +179,9 @@ export function CreateReportDialog({ open, onOpenChange, onSuccess }: CreateRepo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="type">Tipo de Incidente</Label>
+            <Label htmlFor="type">
+              Tipo de Incidente <span className="text-destructive">*</span>
+            </Label>
             <Select value={formData.type} onValueChange={(value) => handleChange("type", value)} required>
               <SelectTrigger>
                 <SelectValue placeholder="Selecciona el tipo" />
@@ -192,7 +196,9 @@ export function CreateReportDialog({ open, onOpenChange, onSuccess }: CreateRepo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="locationId">Ubicación del Incidente</Label>
+            <Label htmlFor="locationId">
+              Ubicación del Incidente <span className="text-destructive">*</span>
+            </Label>
             <Select
               value={formData.locationId}
               onValueChange={(value) => handleChange("locationId", value)}
@@ -244,7 +250,9 @@ export function CreateReportDialog({ open, onOpenChange, onSuccess }: CreateRepo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Descripción Detallada</Label>
+            <Label htmlFor="description">
+              Descripción Detallada <span className="text-destructive">*</span>
+            </Label>
             <Textarea
               id="description"
               placeholder="Describe lo que pasó, cuándo, y cualquier detalle relevante..."
