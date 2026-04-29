@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useSearchParams } from "react-router-dom"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -64,7 +65,11 @@ import { es } from "date-fns/locale"
 export default function MySessionsPage() {
   const { user } = useAuth()
   const { toast } = useToast()
-  const [selectedTab, setSelectedTab] = useState("student")
+  const [searchParams] = useSearchParams()
+  const initialTab = ["student", "tutor", "sessions", "messages"].includes(searchParams.get("tab") ?? "")
+    ? (searchParams.get("tab") as string)
+    : "student"
+  const [selectedTab, setSelectedTab] = useState(initialTab)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
   const [rating, setRating] = useState(5)

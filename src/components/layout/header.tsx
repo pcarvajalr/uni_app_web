@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useAuth } from "@/lib/auth"
+import { useUnreadNotificationsCount } from "@/hooks/useNotifications"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { LogOut, Settings, User, Bell, HelpCircle } from "lucide-react"
 import AppIcon from "@/assets/AppIcon_Principal.png"
@@ -10,6 +11,8 @@ import { useState } from "react"
 export function Header() {
   const { user, logout } = useAuth()
   const [openDialog, setOpenDialog] = useState<"notifications" | "user" | null>(null)
+  const { data: unreadCount = 0 } = useUnreadNotificationsCount(user?.id)
+  const hasUnread = unreadCount > 0
 
   if (!user) return null
 
@@ -60,13 +63,26 @@ export function Header() {
             onOpenChange={(open) => setOpenDialog(open ? "notifications" : null)}
           >
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9">
+              <Button variant="ghost" size="icon" className="h-9 w-9 relative">
                 <Bell className="h-5 w-5" />
+                {hasUnread && (
+                  <span
+                    aria-label={`${unreadCount} notificaciones sin leer`}
+                    className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background"
+                  />
+                )}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Notificaciones</DialogTitle>
+                <DialogTitle>
+                  Notificaciones
+                  {hasUnread && (
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      ({unreadCount} sin leer)
+                    </span>
+                  )}
+                </DialogTitle>
               </DialogHeader>
               <div className="space-y-2">
                 <Link to="/notifications" onClick={() => setOpenDialog(null)}>
