@@ -156,13 +156,20 @@ export const updateProduct = async (id: string, updates: ProductUpdate) => {
   }
 };
 
-// Eliminar (soft delete) un producto
+// Eliminar (soft delete) un producto y sus chats asociados
 export const deleteProduct = async (id: string) => {
   try {
-    const { error } = await supabase.from('products').update({ status: 'deleted' }).eq('id', id);
+    const { data, error } = await (supabase.rpc as any)('delete_marketplace_product', {
+      p_product_id: id,
+    });
 
     if (error) {
       handleSupabaseError(error);
+    }
+
+    const result = data as { success: boolean; error?: string } | null;
+    if (!result?.success) {
+      throw new Error(result?.error ?? 'No se pudo eliminar el producto');
     }
 
     return true;
