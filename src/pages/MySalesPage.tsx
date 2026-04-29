@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { TrendingUp, MessageSquare, Eye, Trash2, Edit2, Loader2, Heart, Package } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
+import { useSearchParams } from "react-router-dom"
 import { useAuth } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 import { getProducts, getProductById, updateProduct, deleteProduct, type ProductWithSeller } from "@/services/products.service"
@@ -17,7 +18,11 @@ import { MarketplaceChatDialog } from "@/components/marketplace/marketplace-chat
 export default function MySalesPage() {
   const { user } = useAuth()
   const { toast } = useToast()
-  const [selectedTab, setSelectedTab] = useState("productos")
+  const [searchParams] = useSearchParams()
+  const initialTab = ["productos", "mensajes", "ventas"].includes(searchParams.get("tab") ?? "")
+    ? (searchParams.get("tab") as string)
+    : "productos"
+  const [selectedTab, setSelectedTab] = useState(initialTab)
   const [selectedProduct, setSelectedProduct] = useState<ProductWithSeller | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [products, setProducts] = useState<ProductWithSeller[]>([])
