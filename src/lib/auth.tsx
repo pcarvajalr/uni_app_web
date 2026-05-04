@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { supabase, getUserProfile } from './supabase';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import type { Database } from '../types/database.types';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 // Tipo del perfil extendido del usuario
 type UserProfile = Database['public']['Tables']['users']['Row'];
@@ -132,6 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Registrar/limpiar push notifications según estado de autenticación
+  usePushNotifications(user?.id ?? null);
 
   // Cargar perfil completo del usuario con caché persistente
   const loadUserProfile = async (authUser: SupabaseUser) => {

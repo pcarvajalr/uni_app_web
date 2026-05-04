@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "46261563357",
+    "project_id": "kble-6f628",
+    "storage_bucket": "kble-6f628.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:46261563357:android:9a276907bd0601ddf15034",
+        "android_client_info": {
+          "package_name": "com.universitaria.uniapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4MVhr3hjkdx9hP6H1EEESHt0NCSppcJE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -10,7 +10,32 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.1"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -204,6 +229,41 @@ export type Database = {
           valid_until?: string
         }
         Relationships: []
+      }
+      device_tokens: {
+        Row: {
+          created_at: string | null
+          id: string
+          platform: string
+          token: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          platform: string
+          token: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       favorites: {
         Row: {
@@ -660,6 +720,7 @@ export type Database = {
       }
       tutoring_bookings: {
         Row: {
+          cancelled_at: string | null
           completed_at: string | null
           confirmed_at: string | null
           created_at: string | null
@@ -668,6 +729,7 @@ export type Database = {
           location: string | null
           meeting_url: string | null
           notes: string | null
+          rejection_reason: string | null
           scheduled_date: string
           scheduled_time: string
           session_id: string
@@ -681,6 +743,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          cancelled_at?: string | null
           completed_at?: string | null
           confirmed_at?: string | null
           created_at?: string | null
@@ -689,6 +752,7 @@ export type Database = {
           location?: string | null
           meeting_url?: string | null
           notes?: string | null
+          rejection_reason?: string | null
           scheduled_date: string
           scheduled_time: string
           session_id: string
@@ -702,6 +766,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          cancelled_at?: string | null
           completed_at?: string | null
           confirmed_at?: string | null
           created_at?: string | null
@@ -710,6 +775,7 @@ export type Database = {
           location?: string | null
           meeting_url?: string | null
           notes?: string | null
+          rejection_reason?: string | null
           scheduled_date?: string
           scheduled_time?: string
           session_id?: string
@@ -748,6 +814,7 @@ export type Database = {
       }
       tutoring_sessions: {
         Row: {
+          availability_ranges: Json | null
           available_days: string[] | null
           available_hours: string | null
           category_id: string | null
@@ -769,6 +836,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          availability_ranges?: Json | null
           available_days?: string[] | null
           available_hours?: string | null
           category_id?: string | null
@@ -790,6 +858,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          availability_ranges?: Json | null
           available_days?: string[] | null
           available_hours?: string | null
           category_id?: string | null
@@ -876,9 +945,12 @@ export type Database = {
           campus: string | null
           career: string | null
           created_at: string | null
+          deleted_at: string | null
+          deletion_scheduled_at: string | null
           email: string
           full_name: string
           id: string
+          is_deleted: boolean
           is_profile_public: boolean | null
           is_tutor: boolean | null
           is_verified: boolean | null
@@ -886,6 +958,7 @@ export type Database = {
           rating: number | null
           role: string
           semester: number | null
+          show_contact_info: boolean | null
           student_id: string | null
           total_sales: number | null
           total_tutoring_sessions: number | null
@@ -897,9 +970,12 @@ export type Database = {
           campus?: string | null
           career?: string | null
           created_at?: string | null
+          deleted_at?: string | null
+          deletion_scheduled_at?: string | null
           email: string
           full_name: string
           id: string
+          is_deleted?: boolean
           is_profile_public?: boolean | null
           is_tutor?: boolean | null
           is_verified?: boolean | null
@@ -907,6 +983,7 @@ export type Database = {
           rating?: number | null
           role?: string
           semester?: number | null
+          show_contact_info?: boolean | null
           student_id?: string | null
           total_sales?: number | null
           total_tutoring_sessions?: number | null
@@ -918,9 +995,12 @@ export type Database = {
           campus?: string | null
           career?: string | null
           created_at?: string | null
+          deleted_at?: string | null
+          deletion_scheduled_at?: string | null
           email?: string
           full_name?: string
           id?: string
+          is_deleted?: boolean
           is_profile_public?: boolean | null
           is_tutor?: boolean | null
           is_verified?: boolean | null
@@ -928,6 +1008,7 @@ export type Database = {
           rating?: number | null
           role?: string
           semester?: number | null
+          show_contact_info?: boolean | null
           student_id?: string | null
           total_sales?: number | null
           total_tutoring_sessions?: number | null
@@ -940,7 +1021,39 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      anonymize_user_account: {
+        Args: { target_user_id: string }
+        Returns: Json
+      }
+      check_booking_conflict: {
+        Args: {
+          p_duration_minutes: number
+          p_exclude_booking_id?: string
+          p_scheduled_date: string
+          p_scheduled_time: string
+          p_session_id: string
+        }
+        Returns: boolean
+      }
+      delete_marketplace_product: {
+        Args: { p_product_id: string }
+        Returns: Json
+      }
+      get_account_deletion_status: {
+        Args: { target_user_id: string }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
+      is_user_active: { Args: { user_id: string }; Returns: boolean }
+      restore_user_account: {
+        Args: {
+          new_email: string
+          new_full_name: string
+          target_user_id: string
+        }
+        Returns: Json
+      }
+      sync_favorites_count: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
@@ -1069,6 +1182,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
