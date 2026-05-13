@@ -3,6 +3,7 @@ import {
   initializePushNotifications,
   removeAllListeners,
   clearBadgeCount,
+  getCurrentDeviceToken,
 } from '../capacitor/push-notifications';
 import { upsertDeviceToken, deleteDeviceToken } from '../services/device-tokens.service';
 import { isNative } from '../capacitor/platform';
@@ -25,13 +26,18 @@ export function usePushNotifications(userId: string | null) {
     lastUserIdRef.current = userId;
 
     if (!userId && previousUserId) {
-      const tokenToDelete = lastTokenRef.current;
+      const refToken = lastTokenRef.current;
       lastTokenRef.current = null;
-      if (tokenToDelete) {
-        deleteDeviceToken(tokenToDelete).catch((err) =>
-          console.warn('[push] deleteDeviceToken on logout failed:', err)
-        );
-      }
+      // Si el ref se perdió por reinicio de app, leer el token actual del SO
+      // para asegurarnos de borrar el correcto y no dejar tokens huérfanos.
+      (async () => {
+        const tokenToDelete = refToken ?? (await getCurrentDeviceToken());
+        if (tokenToDelete) {
+          await deleteDeviceToken(tokenToDelete).catch((err) =>
+            console.warn('[push] deleteDeviceToken on logout failed:', err)
+          );
+        }
+      })();
       removeAllListeners().catch(() => undefined);
       return;
     }
@@ -52,14 +58,12 @@ export function usePushNotifications(userId: string | null) {
         onNotificationReceived: (notification) => {
           console.log('[push] notif recibida en foreground:', notification);
         },
-        onNotificationTapped: (action) => {
-          const url = action.notification.data?.action_url;
+        onNotificationTapped: (event) => {
+          const data = event.notification.data as Record<string, unknown> | undefined;
+          const url = data?.action_url;
           if (typeof url === 'string' && url.startsWith('/')) {
             window.location.assign(url);
           }
-        },
-        onRegistrationError: (err) => {
-          console.error('[push] registration error:', err);
         },
       }).catch((err) => {
         console.error('[push] init failed:', err);
