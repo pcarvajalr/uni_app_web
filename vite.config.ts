@@ -51,7 +51,7 @@ export default defineConfig({
             '@capacitor/haptics',
             '@capacitor/network',
             '@capacitor/preferences',
-            '@capacitor/push-notifications',
+            '@capacitor-firebase/messaging',
             '@capacitor/share',
             '@capacitor/splash-screen',
             '@capacitor/status-bar',
