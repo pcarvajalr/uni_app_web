@@ -8,18 +8,31 @@ type CategoryUpdate = Database['public']['Tables']['categories']['Update']
 /**
  * Obtiene todas las categorías de tipo tutoring (materias)
  */
-export const getTutoringSubjects = async (): Promise<Category[]> => {
+export const getTutoringSubjects = async (universityId?: string): Promise<Category[]> => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('categories')
       .select('*')
       .eq('type', 'tutoring')
-      .order('name')
+    if (universityId) query = query.eq('university_id', universityId)
+    const { data, error } = await query.order('name')
     return unwrapData(data, error)
   } catch (error) {
     console.error('Error obteniendo materias de tutoría:', error)
     throw error
   }
+}
+
+/**
+ * Sincroniza una materia (por nombre) hacia las demás universidades.
+ * Devuelve cuántas filas se crearon.
+ */
+export const syncSubjectByName = async (categoryId: string): Promise<number> => {
+  const { data, error } = await supabase.rpc('sync_category_by_name', {
+    p_category_id: categoryId,
+  })
+  if (error) throw error
+  return (data as number) ?? 0
 }
 
 /**

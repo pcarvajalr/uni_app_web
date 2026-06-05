@@ -1199,6 +1199,10 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: Json
       }
+      delete_university: {
+        Args: { p_university_id: string }
+        Returns: undefined
+      }
       get_account_deletion_status: {
         Args: { target_user_id: string }
         Returns: Json
@@ -1220,7 +1224,22 @@ export type Database = {
         }
         Returns: Json
       }
+      sync_category_by_name: {
+        Args: { p_category_id: string }
+        Returns: number
+      }
       sync_favorites_count: { Args: never; Returns: undefined }
+      university_data_counts: {
+        Args: { p_university_id: string }
+        Returns: {
+          coupons_count: number
+          locations_count: number
+          partners_count: number
+          products_count: number
+          sessions_count: number
+          users_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

@@ -8,13 +8,14 @@ type CategoryUpdate = Database['public']['Tables']['categories']['Update']
 /**
  * Obtiene todas las categorías de tipo ubicación
  */
-export const getLocationCategories = async (): Promise<Category[]> => {
+export const getLocationCategories = async (universityId?: string): Promise<Category[]> => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('categories')
       .select('*')
       .eq('type', 'location')
-      .order('name')
+    if (universityId) query = query.eq('university_id', universityId)
+    const { data, error } = await query.order('name')
     return unwrapData(data, error)
   } catch (error) {
     console.error('Error obteniendo categorías de ubicación:', error)
