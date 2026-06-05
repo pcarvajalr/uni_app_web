@@ -33,6 +33,30 @@ export const getActiveCoupons = async () => {
   }
 };
 
+export interface CouponPartner {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  is_default: boolean;
+}
+
+export interface CouponWithPartner extends Coupon {
+  partner: CouponPartner | null;
+}
+
+// Cupones activos visibles para el usuario (RLS filtra por universidad/global), con su aliado
+export const getActiveCouponsWithPartner = async (): Promise<CouponWithPartner[]> => {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('coupons')
+    .select('*, partner:partners(id, name, logo_url, is_default)')
+    .eq('is_active', true)
+    .lte('valid_from', now)
+    .gte('valid_until', now)
+    .order('created_at', { ascending: false });
+  return unwrapData(data, error) as CouponWithPartner[];
+};
+
 // Obtener cupones del usuario con información de uso
 export const getUserCoupons = async (userId: string) => {
   try {

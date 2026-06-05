@@ -18,6 +18,7 @@ import DataTreatmentPage from '@/pages/DataTreatmentPage';
 import DataAuthorizationPage from '@/pages/DataAuthorizationPage';
 import SupportPage from '@/pages/SupportPage';
 import AccountDeletionPage from '@/pages/AccountDeletionPage';
+import ContactPage from '@/pages/ContactPage';
 import DashboardPage from '@/pages/DashboardPage';
 import MarketplacePage from '@/pages/MarketplacePage';
 import MySalesPage from '@/pages/MySalesPage';
@@ -67,6 +68,7 @@ function App() {
                 <Route path="/data-authorization" element={<DataAuthorizationPage />} />
                 <Route path="/support" element={<SupportPage />} />
                 <Route path="/account-deletion" element={<AccountDeletionPage />} />
+                <Route path="/contact" element={<ContactPage />} />
 
                 {/* Rutas privadas - requieren autenticación y email verificado */}
                 <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
