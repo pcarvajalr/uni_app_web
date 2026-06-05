@@ -1205,6 +1205,13 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_user_active: { Args: { user_id: string }; Returns: boolean }
+      lookup_university_by_email: {
+        Args: { p_email: string }
+        Returns: {
+          name: string
+          university_id: string
+        }[]
+      }
       restore_user_account: {
         Args: {
           new_email: string
