@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom"
 import { PasswordStrengthIndicator } from "./password-strength-indicator"
 import { strongPasswordSchema } from "@/lib/password-validation"
 import { z } from "zod"
+import { lookupUniversityByEmail } from "@/services/universities.service"
 
 // Schema de validación para el formulario de registro
 const registerFormSchema = z.object({
@@ -23,10 +24,6 @@ const registerFormSchema = z.object({
     .email("Por favor ingresa un correo electrónico válido"),
   studentId: z.string()
     .max(50, "El código estudiantil no puede exceder 50 caracteres")
-    .optional()
-    .or(z.literal("")), // Permite string vacío
-  university: z.string()
-    .max(100, "El nombre de la universidad no puede exceder 100 caracteres")
     .optional()
     .or(z.literal("")), // Permite string vacío
   password: strongPasswordSchema,
@@ -55,11 +52,10 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
           confirmPassword: "",
           name: parsed.name || "",
           studentId: parsed.studentId || "",
-          university: parsed.university || "",
         }
       } catch { /* ignore */ }
     }
-    return { email: "", password: "", confirmPassword: "", name: "", studentId: "", university: "" }
+    return { email: "", password: "", confirmPassword: "", name: "", studentId: "" }
   })
   const [acceptances, setAcceptances] = useState(() => {
     const saved = sessionStorage.getItem(REGISTER_FORM_KEY)
@@ -85,7 +81,6 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
       email: formData.email,
       name: formData.name,
       studentId: formData.studentId,
-      university: formData.university,
       acceptances,
     }))
   }, [formData, acceptances])
@@ -133,12 +128,18 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     }
 
     try {
+      // Validar que el dominio del correo pertenezca a una universidad registrada
+      const university = await lookupUniversityByEmail(formData.email)
+      if (!university) {
+        setError("Su universidad no está registrada, ponte en contacto con nosotros!")
+        return
+      }
+
       const result = await register(
         formData.name,
         formData.email,
         formData.password,
-        formData.studentId || undefined,
-        formData.university || undefined
+        formData.studentId || undefined
       )
 
       if (result?.needsEmailVerification) {
@@ -150,7 +151,6 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
           confirmPassword: "",
           name: "",
           studentId: "",
-          university: "",
         })
       } else {
         sessionStorage.removeItem(REGISTER_FORM_KEY)
@@ -207,19 +207,6 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
               className={fieldErrors.studentId ? "border-destructive" : ""}
             />
             {fieldErrors.studentId && <p className="text-sm text-destructive">{fieldErrors.studentId}</p>}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="university">Universidad <span className="text-muted-foreground text-xs">(opcional)</span></Label>
-            <Input
-              id="university"
-              type="text"
-              placeholder="Universidad Nacional"
-              value={formData.university}
-              onChange={(e) => handleChange("university", e.target.value)}
-              disabled={isLoading}
-              className={fieldErrors.university ? "border-destructive" : ""}
-            />
-            {fieldErrors.university && <p className="text-sm text-destructive">{fieldErrors.university}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Contraseña</Label>
