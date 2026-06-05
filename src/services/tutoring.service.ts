@@ -183,10 +183,11 @@ export const getTutoringSessionById = async (
 
 // Crear una nueva sesión de tutoría
 export const createTutoringSession = async (
-  session: Omit<TutoringSessionInsert, 'id' | 'created_at' | 'updated_at'>
+  session: Omit<TutoringSessionInsert, 'id' | 'created_at' | 'updated_at' | 'university_id'>
 ) => {
   try {
-    const { data, error } = await supabase.from('tutoring_sessions').insert(session).select().single();
+    // university_id lo completa el trigger BEFORE INSERT desde el tutor
+    const { data, error } = await supabase.from('tutoring_sessions').insert(session as TutoringSessionInsert).select().single();
 
     return unwrapData(data, error);
   } catch (error) {
