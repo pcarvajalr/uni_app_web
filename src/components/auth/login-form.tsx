@@ -155,6 +155,15 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
             ¿No tienes cuenta? Regístrate aquí
           </Button>
         </div>
+        <div className="mt-2 text-center">
+          <Button
+            variant="link"
+            onClick={() => navigate('/contact')}
+            className="text-sm text-muted-foreground"
+          >
+            ¿Tu universidad no está registrada? Contáctanos
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )

@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Ticket, Download, Copy, Heart } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
-import { getActiveCoupons } from "@/services/coupons.service"
-import type { Database } from "@/types/database.types"
-
-type Coupon = Database['public']['Tables']['coupons']['Row']
+import {
+  getActiveCouponsWithPartner,
+  type CouponWithPartner,
+  type CouponPartner,
+} from "@/services/coupons.service"
 
 // Helper para formatear el descuento
 const formatDiscount = (type: string, value: number): string => {
@@ -33,15 +34,17 @@ const formatCategory = (applicableTo: string | null): string => {
 
 export default function CouponsPage() {
   const { toast } = useToast()
-  const [coupons, setCoupons] = useState<Coupon[]>([])
-  const [favorites, setFavorites] = useState<string[]>([])
-  const [filter, setFilter] = useState("all")
+  const [coupons, setCoupons] = useState<CouponWithPartner[]>([])
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    const stored = localStorage.getItem("uniapp_coupon_favorites")
+    return stored ? JSON.parse(stored) : []
+  })
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null)
 
   useEffect(() => {
-    // Load coupons from Supabase
     const loadCoupons = async () => {
       try {
-        const activeCoupons = await getActiveCoupons()
+        const activeCoupons = await getActiveCouponsWithPartner()
         setCoupons(activeCoupons)
       } catch (error) {
         console.error('Error cargando cupones:', error)
@@ -54,12 +57,7 @@ export default function CouponsPage() {
     }
 
     loadCoupons()
-
-    // Load favorites from localStorage (user preference)
-    const storedFavorites = localStorage.getItem("uniapp_coupon_favorites")
-    if (storedFavorites) {
-      setFavorites(JSON.parse(storedFavorites))
-    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleCopyCode = (code: string, title: string) => {
@@ -98,14 +96,21 @@ export default function CouponsPage() {
     })
   }
 
-  const filteredCoupons =
-    filter === "favorites"
-      ? coupons.filter((c) => favorites.includes(c.id))
-      : filter === "all"
-      ? coupons
-      : coupons.filter((c) => c.applicable_to === filter)
+  // Aliados distintos presentes en los cupones visibles
+  const partners: CouponPartner[] = Array.from(
+    coupons
+      .reduce((map, c) => {
+        if (c.partner && !map.has(c.partner.id)) map.set(c.partner.id, c.partner)
+        return map
+      }, new Map<string, CouponPartner>())
+      .values()
+  )
 
-  const categories = [...new Set(coupons.map((c) => c.applicable_to).filter((cat): cat is string => cat !== null))]
+  const partnerCoupons = selectedPartnerId
+    ? coupons.filter((c) => c.partner?.id === selectedPartnerId)
+    : []
+
+  const selectedPartner = partners.find((p) => p.id === selectedPartnerId) ?? null
 
   return (
     <AppLayout>
@@ -115,135 +120,144 @@ export default function CouponsPage() {
             <Ticket className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold text-foreground">Cupones</h1>
           </div>
-          <p className="text-muted-foreground">Descubre todas las ofertas y promociones disponibles</p>
+          <p className="text-muted-foreground">
+            {selectedPartnerId
+              ? "Ofertas y promociones del establecimiento"
+              : "Selecciona un establecimiento para ver sus cupones"}
+          </p>
         </div>
 
-        {/* Filter Tabs */}
-        {coupons.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            <Button
-              variant={filter === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilter("all")}
-              className="whitespace-nowrap"
-            >
-              Todos ({coupons.length})
-            </Button>
-            <Button
-              variant={filter === "favorites" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilter("favorites")}
-              className="whitespace-nowrap"
-            >
-              Favoritos ({favorites.length})
-            </Button>
-            {categories.map((category) => (
-              <Button
-                key={category}
-                variant={filter === category ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilter(category)}
-                className="whitespace-nowrap"
-              >
-                {formatCategory(category)}
-              </Button>
-            ))}
-          </div>
-        )}
-
-        {/* Coupons Grid */}
-        {filteredCoupons.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCoupons.map((coupon) => (
-              <Card
-                key={coupon.id}
-                className="overflow-hidden hover:shadow-lg transition-shadow"
-              >
-                {/* Coupon Image */}
-                <div className="relative w-full aspect-video bg-muted overflow-hidden">
-                  <img
-                    src={coupon.image_url || "/placeholder.svg"}
-                    alt={coupon.title}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute top-2 right-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 bg-white/80 hover:bg-white rounded-full"
-                      onClick={() => handleToggleFavorite(coupon.id)}
-                    >
-                      <Heart
-                        className={`h-4 w-4 ${
-                          favorites.includes(coupon.id)
-                            ? "fill-red-500 text-red-500"
-                            : "text-gray-400"
-                        }`}
+        {selectedPartnerId === null ? (
+          partners.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {partners.map((p) => (
+                <Card
+                  key={p.id}
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => setSelectedPartnerId(p.id)}
+                >
+                  <CardContent className="flex flex-col items-center gap-3 py-6">
+                    {p.logo_url ? (
+                      <img
+                        src={p.logo_url}
+                        alt={p.name}
+                        className="h-16 w-16 object-contain rounded"
                       />
-                    </Button>
-                  </div>
-                </div>
-
-                <CardContent className="pt-4 space-y-3">
-                  <div className="space-y-1">
-                    <h3 className="font-semibold text-foreground truncate">{coupon.title}</h3>
-                    {coupon.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{coupon.description}</p>
+                    ) : (
+                      <div className="h-16 w-16 flex items-center justify-center rounded bg-muted">
+                        <Ticket className="h-7 w-7 text-muted-foreground" />
+                      </div>
                     )}
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-primary/10 text-primary">
-                        {formatDiscount(coupon.discount_type, coupon.discount_value)}
-                      </Badge>
-                      {coupon.applicable_to && (
-                        <Badge variant="outline">{formatCategory(coupon.applicable_to)}</Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="bg-secondary/20 rounded-lg p-2">
-                      <p className="text-xs text-muted-foreground mb-1">Código promocional</p>
-                      <p className="font-mono font-bold text-secondary text-center">{coupon.code}</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Válido hasta: <span className="font-semibold">{formatDate(coupon.valid_until)}</span>
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 bg-transparent"
-                      onClick={() => handleCopyCode(coupon.code, coupon.title)}
-                    >
-                      <Copy className="h-4 w-4 mr-1" />
-                      Copiar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 bg-transparent"
-                      onClick={() => handleDownloadCoupon(coupon.image_url, coupon.title)}
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      Descargar
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <span className="text-sm font-medium text-center">{p.name}</span>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="border-dashed border-2 border-muted-foreground/30">
+              <CardContent className="py-12 text-center">
+                <Ticket className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  No hay cupones disponibles
+                </h3>
+                <p className="text-muted-foreground">
+                  Los administradores aún no han subido cupones. ¡Vuelve pronto!
+                </p>
+              </CardContent>
+            </Card>
+          )
         ) : (
-          <Card className="border-dashed border-2 border-muted-foreground/30">
-            <CardContent className="py-12 text-center">
-              <Ticket className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No hay cupones disponibles</h3>
-              <p className="text-muted-foreground">
-                Los administradores aún no han subido cupones. ¡Vuelve pronto!
-              </p>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedPartnerId(null)}>
+                ← Volver a establecimientos
+              </Button>
+              <h2 className="text-lg font-semibold">{selectedPartner?.name}</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {partnerCoupons.map((coupon) => (
+                <Card key={coupon.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <div className="relative w-full aspect-video bg-muted overflow-hidden">
+                    <img
+                      src={coupon.image_url || "/placeholder.svg"}
+                      alt={coupon.title}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute top-2 right-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 bg-white/80 hover:bg-white rounded-full"
+                        onClick={() => handleToggleFavorite(coupon.id)}
+                      >
+                        <Heart
+                          className={`h-4 w-4 ${
+                            favorites.includes(coupon.id)
+                              ? "fill-red-500 text-red-500"
+                              : "text-gray-400"
+                          }`}
+                        />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <CardContent className="pt-4 space-y-3">
+                    <div className="space-y-1">
+                      <h3 className="font-semibold text-foreground truncate">{coupon.title}</h3>
+                      {coupon.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {coupon.description}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-primary/10 text-primary">
+                          {formatDiscount(coupon.discount_type, coupon.discount_value)}
+                        </Badge>
+                        {coupon.applicable_to && (
+                          <Badge variant="outline">{formatCategory(coupon.applicable_to)}</Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="bg-secondary/20 rounded-lg p-2">
+                        <p className="text-xs text-muted-foreground mb-1">Código promocional</p>
+                        <p className="font-mono font-bold text-secondary text-center">
+                          {coupon.code}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Válido hasta:{" "}
+                        <span className="font-semibold">{formatDate(coupon.valid_until)}</span>
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 bg-transparent"
+                        onClick={() => handleCopyCode(coupon.code, coupon.title)}
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copiar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 bg-transparent"
+                        onClick={() => handleDownloadCoupon(coupon.image_url, coupon.title)}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Descargar
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </AppLayout>
