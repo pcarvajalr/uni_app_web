@@ -133,9 +133,10 @@ export const getProductById = async (id: string) => {
 };
 
 // Crear un nuevo producto
-export const createProduct = async (product: Omit<ProductInsert, 'id' | 'created_at' | 'updated_at'>) => {
+export const createProduct = async (product: Omit<ProductInsert, 'id' | 'created_at' | 'updated_at' | 'university_id'>) => {
   try {
-    const { data, error } = await supabase.from('products').insert(product).select().single();
+    // university_id lo completa el trigger BEFORE INSERT desde el vendedor
+    const { data, error } = await supabase.from('products').insert(product as ProductInsert).select().single();
 
     return unwrapData(data, error);
   } catch (error) {

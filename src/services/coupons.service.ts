@@ -369,11 +369,14 @@ export const deleteCouponImage = async (imageUrl: string): Promise<void> => {
 };
 
 // Crear nuevo cupón (solo administradores)
-export const createCoupon = async (couponData: CouponInsert): Promise<Coupon> => {
+// partner_id es opcional: si no se envía, el trigger lo asigna al aliado por defecto ("Promociones generales")
+export const createCoupon = async (
+  couponData: Omit<CouponInsert, 'partner_id'> & { partner_id?: string }
+): Promise<Coupon> => {
   try {
     const { data, error } = await supabase
       .from('coupons')
-      .insert(couponData)
+      .insert(couponData as CouponInsert)
       .select()
       .single();
 

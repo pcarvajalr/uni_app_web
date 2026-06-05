@@ -43,12 +43,13 @@ export const getCampusLocationById = async (id: string): Promise<CampusLocation>
  * Solo usuarios admin pueden crear ubicaciones (validado por RLS)
  */
 export const createCampusLocation = async (
-  location: Omit<CampusLocationInsert, 'id' | 'created_at' | 'updated_at'>
+  location: Omit<CampusLocationInsert, 'id' | 'created_at' | 'updated_at' | 'university_id'>
 ): Promise<CampusLocation> => {
   try {
+    // university_id lo completa el trigger BEFORE INSERT (universidad del admin) salvo que se envíe explícito
     const { data, error } = await supabase
       .from('campus_locations')
-      .insert(location)
+      .insert(location as CampusLocationInsert)
       .select()
       .single()
     return unwrapData(data, error)

@@ -63,11 +63,12 @@ export const updateMapImageUrl = async (imageUrl: string): Promise<CampusSetting
       // Crear nuevo registro si no existe
       const { data, error } = await supabase
         .from('campus_settings')
+        // university_id lo completa el trigger BEFORE INSERT (universidad del admin)
         .insert({
           setting_key: 'map_image_url',
           setting_value: imageUrl,
           description: 'URL de la imagen del mapa del campus universitario'
-        })
+        } as CampusSettingInsert)
         .select()
         .single()
       return unwrapData(data, error)
@@ -162,11 +163,12 @@ export const updateCampusSetting = async (
       // Crear
       const { data, error } = await supabase
         .from('campus_settings')
+        // university_id lo completa el trigger BEFORE INSERT (universidad del admin)
         .insert({
           setting_key: key,
           setting_value: value,
           description: description || ''
-        })
+        } as CampusSettingInsert)
         .select()
         .single()
       return unwrapData(data, error)
