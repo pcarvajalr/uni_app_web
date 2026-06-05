@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/lib/auth';
 import { FavoritesProvider } from '@/contexts/favorites-context';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { AdminRoute } from '@/components/auth/AdminRoute';
 import { Toaster } from '@/components/ui/toaster';
 import { Loader2 } from 'lucide-react';
 
@@ -31,6 +32,8 @@ import ProfilePage from '@/pages/ProfilePage';
 const HelpPage = lazy(() => import('@/pages/HelpPage'));
 const MapsPage = lazy(() => import('@/pages/MapsPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const AdminUniversitiesPage = lazy(() => import('@/pages/AdminUniversitiesPage'));
+const AdminConfigPage = lazy(() => import('@/pages/AdminConfigPage'));
 
 // Create a client
 const queryClient = new QueryClient({
@@ -77,6 +80,8 @@ function App() {
                 <Route path="/coupons" element={<ProtectedRoute><CouponsPage /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                <Route path="/admin/universities" element={<AdminRoute><AdminUniversitiesPage /></AdminRoute>} />
+                <Route path="/admin/config" element={<AdminRoute><AdminConfigPage /></AdminRoute>} />
                 <Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
 
                 {/* Redirección por defecto */}

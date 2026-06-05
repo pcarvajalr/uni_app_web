@@ -448,3 +448,30 @@ export const getAllCoupons = async (): Promise<Coupon[]> => {
     throw error;
   }
 };
+
+export interface AdminCouponPartner {
+  id: string;
+  name: string;
+  university_id: string | null;
+  is_default: boolean;
+  logo_url: string | null;
+}
+
+export interface AdminCouponWithPartner extends Coupon {
+  partner: AdminCouponPartner | null;
+}
+
+// Cupones para administración con datos del aliado (el filtrado por universidad se hace en el cliente)
+export const getAllCouponsWithPartner = async (): Promise<AdminCouponWithPartner[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('*, partner:partners(id, name, university_id, is_default, logo_url)')
+      .order('created_at', { ascending: false });
+
+    return unwrapData(data, error) as AdminCouponWithPartner[];
+  } catch (error) {
+    console.error('Error obteniendo cupones con aliado:', error);
+    throw error;
+  }
+};

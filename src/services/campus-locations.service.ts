@@ -8,12 +8,13 @@ type CampusLocationUpdate = Database['public']['Tables']['campus_locations']['Up
 /**
  * Obtiene todas las ubicaciones del campus
  */
-export const getCampusLocations = async (): Promise<CampusLocation[]> => {
+export const getCampusLocations = async (universityId?: string): Promise<CampusLocation[]> => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('campus_locations')
       .select('*')
-      .order('name')
+    if (universityId) query = query.eq('university_id', universityId)
+    const { data, error } = await query.order('name')
     return unwrapData(data, error)
   } catch (error) {
     console.error('Error obteniendo ubicaciones del campus:', error)
@@ -43,7 +44,9 @@ export const getCampusLocationById = async (id: string): Promise<CampusLocation>
  * Solo usuarios admin pueden crear ubicaciones (validado por RLS)
  */
 export const createCampusLocation = async (
-  location: Omit<CampusLocationInsert, 'id' | 'created_at' | 'updated_at' | 'university_id'>
+  location: Omit<CampusLocationInsert, 'id' | 'created_at' | 'updated_at' | 'university_id'> & {
+    university_id?: string
+  }
 ): Promise<CampusLocation> => {
   try {
     // university_id lo completa el trigger BEFORE INSERT (universidad del admin) salvo que se envíe explícito
