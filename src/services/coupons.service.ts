@@ -33,6 +33,30 @@ export const getActiveCoupons = async () => {
   }
 };
 
+export interface CouponPartner {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  is_default: boolean;
+}
+
+export interface CouponWithPartner extends Coupon {
+  partner: CouponPartner | null;
+}
+
+// Cupones activos visibles para el usuario (RLS filtra por universidad/global), con su aliado
+export const getActiveCouponsWithPartner = async (): Promise<CouponWithPartner[]> => {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('coupons')
+    .select('*, partner:partners(id, name, logo_url, is_default)')
+    .eq('is_active', true)
+    .lte('valid_from', now)
+    .gte('valid_until', now)
+    .order('created_at', { ascending: false });
+  return unwrapData(data, error) as CouponWithPartner[];
+};
+
 // Obtener cupones del usuario con información de uso
 export const getUserCoupons = async (userId: string) => {
   try {
@@ -369,11 +393,14 @@ export const deleteCouponImage = async (imageUrl: string): Promise<void> => {
 };
 
 // Crear nuevo cupón (solo administradores)
-export const createCoupon = async (couponData: CouponInsert): Promise<Coupon> => {
+// partner_id es opcional: si no se envía, el trigger lo asigna al aliado por defecto ("Promociones generales")
+export const createCoupon = async (
+  couponData: Omit<CouponInsert, 'partner_id'> & { partner_id?: string }
+): Promise<Coupon> => {
   try {
     const { data, error } = await supabase
       .from('coupons')
-      .insert(couponData)
+      .insert(couponData as CouponInsert)
       .select()
       .single();
 
@@ -442,6 +469,33 @@ export const getAllCoupons = async (): Promise<Coupon[]> => {
     return unwrapData(data, error);
   } catch (error) {
     console.error('Error obteniendo todos los cupones:', error);
+    throw error;
+  }
+};
+
+export interface AdminCouponPartner {
+  id: string;
+  name: string;
+  university_id: string | null;
+  is_default: boolean;
+  logo_url: string | null;
+}
+
+export interface AdminCouponWithPartner extends Coupon {
+  partner: AdminCouponPartner | null;
+}
+
+// Cupones para administración con datos del aliado (el filtrado por universidad se hace en el cliente)
+export const getAllCouponsWithPartner = async (): Promise<AdminCouponWithPartner[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('*, partner:partners(id, name, university_id, is_default, logo_url)')
+      .order('created_at', { ascending: false });
+
+    return unwrapData(data, error) as AdminCouponWithPartner[];
+  } catch (error) {
+    console.error('Error obteniendo cupones con aliado:', error);
     throw error;
   }
 };

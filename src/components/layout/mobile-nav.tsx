@@ -1,9 +1,10 @@
 import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { MapPin, AlertTriangle, ShoppingBag, GraduationCap, Home, Ticket } from 'lucide-react'
+import { MapPin, ShoppingBag, GraduationCap, Ticket, MessagesSquare } from 'lucide-react'
 import { useAuth } from "@/lib/auth"
 import { useUnreadMessageCount } from "@/hooks/useTutoringMessages"
 import { useUnreadMarketplaceCount } from "@/hooks/useMarketplaceMessages"
+import { useUnreadContactCount } from "@/hooks/useContactMessages"
 
 const mainNavItems = [
   {
@@ -22,9 +23,9 @@ const mainNavItems = [
     icon: ShoppingBag,
   },
   {
-    href: "/reports",
-    label: "Reportes",
-    icon: AlertTriangle,
+    href: "/chats",
+    label: "Chats",
+    icon: MessagesSquare,
   },
   {
     href: "/tutoring",
@@ -37,8 +38,15 @@ export function MobileNav() {
   const location = useLocation()
   const pathname = location.pathname
   const { user } = useAuth()
-  const { data: unreadCount } = useUnreadMessageCount(user?.id || '')
+  const isAdmin = user?.role === "admin"
+  const { data: unreadTutoring } = useUnreadMessageCount(user?.id || '')
   const { data: unreadMarketplace } = useUnreadMarketplaceCount(user?.id || '')
+  const { data: unreadContact } = useUnreadContactCount(isAdmin)
+
+  const hasChatUnread =
+    (unreadTutoring ?? 0) > 0 ||
+    (unreadMarketplace ?? 0) > 0 ||
+    (isAdmin && (unreadContact ?? 0) > 0)
 
   return (
     <nav
@@ -49,9 +57,7 @@ export function MobileNav() {
         {mainNavItems.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href
-          const showDot =
-            (item.href === "/tutoring" && (unreadCount ?? 0) > 0) ||
-            (item.href === "/marketplace" && (unreadMarketplace ?? 0) > 0)
+          const showDot = item.href === "/chats" && hasChatUnread
 
           return (
             <Link

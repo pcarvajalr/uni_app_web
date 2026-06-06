@@ -182,9 +182,11 @@ export default function MarketplacePage() {
 
             {/* Categories */}
             <h3 className="font-medium mb-3 text-sm">Filtros</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Categoría y Condición en una sola fila */}
+            <div className="grid grid-cols-2 gap-3">
               {/* Category Filter */}
               <div className="space-y-2">
+                <label className="text-xs font-medium block">Categoría</label>
                 <Select
                   value={selectedCategory || "all"}
                   onValueChange={(value) => setSelectedCategory(value === "all" ? null : value)}
@@ -206,6 +208,7 @@ export default function MarketplacePage() {
 
               {/* Condition Filter */}
               <div className="space-y-2">
+                <label className="text-xs font-medium block">Condición</label>
                 <Select
                   value={selectedCondition || "all"}
                   onValueChange={(value) => setSelectedCondition(value === "all" ? null : value)}
@@ -223,27 +226,28 @@ export default function MarketplacePage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
-              {/* Favorites Filter */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium">Solo Favoritos</label>
-                <div className="flex items-center space-x-2">
+            {/* Favoritos (compacto) y Rango de precio en una sola fila */}
+            <div className="mt-3 flex items-start gap-4">
+              {/* Favorites Filter: ocupa solo lo necesario */}
+              <div className="space-y-2 shrink-0">
+                <label className="text-xs font-medium block">Solo Favoritos</label>
+                <div className="flex h-9 items-center gap-2">
                   <Switch
                     checked={showFavoritesOnly}
                     onCheckedChange={setShowFavoritesOnly}
                     disabled={!isAuthenticated}
                   />
-                  <span className="text-xs text-muted-foreground">
-                    {favoritesCount} productos
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {favoritesCount}
                   </span>
                 </div>
               </div>
-            </div>
 
-            {/* Price Range - Segunda fila */}
-            <div className="mt-3">
-              <div className="space-y-2">
-                <label className="text-xs font-medium">Rango de Precio</label>
+              {/* Price Range: ocupa el resto del ancho */}
+              <div className="space-y-2 flex-1">
+                <label className="text-xs font-medium block">Rango de Precio</label>
                 <div className="flex items-center space-x-2">
                   <Input
                     type="number"
@@ -330,7 +334,7 @@ export default function MarketplacePage() {
 
         {/* Products Grid */}
         {!loading && !error && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {filteredProducts.map((product) => (
               <Card
                 key={product.id}

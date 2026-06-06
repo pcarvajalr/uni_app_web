@@ -27,10 +27,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-background">
       <Header />
       <main
-        className="pb-20 px-2 py-6"
+        className="w-full max-w-full overflow-x-hidden pb-20 px-2 py-6"
         style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
       >
         {children}

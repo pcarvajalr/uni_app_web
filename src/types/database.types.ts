@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       campus_locations: {
@@ -58,6 +33,7 @@ export type Database = {
           opening_hours: Json | null
           phone: string | null
           type: string
+          university_id: string
           updated_at: string | null
         }
         Insert: {
@@ -78,6 +54,7 @@ export type Database = {
           opening_hours?: Json | null
           phone?: string | null
           type: string
+          university_id: string
           updated_at?: string | null
         }
         Update: {
@@ -98,9 +75,18 @@ export type Database = {
           opening_hours?: Json | null
           phone?: string | null
           type?: string
+          university_id?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campus_locations_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       campus_settings: {
         Row: {
@@ -109,6 +95,7 @@ export type Database = {
           id: string
           setting_key: string
           setting_value: string | null
+          university_id: string
           updated_at: string | null
           updated_by: string | null
         }
@@ -118,6 +105,7 @@ export type Database = {
           id?: string
           setting_key: string
           setting_value?: string | null
+          university_id: string
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -127,10 +115,18 @@ export type Database = {
           id?: string
           setting_key?: string
           setting_value?: string | null
+          university_id?: string
           updated_at?: string | null
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "campus_settings_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "campus_settings_updated_by_fkey"
             columns: ["updated_by"]
@@ -148,6 +144,7 @@ export type Database = {
           id: string
           name: string
           type: string
+          university_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -156,6 +153,7 @@ export type Database = {
           id?: string
           name: string
           type: string
+          university_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -164,6 +162,42 @@ export type Database = {
           id?: string
           name?: string
           type?: string
+          university_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_messages: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string
+          phone: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          phone: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          phone?: string
+          status?: string
         }
         Relationships: []
       }
@@ -181,6 +215,7 @@ export type Database = {
           is_active: boolean | null
           max_discount_amount: number | null
           min_purchase_amount: number | null
+          partner_id: string
           title: string
           usage_limit: number | null
           usage_per_user: number | null
@@ -201,6 +236,7 @@ export type Database = {
           is_active?: boolean | null
           max_discount_amount?: number | null
           min_purchase_amount?: number | null
+          partner_id: string
           title: string
           usage_limit?: number | null
           usage_per_user?: number | null
@@ -221,6 +257,7 @@ export type Database = {
           is_active?: boolean | null
           max_discount_amount?: number | null
           min_purchase_amount?: number | null
+          partner_id?: string
           title?: string
           usage_limit?: number | null
           usage_per_user?: number | null
@@ -228,7 +265,15 @@ export type Database = {
           valid_from?: string | null
           valid_until?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "coupons_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       device_tokens: {
         Row: {
@@ -442,6 +487,50 @@ export type Database = {
           },
         ]
       }
+      partners: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          is_default: boolean
+          logo_url: string | null
+          name: string
+          notes: string | null
+          university_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          logo_url?: string | null
+          name: string
+          notes?: string | null
+          university_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          logo_url?: string | null
+          name?: string
+          notes?: string | null
+          university_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partners_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category_id: string | null
@@ -458,6 +547,7 @@ export type Database = {
           status: string | null
           tags: string[] | null
           title: string
+          university_id: string
           updated_at: string | null
           views: number | null
         }
@@ -476,6 +566,7 @@ export type Database = {
           status?: string | null
           tags?: string[] | null
           title: string
+          university_id: string
           updated_at?: string | null
           views?: number | null
         }
@@ -494,6 +585,7 @@ export type Database = {
           status?: string | null
           tags?: string[] | null
           title?: string
+          university_id?: string
           updated_at?: string | null
           views?: number | null
         }
@@ -510,6 +602,13 @@ export type Database = {
             columns: ["seller_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
             referencedColumns: ["id"]
           },
         ]
@@ -533,6 +632,7 @@ export type Database = {
           status: string | null
           title: string
           type: string
+          university_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -553,6 +653,7 @@ export type Database = {
           status?: string | null
           title: string
           type: string
+          university_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -573,6 +674,7 @@ export type Database = {
           status?: string | null
           title?: string
           type?: string
+          university_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -588,6 +690,13 @@ export type Database = {
             columns: ["reporter_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
             referencedColumns: ["id"]
           },
         ]
@@ -833,6 +942,7 @@ export type Database = {
           title: string
           total_bookings: number | null
           tutor_id: string
+          university_id: string
           updated_at: string | null
         }
         Insert: {
@@ -855,6 +965,7 @@ export type Database = {
           title: string
           total_bookings?: number | null
           tutor_id: string
+          university_id: string
           updated_at?: string | null
         }
         Update: {
@@ -877,6 +988,7 @@ export type Database = {
           title?: string
           total_bookings?: number | null
           tutor_id?: string
+          university_id?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -892,6 +1004,69 @@ export type Database = {
             columns: ["tutor_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tutoring_sessions_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      universities: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      university_domains: {
+        Row: {
+          created_at: string
+          domain: string
+          id: string
+          university_id: string
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+          id?: string
+          university_id: string
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          id?: string
+          university_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "university_domains_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
             referencedColumns: ["id"]
           },
         ]
@@ -962,6 +1137,7 @@ export type Database = {
           student_id: string | null
           total_sales: number | null
           total_tutoring_sessions: number | null
+          university_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -987,6 +1163,7 @@ export type Database = {
           student_id?: string | null
           total_sales?: number | null
           total_tutoring_sessions?: number | null
+          university_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1012,9 +1189,18 @@ export type Database = {
           student_id?: string | null
           total_sales?: number | null
           total_tutoring_sessions?: number | null
+          university_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "users_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -1035,9 +1221,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      current_user_university_id: { Args: never; Returns: string }
       delete_marketplace_product: {
         Args: { p_product_id: string }
         Returns: Json
+      }
+      delete_university: {
+        Args: { p_university_id: string }
+        Returns: undefined
       }
       get_account_deletion_status: {
         Args: { target_user_id: string }
@@ -1045,6 +1236,13 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_user_active: { Args: { user_id: string }; Returns: boolean }
+      lookup_university_by_email: {
+        Args: { p_email: string }
+        Returns: {
+          name: string
+          university_id: string
+        }[]
+      }
       restore_user_account: {
         Args: {
           new_email: string
@@ -1053,7 +1251,22 @@ export type Database = {
         }
         Returns: Json
       }
+      sync_category_by_name: {
+        Args: { p_category_id: string }
+        Returns: number
+      }
       sync_favorites_count: { Args: never; Returns: undefined }
+      university_data_counts: {
+        Args: { p_university_id: string }
+        Returns: {
+          coupons_count: number
+          locations_count: number
+          partners_count: number
+          products_count: number
+          sessions_count: number
+          users_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
@@ -1182,9 +1395,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

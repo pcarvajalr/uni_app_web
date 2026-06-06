@@ -2,108 +2,109 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth"
-import { MapPin, AlertTriangle, ShoppingBag, GraduationCap, TrendingUp, Users, Clock, Loader2 } from "lucide-react"
+import { MapPin, MessageCircle, ShoppingBag, GraduationCap, Ticket } from "lucide-react"
 import { Link } from "react-router-dom"
-import { useReports } from "@/hooks/useReports"
-import { useTutoringSessions } from "@/hooks/useTutoringSessions"
-import { getProducts, type ProductWithSeller } from "@/services/products.service"
-import { useState, useEffect, useMemo } from "react"
+// import { useReports } from "@/hooks/useReports"
+// import { useTutoringSessions } from "@/hooks/useTutoringSessions"
+// import { getProducts, type ProductWithSeller } from "@/services/products.service"
+// import { useState, useEffect, useMemo } from "react"
 
 export default function DashboardPage() {
   const { user } = useAuth()
 
-  // Datos dinámicos
-  const { reports, loading: reportsLoading } = useReports()
-  const { data: tutoringSessions, isLoading: tutoringLoading } = useTutoringSessions()
-  const [products, setProducts] = useState<ProductWithSeller[]>([])
-  const [productsLoading, setProductsLoading] = useState(true)
+  // KPIs y Actividad Reciente deshabilitados
+  // // Datos dinámicos
+  // const { reports, loading: reportsLoading } = useReports()
+  // const { data: tutoringSessions, isLoading: tutoringLoading } = useTutoringSessions()
+  // const [products, setProducts] = useState<ProductWithSeller[]>([])
+  // const [productsLoading, setProductsLoading] = useState(true)
 
-  // Cargar productos
-  useEffect(() => {
-    async function loadProducts() {
-      try {
-        const data = await getProducts({ status: 'available' })
-        setProducts(data)
-      } catch (error) {
-        console.error('Error cargando productos:', error)
-      } finally {
-        setProductsLoading(false)
-      }
-    }
-    loadProducts()
-  }, [])
+  // // Cargar productos
+  // useEffect(() => {
+  //   async function loadProducts() {
+  //     try {
+  //       const data = await getProducts({ status: 'available' })
+  //       setProducts(data)
+  //     } catch (error) {
+  //       console.error('Error cargando productos:', error)
+  //     } finally {
+  //       setProductsLoading(false)
+  //     }
+  //   }
+  //   loadProducts()
+  // }, [])
 
-  // Generar actividad reciente combinando todas las fuentes
-  const recentActivity = useMemo(() => {
-    type ActivityItem = {
-      id: string
-      type: 'report' | 'product' | 'tutoring'
-      title: string
-      date: Date
-      color: string
-    }
+  // // Generar actividad reciente combinando todas las fuentes
+  // const recentActivity = useMemo(() => {
+  //   type ActivityItem = {
+  //     id: string
+  //     type: 'report' | 'product' | 'tutoring'
+  //     title: string
+  //     date: Date
+  //     color: string
+  //   }
 
-    const activities: ActivityItem[] = []
+  //   const activities: ActivityItem[] = []
 
-    // Agregar reportes recientes
-    reports.slice(0, 5).forEach(report => {
-      activities.push({
-        id: `report-${report.id}`,
-        type: 'report',
-        title: `Reporte: ${report.title}`,
-        date: new Date(report.createdAt),
-        color: 'bg-red-500'
-      })
-    })
+  //   // Agregar reportes recientes
+  //   reports.slice(0, 5).forEach(report => {
+  //     activities.push({
+  //       id: `report-${report.id}`,
+  //       type: 'report',
+  //       title: `Reporte: ${report.title}`,
+  //       date: new Date(report.createdAt),
+  //       color: 'bg-red-500'
+  //     })
+  //   })
 
-    // Agregar productos recientes
-    products.slice(0, 5).forEach(product => {
-      activities.push({
-        id: `product-${product.id}`,
-        type: 'product',
-        title: `Producto: ${product.title}`,
-        date: new Date(product.created_at || ''),
-        color: 'bg-green-500'
-      })
-    })
+  //   // Agregar productos recientes
+  //   products.slice(0, 5).forEach(product => {
+  //     activities.push({
+  //       id: `product-${product.id}`,
+  //       type: 'product',
+  //       title: `Producto: ${product.title}`,
+  //       date: new Date(product.created_at || ''),
+  //       color: 'bg-green-500'
+  //     })
+  //   })
 
-    // Agregar tutorías recientes
-    tutoringSessions?.slice(0, 5).forEach(session => {
-      activities.push({
-        id: `tutoring-${session.id}`,
-        type: 'tutoring',
-        title: `Tutoría: ${session.subject}`,
-        date: new Date(session.created_at || ''),
-        color: 'bg-blue-500'
-      })
-    })
+  //   // Agregar tutorías recientes
+  //   tutoringSessions?.slice(0, 5).forEach(session => {
+  //     activities.push({
+  //       id: `tutoring-${session.id}`,
+  //       type: 'tutoring',
+  //       title: `Tutoría: ${session.subject}`,
+  //       date: new Date(session.created_at || ''),
+  //       color: 'bg-blue-500'
+  //     })
+  //   })
 
-    // Ordenar por fecha (más reciente primero) y tomar las primeras 5
-    return activities
-      .sort((a, b) => b.date.getTime() - a.date.getTime())
-      .slice(0, 5)
-  }, [reports, products, tutoringSessions])
+  //   // Ordenar por fecha (más reciente primero) y tomar las primeras 5
+  //   return activities
+  //     .sort((a, b) => b.date.getTime() - a.date.getTime())
+  //     .slice(0, 5)
+  // }, [reports, products, tutoringSessions])
 
-  // Función para formatear tiempo relativo
-  const formatRelativeTime = (date: Date): string => {
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMs / 3600000)
-    const diffDays = Math.floor(diffMs / 86400000)
+  // // Función para formatear tiempo relativo
+  // const formatRelativeTime = (date: Date): string => {
+  //   const now = new Date()
+  //   const diffMs = now.getTime() - date.getTime()
+  //   const diffMins = Math.floor(diffMs / 60000)
+  //   const diffHours = Math.floor(diffMs / 3600000)
+  //   const diffDays = Math.floor(diffMs / 86400000)
 
-    if (diffMins < 1) return 'Justo ahora'
-    if (diffMins < 60) return `Hace ${diffMins} min`
-    if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`
-    if (diffDays === 1) return 'Ayer'
-    if (diffDays < 7) return `Hace ${diffDays} días`
-    return date.toLocaleDateString('es-CO')
-  }
+  //   if (diffMins < 1) return 'Justo ahora'
+  //   if (diffMins < 60) return `Hace ${diffMins} min`
+  //   if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`
+  //   if (diffDays === 1) return 'Ayer'
+  //   if (diffDays < 7) return `Hace ${diffDays} días`
+  //   return date.toLocaleDateString('es-CO')
+  // }
 
-  // Calcular métricas
-  const activeReports = reports.filter(r => r.status === 'activo' || r.status === 'investigando').length
-  const availableTutoring = tutoringSessions?.length ?? 0
-  const uniqueSubjects = new Set(tutoringSessions?.map(s => s.subject)).size
+  // // Calcular métricas
+  // const activeReports = reports.filter(r => r.status === 'activo' || r.status === 'investigando').length
+  // const availableTutoring = tutoringSessions?.length ?? 0
+  // const uniqueSubjects = new Set(tutoringSessions?.map(s => s.subject)).size
 
   const quickActions = [
     {
@@ -114,10 +115,10 @@ export default function DashboardPage() {
       color: "text-blue-600",
     },
     {
-      title: "Reportar Incidente",
-      description: "Reporta robos o situaciones de seguridad",
-      icon: AlertTriangle,
-      href: "/reports",
+      title: "Chats",
+      description: "Conversa con otros estudiantes",
+      icon: MessageCircle,
+      href: "/chats",
       color: "text-red-600",
     },
     {
@@ -134,30 +135,37 @@ export default function DashboardPage() {
       href: "/tutoring",
       color: "text-purple-600",
     },
-  ]
-
-  const isLoading = reportsLoading || tutoringLoading || productsLoading
-
-  const stats = [
     {
-      title: "Reportes Activos",
-      value: isLoading ? null : activeReports,
-      icon: AlertTriangle,
-      trend: `${reports.length} total`,
-    },
-    {
-      title: "Productos en Venta",
-      value: isLoading ? null : products.length,
-      icon: ShoppingBag,
-      trend: "disponibles",
-    },
-    {
-      title: "Tutorías Disponibles",
-      value: isLoading ? null : availableTutoring,
-      icon: Users,
-      trend: `${uniqueSubjects} materias`,
+      title: "Promociones",
+      description: "Descubre cupones y ofertas de aliados",
+      icon: Ticket,
+      href: "/coupons",
+      color: "text-orange-600",
     },
   ]
+
+  // const isLoading = reportsLoading || tutoringLoading || productsLoading
+
+  // const stats = [
+  //   {
+  //     title: "Reportes Activos",
+  //     value: isLoading ? null : activeReports,
+  //     icon: AlertTriangle,
+  //     trend: `${reports.length} total`,
+  //   },
+  //   {
+  //     title: "Productos en Venta",
+  //     value: isLoading ? null : products.length,
+  //     icon: ShoppingBag,
+  //     trend: "disponibles",
+  //   },
+  //   {
+  //     title: "Tutorías Disponibles",
+  //     value: isLoading ? null : availableTutoring,
+  //     icon: Users,
+  //     trend: `${uniqueSubjects} materias`,
+  //   },
+  // ]
 
   return (
     <AppLayout>
@@ -168,8 +176,8 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">Bienvenido a tu aplicación universitaria</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Stats Cards (KPIs) - deshabilitado */}
+        {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {stats.map((stat, index) => {
             const Icon = stat.icon
             return (
@@ -194,7 +202,7 @@ export default function DashboardPage() {
               </Card>
             )
           })}
-        </div>
+        </div> */}
 
         {/* Quick Actions */}
         <div className="space-y-4">
@@ -222,8 +230,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <Card>
+        {/* Recent Activity - deshabilitado */}
+        {/* <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Clock className="h-5 w-5" />
@@ -253,7 +261,7 @@ export default function DashboardPage() {
               </div>
             )}
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </AppLayout>
   )

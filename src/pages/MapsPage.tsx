@@ -36,6 +36,7 @@ import { useState, useRef, useEffect, useMemo } from "react"
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"
 import { getCampusLocations } from "@/services/campus-locations.service"
 import { getMapImageUrl } from "@/services/campus-settings.service"
+import { handleMapImageError } from "@/lib/map-placeholder"
 import { getLocationCategories } from "@/services/location-categories.service"
 import {
   toggleLocationFavorite,
@@ -50,7 +51,7 @@ type CampusLocation = Database['public']['Tables']['campus_locations']['Row']
 type Category = Database['public']['Tables']['categories']['Row']
 
 export default function MapsPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { toast } = useToast()
 
   const [searchQuery, setSearchQuery] = useState("")
@@ -87,10 +88,11 @@ export default function MapsPage() {
     const loadData = async () => {
       setIsLoadingLocations(true)
       try {
+        const universityId = profile?.university_id ?? undefined
         const [locations, imageUrl, types] = await Promise.all([
-          getCampusLocations(),
-          getMapImageUrl(),
-          getLocationCategories()
+          getCampusLocations(universityId),
+          getMapImageUrl(universityId),
+          getLocationCategories(universityId)
         ])
 
         setCampusLocations(locations)
@@ -109,7 +111,7 @@ export default function MapsPage() {
       }
     }
     loadData()
-  }, [user])
+  }, [user, profile?.university_id])
 
   // Auto-scroll to selected location when clicking on map marker
   useEffect(() => {
@@ -270,6 +272,7 @@ export default function MapsPage() {
                   className="h-full w-auto object-contain block"
                   draggable={false}
                   style={{ maxWidth: '100%', maxHeight: '100%' }}
+                  onError={handleMapImageError}
                 />
 
                 {orderedLocations.map((location) => {
@@ -551,6 +554,7 @@ export default function MapsPage() {
                                         className="h-full w-auto object-contain block"
                                         draggable={false}
                                         style={{ maxHeight: '100%', maxWidth: '100%'}}
+                                        onError={handleMapImageError}
                                       />
 
                                       {orderedLocations.map((location) => {

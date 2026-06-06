@@ -8,13 +8,14 @@ type CampusSettingUpdate = Database['public']['Tables']['campus_settings']['Upda
 /**
  * Obtiene la URL de la imagen del mapa del campus
  */
-export const getMapImageUrl = async (): Promise<string> => {
+export const getMapImageUrl = async (universityId?: string): Promise<string> => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('campus_settings')
       .select('setting_value')
       .eq('setting_key', 'map_image_url')
-      .single()
+    if (universityId) query = query.eq('university_id', universityId)
+    const { data, error } = await query.single()
 
     if (error) {
       console.error('Error obteniendo URL del mapa:', error)
@@ -33,14 +34,18 @@ export const getMapImageUrl = async (): Promise<string> => {
  * Actualiza la URL de la imagen del mapa del campus
  * Solo usuarios admin pueden actualizar (validado por RLS)
  */
-export const updateMapImageUrl = async (imageUrl: string): Promise<CampusSetting> => {
+export const updateMapImageUrl = async (
+  imageUrl: string,
+  universityId?: string
+): Promise<CampusSetting> => {
   try {
-    // Intentar actualizar si existe
-    const { data: existingData, error: fetchError } = await supabase
+    // Intentar actualizar si existe (para esa universidad si se especifica)
+    let findQuery = supabase
       .from('campus_settings')
       .select('id')
       .eq('setting_key', 'map_image_url')
-      .single()
+    if (universityId) findQuery = findQuery.eq('university_id', universityId)
+    const { data: existingData, error: fetchError } = await findQuery.single()
 
     if (fetchError && fetchError.code !== 'PGRST116') {
       // PGRST116 es el código para "no encontrado", cualquier otro error es problema
@@ -48,26 +53,28 @@ export const updateMapImageUrl = async (imageUrl: string): Promise<CampusSetting
     }
 
     if (existingData) {
-      // Actualizar existente
+      // Actualizar existente por id (preciso)
       const { data, error } = await supabase
         .from('campus_settings')
         .update({
           setting_value: imageUrl,
           updated_at: new Date().toISOString()
         })
-        .eq('setting_key', 'map_image_url')
+        .eq('id', existingData.id)
         .select()
         .single()
       return unwrapData(data, error)
     } else {
-      // Crear nuevo registro si no existe
+      // Crear nuevo registro si no existe.
+      // Si no se pasa universityId, el trigger BEFORE INSERT usa la universidad del admin.
       const { data, error } = await supabase
         .from('campus_settings')
         .insert({
           setting_key: 'map_image_url',
           setting_value: imageUrl,
-          description: 'URL de la imagen del mapa del campus universitario'
-        })
+          description: 'URL de la imagen del mapa del campus universitario',
+          ...(universityId ? { university_id: universityId } : {})
+        } as CampusSettingInsert)
         .select()
         .single()
       return unwrapData(data, error)
@@ -162,11 +169,12 @@ export const updateCampusSetting = async (
       // Crear
       const { data, error } = await supabase
         .from('campus_settings')
+        // university_id lo completa el trigger BEFORE INSERT (universidad del admin)
         .insert({
           setting_key: key,
           setting_value: value,
           description: description || ''
-        })
+        } as CampusSettingInsert)
         .select()
         .single()
       return unwrapData(data, error)
