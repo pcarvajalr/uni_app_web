@@ -172,7 +172,7 @@ export function CouponsTab({ universityId }: { universityId: string }) {
     onSuccess: () => {
       invalidateCoupons()
       toast({ title: 'Cupón creado', description: 'El cupón se guardó correctamente.' })
-      handleDialogOpenChange(false)
+      closeDialog()
     },
   })
 
@@ -182,7 +182,7 @@ export function CouponsTab({ universityId }: { universityId: string }) {
     onSuccess: () => {
       invalidateCoupons()
       toast({ title: 'Cupón actualizado', description: 'Los cambios se guardaron correctamente.' })
-      handleDialogOpenChange(false)
+      closeDialog()
     },
   })
 
@@ -246,6 +246,13 @@ export function CouponsTab({ universityId }: { universityId: string }) {
       setEditingCoupon(null)
       setForm(emptyForm)
     }
+  }
+
+  // Cierre programático tras guardar: no depende del estado isSaving.
+  const closeDialog = () => {
+    setIsDialogOpen(false)
+    setEditingCoupon(null)
+    setForm(emptyForm)
   }
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

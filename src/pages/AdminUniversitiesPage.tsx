@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Building2, Plus, Pencil, Trash2, Globe, AlertTriangle, Loader2 } from "lucide-react"
+import { Building2, Plus, Pencil, Trash2, Globe, AlertTriangle, Loader2, ArrowLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
   getUniversities,
@@ -75,6 +76,7 @@ const totalCounts = (counts: UniversityDataCounts): number =>
   counts.locations_count
 
 export default function AdminUniversitiesPage() {
+  const navigate = useNavigate()
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
@@ -219,6 +221,12 @@ export default function AdminUniversitiesPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* Botón volver */}
+        <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate('/settings')}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Volver
+        </Button>
+
         {/* Encabezado */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -389,7 +397,8 @@ export default function AdminUniversitiesPage() {
                 <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
                   <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
                   <span>
-                    Al crear la universidad se agregan automáticamente las materias por defecto.
+                    Al crear la universidad se agregan automáticamente sus materias, tomando como
+                    plantilla las materias que tiene creadas la <strong>Universidad de Los Andes</strong>.
                   </span>
                 </div>
               )}

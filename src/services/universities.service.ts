@@ -134,7 +134,15 @@ export const addUniversityDomain = async (
     .insert({ university_id: universityId, domain: normalized })
     .select()
     .single();
-  if (error) throw error; // unique violation => dominio ya usado por otra universidad
+  if (error) {
+    // 23505 = unique violation: el dominio ya está registrado (en esta u otra universidad)
+    if (error.code === '23505') {
+      throw new Error(
+        `El dominio "${normalized}" ya está registrado en una universidad. Cada dominio solo puede pertenecer a una universidad.`
+      );
+    }
+    throw error;
+  }
   return data;
 };
 

@@ -3,8 +3,9 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Ticket, Download, Copy, Heart } from 'lucide-react'
+import { Ticket, Download, Copy, Heart, Info } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth"
 import {
   getActiveCouponsWithPartner,
   type CouponWithPartner,
@@ -34,6 +35,8 @@ const formatCategory = (applicableTo: string | null): string => {
 
 export default function CouponsPage() {
   const { toast } = useToast()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [coupons, setCoupons] = useState<CouponWithPartner[]>([])
   const [favorites, setFavorites] = useState<string[]>(() => {
     const stored = localStorage.getItem("uniapp_coupon_favorites")
@@ -129,7 +132,14 @@ export default function CouponsPage() {
 
         {selectedPartnerId === null ? (
           partners.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <>
+              {isAdmin && (
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  Los administradores ven todos los aliados.
+                </p>
+              )}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {partners.map((p) => (
                 <Card
                   key={p.id}
@@ -152,7 +162,8 @@ export default function CouponsPage() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+              </div>
+            </>
           ) : (
             <Card className="border-dashed border-2 border-muted-foreground/30">
               <CardContent className="py-12 text-center">

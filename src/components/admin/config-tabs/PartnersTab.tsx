@@ -136,6 +136,13 @@ export function PartnersTab({ universityId }: { universityId: string }) {
     }
   }
 
+  // Cierre programático tras guardar: no depende del estado isSaving.
+  const closeDialog = () => {
+    setIsDialogOpen(false)
+    setEditingPartner(null)
+    setForm(emptyForm)
+  }
+
   const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -151,7 +158,7 @@ export function PartnersTab({ universityId }: { universityId: string }) {
     onSuccess: () => {
       invalidatePartners()
       toast({ title: 'Aliado creado', description: 'El aliado se guardó correctamente.' })
-      handleDialogOpenChange(false)
+      closeDialog()
     },
   })
 
@@ -161,7 +168,7 @@ export function PartnersTab({ universityId }: { universityId: string }) {
     onSuccess: () => {
       invalidatePartners()
       toast({ title: 'Aliado actualizado', description: 'Los cambios se guardaron correctamente.' })
-      handleDialogOpenChange(false)
+      closeDialog()
     },
   })
 
