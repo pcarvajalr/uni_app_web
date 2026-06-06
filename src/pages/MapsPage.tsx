@@ -36,6 +36,7 @@ import { useState, useRef, useEffect, useMemo } from "react"
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"
 import { getCampusLocations } from "@/services/campus-locations.service"
 import { getMapImageUrl } from "@/services/campus-settings.service"
+import { handleMapImageError } from "@/lib/map-placeholder"
 import { getLocationCategories } from "@/services/location-categories.service"
 import {
   toggleLocationFavorite,
@@ -270,6 +271,7 @@ export default function MapsPage() {
                   className="h-full w-auto object-contain block"
                   draggable={false}
                   style={{ maxWidth: '100%', maxHeight: '100%' }}
+                  onError={handleMapImageError}
                 />
 
                 {orderedLocations.map((location) => {
@@ -551,6 +553,7 @@ export default function MapsPage() {
                                         className="h-full w-auto object-contain block"
                                         draggable={false}
                                         style={{ maxHeight: '100%', maxWidth: '100%'}}
+                                        onError={handleMapImageError}
                                       />
 
                                       {orderedLocations.map((location) => {

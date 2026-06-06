@@ -161,7 +161,7 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
             onClick={() => navigate('/contact')}
             className="text-sm text-muted-foreground"
           >
-            ¿Tu universidad no está registrada? Contáctanos
+            ¿Tu universidad no está registrada, o quieres ser nuestro aliado? Contáctanos
           </Button>
         </div>
       </CardContent>

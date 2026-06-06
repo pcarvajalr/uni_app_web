@@ -65,6 +65,7 @@ import {
 import type { Database } from '@/types/database.types'
 import { IconSelector } from '@/components/icon-selector'
 import type { LocationIconName } from '@/lib/icon-mapper'
+import { handleMapImageError } from '@/lib/map-placeholder'
 
 type Category = Database['public']['Tables']['categories']['Row']
 type CampusLocation = Database['public']['Tables']['campus_locations']['Row']
@@ -758,6 +759,7 @@ export function MapsLocationsTab({ universityId }: { universityId: string }) {
                     src={mapImageUrl}
                     alt="Mapa del campus actual"
                     className="w-full h-full object-contain"
+                    onError={handleMapImageError}
                   />
                 </div>
               </div>
@@ -913,6 +915,7 @@ export function MapsLocationsTab({ universityId }: { universityId: string }) {
                         alt="Mapa del Campus Universitario"
                         className="max-w-full max-h-full object-contain block"
                         style={{ maxHeight: '500px' }}
+                        onError={handleMapImageError}
                       />
 
                       {selectedCoordinates && (
