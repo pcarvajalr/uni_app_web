@@ -35,6 +35,7 @@ const MapsPage = lazy(() => import('@/pages/MapsPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const AdminUniversitiesPage = lazy(() => import('@/pages/AdminUniversitiesPage'));
 const AdminConfigPage = lazy(() => import('@/pages/AdminConfigPage'));
+const ChatsPage = lazy(() => import('@/pages/ChatsPage'));
 
 // Create a client
 const queryClient = new QueryClient({
@@ -80,6 +81,7 @@ function App() {
                 <Route path="/maps" element={<ProtectedRoute><MapsPage /></ProtectedRoute>} />
                 <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
                 <Route path="/coupons" element={<ProtectedRoute><CouponsPage /></ProtectedRoute>} />
+                <Route path="/chats" element={<ProtectedRoute><ChatsPage /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                 <Route path="/admin/universities" element={<AdminRoute><AdminUniversitiesPage /></AdminRoute>} />

@@ -186,6 +186,7 @@ export default function MarketplacePage() {
             <div className="grid grid-cols-2 gap-3">
               {/* Category Filter */}
               <div className="space-y-2">
+                <label className="text-xs font-medium block">Categoría</label>
                 <Select
                   value={selectedCategory || "all"}
                   onValueChange={(value) => setSelectedCategory(value === "all" ? null : value)}
@@ -207,6 +208,7 @@ export default function MarketplacePage() {
 
               {/* Condition Filter */}
               <div className="space-y-2">
+                <label className="text-xs font-medium block">Condición</label>
                 <Select
                   value={selectedCondition || "all"}
                   onValueChange={(value) => setSelectedCondition(value === "all" ? null : value)}
