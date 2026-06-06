@@ -31,6 +31,7 @@ import ProfilePage from '@/pages/ProfilePage';
 
 // Lazy-loaded pages for bundle size optimization
 const HelpPage = lazy(() => import('@/pages/HelpPage'));
+const FeedbackPage = lazy(() => import('@/pages/FeedbackPage'));
 const MapsPage = lazy(() => import('@/pages/MapsPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const AdminUniversitiesPage = lazy(() => import('@/pages/AdminUniversitiesPage'));
@@ -87,6 +88,7 @@ function App() {
                 <Route path="/admin/universities" element={<AdminRoute><AdminUniversitiesPage /></AdminRoute>} />
                 <Route path="/admin/config" element={<AdminRoute><AdminConfigPage /></AdminRoute>} />
                 <Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
+                <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
 
                 {/* Redirección por defecto */}
                 <Route path="*" element={<Navigate to="/" replace />} />
