@@ -159,7 +159,7 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
           <Button
             variant="link"
             onClick={() => navigate('/contact')}
-            className="text-sm text-muted-foreground"
+            className="h-auto whitespace-normal text-balance px-4 text-center text-xs text-muted-foreground"
           >
             ¿Tu universidad no está registrada, o quieres ser nuestro aliado? Contáctanos
           </Button>
