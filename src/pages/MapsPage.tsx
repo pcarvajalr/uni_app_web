@@ -51,7 +51,7 @@ type CampusLocation = Database['public']['Tables']['campus_locations']['Row']
 type Category = Database['public']['Tables']['categories']['Row']
 
 export default function MapsPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { toast } = useToast()
 
   const [searchQuery, setSearchQuery] = useState("")
@@ -88,10 +88,11 @@ export default function MapsPage() {
     const loadData = async () => {
       setIsLoadingLocations(true)
       try {
+        const universityId = profile?.university_id ?? undefined
         const [locations, imageUrl, types] = await Promise.all([
-          getCampusLocations(),
-          getMapImageUrl(),
-          getLocationCategories()
+          getCampusLocations(universityId),
+          getMapImageUrl(universityId),
+          getLocationCategories(universityId)
         ])
 
         setCampusLocations(locations)
@@ -110,7 +111,7 @@ export default function MapsPage() {
       }
     }
     loadData()
-  }, [user])
+  }, [user, profile?.university_id])
 
   // Auto-scroll to selected location when clicking on map marker
   useEffect(() => {
