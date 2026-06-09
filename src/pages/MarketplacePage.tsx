@@ -175,7 +175,7 @@ export default function MarketplacePage() {
                   placeholder="Buscar productos..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full"
+                  className="w-full bg-white"
                 />
               </div>              
             </div>

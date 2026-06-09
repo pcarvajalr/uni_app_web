@@ -159,7 +159,7 @@ export default function TutoringPage() {
                   placeholder="Buscar tutores o materias..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full"
+                  className="w-full bg-white"
                 />
               </div>
               <Button variant="outline" size="icon">

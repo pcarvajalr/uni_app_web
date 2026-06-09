@@ -176,7 +176,7 @@ export function TutoringDetailsDialog({ session, open, onOpenChange }: TutoringD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Detalles de la Sesión</span>
@@ -192,7 +192,7 @@ export function TutoringDetailsDialog({ session, open, onOpenChange }: TutoringD
           <DialogDescription>Información detallada y opciones de reserva</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           {/* Tutor Header */}
           <div className="flex items-start space-x-4">
             <Avatar className="h-20 w-20">
@@ -202,10 +202,10 @@ export function TutoringDetailsDialog({ session, open, onOpenChange }: TutoringD
               </AvatarFallback>
             </Avatar>
 
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold mb-1">{session.title}</h2>
-              <div className="flex items-center space-x-2 mb-2">
-                <span className="text-muted-foreground">{session.tutor.full_name}</span>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl font-bold mb-1 break-words">{session.title}</h2>
+              <div className="flex items-center flex-wrap gap-x-2 mb-2">
+                <span className="text-muted-foreground break-words">{session.tutor.full_name}</span>
                 {session.rating !== null && (
                   <div className="flex items-center space-x-1">
                     <Star className="h-4 w-4 fill-current text-yellow-400" />
@@ -229,9 +229,9 @@ export function TutoringDetailsDialog({ session, open, onOpenChange }: TutoringD
                   {MODE_LABELS[session.mode as SessionMode]}
                 </span>
                 {session.location && (
-                  <span className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    {session.location}
+                  <span className="flex items-center min-w-0">
+                    <MapPin className="h-4 w-4 mr-1 shrink-0" />
+                    <span className="break-words min-w-0">{session.location}</span>
                   </span>
                 )}
                 <span className="flex items-center">
@@ -249,7 +249,7 @@ export function TutoringDetailsDialog({ session, open, onOpenChange }: TutoringD
           {/* Description */}
           <div className="space-y-2">
             <h3 className="font-semibold">Descripción</h3>
-            <p className="text-muted-foreground leading-relaxed">{session.description}</p>
+            <p className="text-muted-foreground leading-relaxed break-words whitespace-pre-wrap">{session.description}</p>
           </div>
 
           {/* Subject and Category */}
@@ -257,10 +257,13 @@ export function TutoringDetailsDialog({ session, open, onOpenChange }: TutoringD
             <h3 className="font-semibold">Materia</h3>
             <div className="flex flex-wrap gap-2">
               {session.category && (
-                <Badge variant="secondary">{session.category.name}</Badge>
+                <Badge variant="secondary" className="h-auto max-w-full whitespace-normal break-words text-left">
+                  {session.category.name}
+                </Badge>
               )}
-              <Badge variant="outline">{session.subject}</Badge>
-              
+              <Badge variant="outline" className="h-auto max-w-full whitespace-normal break-words text-left">
+                {session.subject}
+              </Badge>
             </div>
           </div>
 
@@ -271,7 +274,7 @@ export function TutoringDetailsDialog({ session, open, onOpenChange }: TutoringD
               {Object.entries(availableHours).map(([day, slots]) => {
                 if (!slots || slots.length === 0) return null
                 return (
-                  <div key={day} className="text-sm bg-muted p-2 rounded">
+                  <div key={day} className="text-sm bg-muted p-2 rounded min-w-0 break-words">
                     <span className="font-medium">{DAY_LABELS[day as DayOfWeek]}:</span>{" "}
                     {slots.map((s: string) => s.replace("-", " a ")).join(", ")}
                   </div>

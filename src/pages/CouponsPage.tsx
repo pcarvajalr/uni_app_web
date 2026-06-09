@@ -151,10 +151,10 @@ export default function CouponsPage() {
                       <img
                         src={p.logo_url}
                         alt={p.name}
-                        className="h-16 w-16 object-contain rounded"
+                        className="h-16 w-16 object-cover rounded-full border bg-white"
                       />
                     ) : (
-                      <div className="h-16 w-16 flex items-center justify-center rounded bg-muted">
+                      <div className="h-16 w-16 flex items-center justify-center rounded-full bg-muted">
                         <Ticket className="h-7 w-7 text-muted-foreground" />
                       </div>
                     )}

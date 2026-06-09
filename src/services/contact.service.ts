@@ -45,6 +45,39 @@ export const composeFeedbackBody = (values: {
   return lines.join('\n');
 };
 
+// --- Aviso de universidad no registrada (registro) ---
+
+// Extrae el dominio del correo en minúsculas (parte después de la @).
+const extractDomain = (email: string): string => {
+  const trimmed = email.trim().toLowerCase()
+  return trimmed.includes('@') ? trimmed.split('@')[1] ?? '' : ''
+}
+
+// Compone el cuerpo que verá el admin en el visor de contacto cuando alguien
+// intenta registrarse con un dominio que no pertenece a ninguna universidad.
+// Se exporta para poder verificar el formato de forma aislada.
+export const composeUnregisteredDomainBody = (email: string): string => {
+  const domain = extractDomain(email)
+  return [
+    '[Registro] Universidad no registrada',
+    `Dominio: ${domain || '(desconocido)'}`,
+    `Correo: ${email.trim()}`,
+    '',
+    'Un usuario intentó registrarse con un dominio de correo que aún no pertenece a ninguna universidad registrada. Evalúa sumar esta universidad.',
+  ].join('\n')
+}
+
+// Notifica a los admins (vía el sistema de contacto) que alguien intentó registrarse
+// con un dominio inexistente. El trigger trg_notify_admins_contact se encarga del aviso
+// in-app y del push. Pensada para usarse fire-and-forget: no debe bloquear el registro.
+export const notifyUnregisteredUniversityDomain = async (email: string): Promise<void> => {
+  await submitContactMessage({
+    email: email.trim(),
+    phone: '—',
+    message: composeUnregisteredDomainBody(email),
+  })
+}
+
 // Envía un mensaje de feedback reutilizando el proceso de contacto: compone el cuerpo
 // (incluyendo el nombre del usuario) y delega en submitContactMessage. El admin lo recibe
 // con la misma estructura y en el mismo visor.
