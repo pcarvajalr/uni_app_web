@@ -305,24 +305,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    const userId = user?.id;
+
     try {
       const { error } = await supabase.auth.signOut();
 
-      if (error) {
+      // Si el servidor responde que la sesión ya no existe (403 / AuthSessionMissingError),
+      // el objetivo del logout ya está cumplido: el usuario no queda autenticado. Esto ocurre
+      // sobre todo en dev local, donde el access token de localStorage suele estar
+      // caducado/desincronizado (HMR de Vite reinstancia el cliente). No es un fallo real,
+      // así que no lo propagamos y dejamos que el finally limpie el estado local.
+      if (error && error.name !== 'AuthSessionMissingError') {
         throw error;
       }
-
-      // Limpiar caché persistente al cerrar sesión
-      if (user?.id) {
-        clearProfileCache(user.id);
+    } catch (error: any) {
+      if (error?.name !== 'AuthSessionMissingError') {
+        console.error('Error en logout:', error);
+      }
+    } finally {
+      // SIEMPRE limpiar el estado local, aunque el signOut remoto haya fallado: si la sesión
+      // del servidor ya no es válida, el usuario debe quedar deslogueado localmente igual.
+      if (userId) {
+        clearProfileCache(userId);
       }
 
       setUser(null);
       setProfile(null);
       setSession(null);
-    } catch (error: any) {
-      console.error('Error en logout:', error);
-      throw new Error(error.message || 'Error al cerrar sesión');
     }
   };
 

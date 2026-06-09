@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import {
+  MessageSquare,
   MapPin,
   Shield,
   ShoppingBag,
@@ -16,12 +18,12 @@ import {
   Bell,
   Lock,
   Smartphone,
-  FileText,
 } from "lucide-react"
 import { getMapImageUrl } from "@/services/campus-settings.service"
 // Image removed
 
 export default function HelpPage() {
+  const navigate = useNavigate()
   const [mapImageUrl, setMapImageUrl] = useState("/university-campus-map-layout-with-buildings-and-pa.jpg")
 
   const loadMapImageUrl = async () => {
@@ -37,10 +39,11 @@ export default function HelpPage() {
     loadMapImageUrl()
   }, [])
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const downloadWord = () => {
     // Dynamic import to avoid SSR issues
     import("docx")
-      .then(({ Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, ImageRun }) => {
+      .then(({ Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType }) => {
         const doc = new Document({
           sections: [
             {
@@ -842,6 +845,26 @@ export default function HelpPage() {
             </Button>
           </div> */}
         </div>
+
+        {/* CTA: enviar feedback */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="flex flex-col items-center text-center gap-3 py-6">
+            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+              <MessageSquare className="h-6 w-6 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold">Enviar comentarios o sugerencias</h3>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Comparte tu opinión, una felicitación, una recomendación sobre una
+                funcionalidad, o reporta/felicita a un tutor o aliado.
+              </p>
+            </div>
+            <Button onClick={() => navigate("/feedback")} className="gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Enviar comentarios
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Quick Tips */}
         <Card>
