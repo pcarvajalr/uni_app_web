@@ -108,6 +108,27 @@ export default function DashboardPage() {
 
   const quickActions = [
     {
+      title: "Promociones",
+      description: "Descubre cupones y ofertas de aliados",
+      icon: Ticket,
+      href: "/coupons",
+      color: "text-orange-600",
+    },
+    {
+      title: "Tutorías",
+      description: "Ofrece o busca tutorías académicas",
+      icon: GraduationCap,
+      href: "/tutoring",
+      color: "text-purple-600",
+    },
+    {
+      title: "Marketplace",
+      description: "Compra y vende productos con otros estudiantes",
+      icon: ShoppingBag,
+      href: "/marketplace",
+      color: "text-green-600",
+    },
+    {
       title: "Buscar Ubicación",
       description: "Encuentra lugares dentro y fuera del campus",
       icon: MapPin,
@@ -120,27 +141,6 @@ export default function DashboardPage() {
       icon: MessageCircle,
       href: "/chats",
       color: "text-red-600",
-    },
-    {
-      title: "Marketplace",
-      description: "Compra y vende productos con otros estudiantes",
-      icon: ShoppingBag,
-      href: "/marketplace",
-      color: "text-green-600",
-    },
-    {
-      title: "Tutorías",
-      description: "Ofrece o busca tutorías académicas",
-      icon: GraduationCap,
-      href: "/tutoring",
-      color: "text-purple-600",
-    },
-    {
-      title: "Promociones",
-      description: "Descubre cupones y ofertas de aliados",
-      icon: Ticket,
-      href: "/coupons",
-      color: "text-orange-600",
     },
   ]
 

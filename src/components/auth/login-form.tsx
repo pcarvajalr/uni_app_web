@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth"
-import { Loader2, AlertTriangle } from "lucide-react"
+import { Loader2, AlertTriangle, Mail } from "lucide-react"
 import { checkLoginLock, recordFailedLogin, resetLoginAttempts } from "@/lib/rate-limiter"
 
 interface LoginFormProps {
@@ -96,11 +96,11 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Correo Electrónico</Label>
+            <Label htmlFor="email">Correo Estudiantil</Label>
             <Input
               id="email"
               type="email"
-              placeholder="tu@universidad.edu"
+              placeholder="Ingresa el correo de tu universidad"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isSubmitting}
@@ -156,13 +156,17 @@ export function LoginForm({ onToggleMode, onForgotPassword }: LoginFormProps) {
           </Button>
         </div>
         <div className="mt-2 text-center">
-          <Button
-            variant="link"
-            onClick={() => navigate('/contact')}
-            className="h-auto whitespace-normal text-balance px-4 text-center text-xs text-muted-foreground"
-          >
-            ¿Tu universidad no está registrada, o quieres ser nuestro aliado? Contáctanos
-          </Button>
+          <p className="text-balance px-4 text-xs text-muted-foreground">
+            ¿Tu universidad no está registrada, o quieres ser nuestro aliado?{" "}
+            <button
+              type="button"
+              onClick={() => navigate('/contact')}
+              className="inline-flex items-center gap-1 align-middle font-semibold text-primary underline underline-offset-4 hover:text-primary/80"
+            >
+              Contáctanos
+              <Mail className="h-3 w-3" />
+            </button>
+          </p>
         </div>
       </CardContent>
     </Card>

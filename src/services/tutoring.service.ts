@@ -10,8 +10,9 @@ import type {
   BookingReview,
   DayOfWeek,
 } from '../types/tutoring.types';
-import { parseAvailableHours, stringifyAvailableHours } from '../lib/availability-utils';
+import { parseAvailableHours, stringifyAvailableHours, formatTimeForDisplay } from '../lib/availability-utils';
 import { canTransition, getTimestampFieldForStatus } from '../lib/booking-states';
+import { sendTutoringMessage } from './tutoring-messages.service';
 
 type TutoringSessionInsert = Database['public']['Tables']['tutoring_sessions']['Insert'];
 type TutoringSessionUpdate = Database['public']['Tables']['tutoring_sessions']['Update'];
@@ -422,6 +423,54 @@ export const checkBookingConflict = async (
 };
 
 // Create booking with conflict validation
+// Formatea una fecha "yyyy-MM-dd" a texto legible en español sin desfase de zona horaria.
+const formatBookingDate = (dateStr: string): string => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d) return dateStr;
+  return new Date(y, m - 1, d).toLocaleDateString('es-CO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+const formatBookingPrice = (price: number): string =>
+  new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+  }).format(price);
+
+// Compone el cuerpo del mensaje que el estudiante "envía" al tutor al agendar,
+// con la info de la agenda. Se exporta para poder verificar el formato de forma aislada.
+export const composeBookingMessage = (params: {
+  sessionTitle: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  durationMinutes: number;
+  totalPrice: number;
+  location?: string | null;
+  meetingUrl?: string | null;
+  notes?: string | null;
+}): string => {
+  const lines = [
+    '📅 Nueva reserva de tutoría',
+    '',
+    'Hola, acabo de agendar una sesión contigo. Estos son los datos:',
+    `• Tutoría: ${params.sessionTitle}`,
+    `• Fecha: ${formatBookingDate(params.scheduledDate)}`,
+    `• Hora: ${formatTimeForDisplay(params.scheduledTime)}`,
+    `• Duración: ${params.durationMinutes} minutos`,
+  ];
+  if (params.location && params.location.trim()) lines.push(`• Lugar: ${params.location.trim()}`);
+  if (params.meetingUrl && params.meetingUrl.trim()) lines.push(`• Enlace: ${params.meetingUrl.trim()}`);
+  lines.push(`• Total: ${formatBookingPrice(params.totalPrice)}`);
+  if (params.notes && params.notes.trim()) lines.push(`• Notas: ${params.notes.trim()}`);
+  lines.push('', 'Quedo atento/a para confirmar. ¡Gracias!');
+  return lines.join('\n');
+};
+
 export const createBookingWithValidation = async (
   sessionId: string,
   studentId: string,
@@ -467,7 +516,32 @@ export const createBookingWithValidation = async (
       .select()
       .single();
 
-    return unwrapData(data, error);
+    const booking = unwrapData(data, error);
+
+    // Notificar al tutor "simulando" un mensaje directo del estudiante con la info de la
+    // agenda. El trigger trg_notify_new_message se encarga del aviso in-app y del push.
+    // Fire-and-forget: la reserva ya se creó; si el mensaje falla no debe romper el flujo.
+    try {
+      await sendTutoringMessage({
+        tutoring_session_id: sessionId,
+        sender_id: studentId,
+        recipient_id: session.tutor_id,
+        content: composeBookingMessage({
+          sessionTitle: session.title,
+          scheduledDate,
+          scheduledTime,
+          durationMinutes,
+          totalPrice,
+          location: session.location,
+          meetingUrl: session.meeting_url,
+          notes,
+        }),
+      });
+    } catch (messageError) {
+      console.error('Reserva creada, pero no se pudo enviar el mensaje al tutor:', messageError);
+    }
+
+    return booking;
   } catch (error) {
     console.error('Error creating booking:', error);
     throw error;

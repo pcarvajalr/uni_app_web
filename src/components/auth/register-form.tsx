@@ -1,7 +1,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +14,7 @@ import { PasswordStrengthIndicator } from "./password-strength-indicator"
 import { strongPasswordSchema } from "@/lib/password-validation"
 import { z } from "zod"
 import { lookupUniversityByEmail } from "@/services/universities.service"
+import { notifyUnregisteredUniversityDomain } from "@/services/contact.service"
 
 // Schema de validación para el formulario de registro
 const registerFormSchema = z.object({
@@ -74,7 +75,11 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  // Aviso informativo (no es un error): p.ej. universidad aún no registrada
+  const [notice, setNotice] = useState("")
   const { register, isLoading } = useAuth()
+  // Dominios ya avisados a los admins en esta sesión del formulario (evita avisos repetidos)
+  const notifiedDomainsRef = useRef<Set<string>>(new Set())
 
   const saveToSession = useCallback(() => {
     sessionStorage.setItem(REGISTER_FORM_KEY, JSON.stringify({
@@ -110,6 +115,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     e.preventDefault()
     setError("")
     setSuccess("")
+    setNotice("")
     setFieldErrors({})
 
     // Validar con Zod
@@ -131,7 +137,19 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
       // Validar que el dominio del correo pertenezca a una universidad registrada
       const university = await lookupUniversityByEmail(formData.email)
       if (!university) {
-        setError("Su universidad no está registrada, ponte en contacto con nosotros!")
+        setNotice("¡Todavía no hemos llegado a tu universidad, pronto estaremos allá contigo!")
+
+        // Avisar a los admins (vía sistema de contacto) que se intentó registrar un dominio
+        // inexistente, para que evalúen sumar esa universidad. Fire-and-forget: no bloquea el
+        // registro y se hace una sola vez por dominio dentro de esta sesión del formulario.
+        const domainKey = formData.email.trim().toLowerCase().split("@")[1] || formData.email.trim().toLowerCase()
+        if (domainKey && !notifiedDomainsRef.current.has(domainKey)) {
+          notifiedDomainsRef.current.add(domainKey)
+          notifyUnregisteredUniversityDomain(formData.email).catch((notifyError) => {
+            console.error("No se pudo avisar el dominio no registrado:", notifyError)
+            notifiedDomainsRef.current.delete(domainKey) // permitir reintento si el aviso falló
+          })
+        }
         return
       }
 
@@ -183,11 +201,11 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             {fieldErrors.name && <p className="text-sm text-destructive">{fieldErrors.name}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Correo Electrónico</Label>
+            <Label htmlFor="email">Correo Estudiantil</Label>
             <Input
               id="email"
               type="email"
-              placeholder="tu@universidad.edu"
+              placeholder="Ingresa el correo de tu universidad"
               value={formData.email}
               onChange={(e) => handleChange("email", e.target.value)}
               disabled={isLoading}
@@ -312,6 +330,11 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
+          {notice && (
+            <p className="text-sm text-blue-700 bg-blue-50 border border-blue-200 p-3 rounded-md text-center">
+              {notice}
+            </p>
+          )}
           {success && <p className="text-sm text-green-600 bg-green-50 p-3 rounded-md">{success}</p>}
           <Button
             type="submit"
